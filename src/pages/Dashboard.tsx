@@ -17,7 +17,7 @@ export const Dashboard: React.FC = () => {
   const { user, token } = useAuth();
 
   if (user && user.role === 'staff' && !user.is_acting_manager) {
-    return <Navigate to="/admin/job-requests" replace />;
+    return <Navigate to="/portal/job-requests" replace />;
   }
   const [stats, setStats] = useState<Stats>({
     totalRequests: 0,
@@ -87,7 +87,7 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
         <Link
-          to="/admin/job-requests"
+          to="/portal/job-requests"
           className="btn bg-white text-blue-600 hover:bg-blue-50 border-none font-bold px-6 rounded-2xl shadow-lg shadow-black/10 gap-2 shrink-0"
         >
           View All Requests <ArrowUpRight className="w-4 h-4" />
@@ -157,7 +157,7 @@ export const Dashboard: React.FC = () => {
                       <option value="completed">Completed</option>
                     </select>
 
-                    <Link to={`/admin/job-requests/${t.job_request_id}`} className="btn btn-ghost btn-xs text-blue-600 font-bold hover:bg-blue-50">
+                    <Link to={`/portal/job-requests/${t.job_request_id}`} className="btn btn-ghost btn-xs text-blue-600 font-bold hover:bg-blue-50">
                       View Project
                     </Link>
                   </div>
@@ -215,7 +215,7 @@ export const Dashboard: React.FC = () => {
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-slate-900">Recent Job Requests</h2>
-          <Link to="/admin/job-requests" className="text-xs text-blue-600 font-bold hover:underline">
+          <Link to="/portal/job-requests" className="text-xs text-blue-600 font-bold hover:underline">
             View All →
           </Link>
         </div>
@@ -269,7 +269,7 @@ export const Dashboard: React.FC = () => {
                     </td>
                     <td className="text-xs text-slate-500 font-medium">{req.created_at}</td>
                     <td className="text-center">
-                      <Link to={`/admin/job-requests/${req.id}`} className="btn btn-ghost btn-xs text-blue-600 font-bold hover:bg-blue-50">
+                      <Link to={`/portal/job-requests/${req.id}`} className="btn btn-ghost btn-xs text-blue-600 font-bold hover:bg-blue-50">
                         Details
                       </Link>
                     </td>

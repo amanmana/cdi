@@ -227,7 +227,7 @@ export const JobRequestsList: React.FC = () => {
                       <td className="py-4 px-4 align-top text-right">
                         <div className="flex items-center justify-end gap-3">
                           <Link
-                            to={`/admin/job-requests/${req.id}`}
+                            to={`/portal/job-requests/${req.id}`}
                             className="text-indigo-600 hover:text-indigo-800 font-black text-xs uppercase tracking-wider hover:underline"
                           >
                             VIEW DETAILS

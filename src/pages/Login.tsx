@@ -32,7 +32,7 @@ export const Login: React.FC = () => {
       const data = await res.json();
       if (data.success && data.token && data.user) {
         login(data.token, data.user);
-        const dest = data.user.role === 'staff' && !data.user.is_acting_manager ? '/admin/job-requests' : '/admin/dashboard';
+        const dest = data.user.role === 'staff' && !data.user.is_acting_manager ? '/portal/job-requests' : '/portal/dashboard';
         navigate(dest);
         return;
       } else if (data.error) {
@@ -73,7 +73,7 @@ export const Login: React.FC = () => {
 
     const fallbackToken = 'demo_jwt_token_' + Date.now();
     login(fallbackToken, fallbackUser);
-    const dest = fallbackUser.role === 'staff' ? '/admin/job-requests' : '/admin/dashboard';
+    const dest = fallbackUser.role === 'staff' ? '/portal/job-requests' : '/portal/dashboard';
     navigate(dest);
     setLoading(false);
   };

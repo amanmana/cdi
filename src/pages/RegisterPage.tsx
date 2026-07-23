@@ -34,7 +34,7 @@ export const RegisterPage: React.FC = () => {
         setError(data.error || 'Registration failed.');
       } else if (data.token && data.user) {
         login(data.token, data.user);
-        navigate('/admin/dashboard');
+        navigate('/portal/dashboard');
       }
     } catch (err) {
       setError('Something went wrong. Please try again.');

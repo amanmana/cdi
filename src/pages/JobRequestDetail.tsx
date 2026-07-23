@@ -109,7 +109,7 @@ export const JobRequestDetail: React.FC = () => {
     return (
       <div className="p-12 text-center bg-white rounded-3xl border border-slate-100 shadow-xl max-w-md mx-auto my-12">
         <h2 className="text-xl font-extrabold text-slate-800">Job request not found.</h2>
-        <Link to="/admin/job-requests" className="btn btn-primary bg-indigo-600 border-indigo-600 text-white rounded-xl btn-sm mt-4 font-bold">
+        <Link to="/portal/job-requests" className="btn btn-primary bg-indigo-600 border-indigo-600 text-white rounded-xl btn-sm mt-4 font-bold">
           Back to List
         </Link>
       </div>
@@ -476,7 +476,7 @@ export const JobRequestDetail: React.FC = () => {
             REQUEST DETAILS
           </span>
           <Link
-            to="/admin/job-requests"
+            to="/portal/job-requests"
             className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mt-1"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Job Requests List

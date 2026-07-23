@@ -7,14 +7,14 @@ export const Sidebar: React.FC = () => {
   const { user } = useAuth();
 
   const links = [
-    { to: '/admin/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'manager', 'client'] },
-    { to: '/admin/job-requests', label: user?.role === 'client' ? 'My Requests' : 'Job Requests', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'client'] },
-    { to: '/admin/gantt', label: 'Gantt Chart', icon: <Calendar className="w-5 h-5" />, roles: ['admin', 'manager', 'staff'] },
-    { to: '/admin/team', label: 'Team Members', icon: <Users className="w-5 h-5" />, roles: ['admin', 'manager'] },
-    { to: '/admin/units', label: 'Units & Forms', icon: <FolderGit2 className="w-5 h-5" />, roles: ['admin', 'manager'] },
-    { to: '/admin/users', label: 'User Management', icon: <Shield className="w-5 h-5" />, roles: ['admin'] },
-    { to: '/admin/settings', label: 'System Settings', icon: <Settings className="w-5 h-5" />, roles: ['admin'] },
-    { to: '/admin/backup', label: 'Backup & Restore', icon: <HardDrive className="w-5 h-5" />, roles: ['admin'] },
+    { to: '/portal/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'manager', 'client'] },
+    { to: '/portal/job-requests', label: user?.role === 'client' ? 'My Requests' : 'Job Requests', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'client'] },
+    { to: '/portal/gantt', label: 'Gantt Chart', icon: <Calendar className="w-5 h-5" />, roles: ['admin', 'manager', 'staff'] },
+    { to: '/portal/team', label: 'Team Members', icon: <Users className="w-5 h-5" />, roles: ['admin', 'manager'] },
+    { to: '/portal/units', label: 'Units & Forms', icon: <FolderGit2 className="w-5 h-5" />, roles: ['admin', 'manager'] },
+    { to: '/portal/users', label: 'User Management', icon: <Shield className="w-5 h-5" />, roles: ['admin'] },
+    { to: '/portal/settings', label: 'System Settings', icon: <Settings className="w-5 h-5" />, roles: ['admin'] },
+    { to: '/portal/backup', label: 'Backup & Restore', icon: <HardDrive className="w-5 h-5" />, roles: ['admin'] },
   ];
 
   const allowedLinks = links.filter((link) => user && link.roles.includes(user.role));

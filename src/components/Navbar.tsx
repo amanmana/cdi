@@ -91,11 +91,11 @@ export const Navbar: React.FC = () => {
 
                 <li>
                   {user.role === 'staff' && !user.is_acting_manager ? (
-                    <Link to="/admin/job-requests" className="py-2.5 font-medium text-slate-700">
+                    <Link to="/portal/job-requests" className="py-2.5 font-medium text-slate-700">
                       <LayoutDashboard className="w-4 h-4 text-blue-600" /> Job Requests
                     </Link>
                   ) : (
-                    <Link to="/admin/dashboard" className="py-2.5 font-medium text-slate-700">
+                    <Link to="/portal/dashboard" className="py-2.5 font-medium text-slate-700">
                       <LayoutDashboard className="w-4 h-4 text-blue-600" /> Dashboard
                     </Link>
                   )}

@@ -21,9 +21,9 @@ import { BackupPage } from './pages/BackupPage';
 const AdminIndexRedirect: React.FC = () => {
   const { user } = useAuth();
   if (user?.role === 'staff' && !user?.is_acting_manager) {
-    return <Navigate to="/admin/job-requests" replace />;
+    return <Navigate to="/portal/job-requests" replace />;
   }
-  return <Navigate to="/admin/dashboard" replace />;
+  return <Navigate to="/portal/dashboard" replace />;
 };
 
 const ProtectedLayout: React.FC = () => {
@@ -69,7 +69,7 @@ export const App: React.FC = () => {
               <Route path="/login" element={<Login />} />
 
               {/* Protected Admin Routes */}
-              <Route path="/admin" element={<ProtectedLayout />}>
+              <Route path="/portal" element={<ProtectedLayout />}>
                 <Route index element={<AdminIndexRedirect />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="job-requests" element={<JobRequestsList />} />

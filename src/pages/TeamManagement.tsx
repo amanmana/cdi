@@ -260,7 +260,7 @@ export const TeamManagement: React.FC = () => {
 
                           {/* View Jobs Button */}
                           <button
-                            onClick={() => navigate(`/admin/job-requests?search=${member.name}`)}
+                            onClick={() => navigate(`/portal/job-requests?search=${member.name}`)}
                             className="btn btn-primary btn-sm rounded-xl font-bold text-xs normal-case h-9 px-4 bg-blue-600 hover:bg-blue-700 border-blue-600 text-white shadow-sm"
                           >
                             View Jobs
@@ -457,7 +457,7 @@ export const TeamManagement: React.FC = () => {
                 onClick={() => {
                   const staffName = selectedReportsStaff.name;
                   setSelectedReportsStaff(null);
-                  navigate(`/admin/job-requests?search=${staffName}`);
+                  navigate(`/portal/job-requests?search=${staffName}`);
                 }}
                 className="btn btn-primary w-full h-12 normal-case font-bold rounded-xl bg-blue-600 text-white"
               >
