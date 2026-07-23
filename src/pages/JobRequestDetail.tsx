@@ -938,8 +938,8 @@ export const JobRequestDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Workflow Actions Card (Hidden on Manager page and when Staff has completed their part) */}
-          {!(user?.role === 'manager' || user?.is_acting_manager) &&
+          {/* Workflow Actions Card (Hidden for Client and when Staff has completed their part) */}
+          {user?.role !== 'client' &&
             !(user?.role === 'staff' && (
               data?.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
               history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE') ||
