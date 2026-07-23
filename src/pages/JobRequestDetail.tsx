@@ -55,6 +55,9 @@ export const JobRequestDetail: React.FC = () => {
   // Manage Team Modal State
   const [showManageTeamModal, setShowManageTeamModal] = useState(false);
 
+  // View Notes Modal State for Completed Staff
+  const [showViewNotesModal, setShowViewNotesModal] = useState(false);
+
   // Sub-task builder state
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
@@ -902,6 +905,39 @@ export const JobRequestDetail: React.FC = () => {
             </div>
           </div>
 
+          {/* PART COMPLETED CARD WITH VIEW NOTE BUTTON (For completed Staff) */}
+          {user?.role === 'staff' && !user?.is_acting_manager && (
+            data?.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
+            history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE') ||
+            request.status === 'completed'
+          ) && (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 text-center">
+              <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
+                <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-extrabold text-emerald-800 tracking-wider uppercase">
+                  PART COMPLETED
+                </h3>
+                <p className="text-xs font-semibold text-emerald-600 leading-relaxed max-w-xs mx-auto">
+                  You have finalized your work for this project.
+                </p>
+              </div>
+
+              {/* View Note Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowViewNotesModal(true)}
+                  className="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md gap-2 flex items-center justify-center"
+                >
+                  <FileText className="w-4 h-4 text-emerald-400" /> View Note
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Workflow Actions Card (Hidden on Manager page and when Staff has completed their part) */}
           {!(user?.role === 'manager' || user?.is_acting_manager) &&
             !(user?.role === 'staff' && (
@@ -1436,6 +1472,75 @@ export const JobRequestDetail: React.FC = () => {
                 className="btn bg-blue-600 hover:bg-blue-700 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-12 shadow-lg shadow-blue-500/25"
               >
                 {actionLoading ? <span className="loading loading-spinner"></span> : 'Update Assignments'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* VIEW NOTES MODAL FOR COMPLETED STAFF */}
+      {showViewNotesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 md:p-8 space-y-6">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                    Project Notes & Reports
+                  </h3>
+                  <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                    All progress updates logged for this project.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowViewNotesModal(false)}
+                className="btn btn-ghost btn-sm btn-circle text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Notes List Container */}
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {reports && reports.length > 0 ? (
+                reports.map((r: any) => (
+                  <div key={r.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1.5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] font-bold text-slate-400">
+                        {r.created_at ? formatDateDisplay(r.created_at) : 'Recent'}
+                      </div>
+                      <div className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">
+                        — {r.staff_name || 'STAFF'}
+                      </div>
+                    </div>
+                    <div className="text-xs font-bold text-slate-800 leading-relaxed">
+                      {r.report_text}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 space-y-2">
+                  <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
+                  <p className="text-xs text-slate-400 italic font-semibold">
+                    No notes or reports submitted yet for this project.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Button */}
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowViewNotesModal(false)}
+                className="btn bg-slate-100 hover:bg-slate-200 border-none text-slate-700 font-extrabold text-xs rounded-2xl px-6 h-11 uppercase tracking-wider"
+              >
+                Close
               </button>
             </div>
           </div>
