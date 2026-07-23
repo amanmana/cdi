@@ -35,8 +35,8 @@ admin.get('/dashboard-stats', async (c) => {
 
   // Scoping for Staff vs Manager/Admin
   if (user.role === 'staff') {
-    whereClause = ' WHERE (INSTR(\',\' || assigned_staff_ids || \',\', \',\' || ? || \',\') > 0 OR unit = ?)';
-    params.push(user.id, user.unit);
+    whereClause = ' WHERE INSTR(\',\' || assigned_staff_ids || \',\', \',\' || ? || \',\') > 0 AND status != \'manager_approval\'';
+    params.push(user.id);
   } else if (user.role === 'client') {
     whereClause = ' WHERE (client_email = ? OR client_name = ?)';
     params.push(user.email, user.name);
