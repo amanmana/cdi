@@ -57,6 +57,10 @@ export const Login: React.FC = () => {
       demoRole = 'staff';
       demoName = 'Staff Member';
       demoUnit = 'Graphic';
+    } else if (email.includes('client')) {
+      demoRole = 'client';
+      demoName = 'Client User';
+      demoUnit = 'Business Unit';
     }
 
     const fallbackUser = {
@@ -167,7 +171,7 @@ export const Login: React.FC = () => {
             <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-3">
               DEMO ACCOUNTS (1-CLICK FILL)
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               <button
                 type="button"
                 onClick={() => handleDemoLogin('admin@example.com')}
@@ -191,6 +195,14 @@ export const Login: React.FC = () => {
               >
                 <span className="font-bold text-[10px] text-emerald-600">STAFF</span>
                 <span className="text-[9px] text-slate-400 font-normal">staff@...</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('client@example.com')}
+                className="btn btn-outline btn-xs h-auto py-1.5 border-slate-200 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 rounded-lg flex flex-col"
+              >
+                <span className="font-bold text-[10px] text-amber-600">CLIENT</span>
+                <span className="text-[9px] text-slate-400 font-normal">client@...</span>
               </button>
             </div>
           </div>

@@ -28,4 +28,5 @@ VALUES
 INSERT INTO users (name, email, password_hash, role, created_at) VALUES 
 ('System Admin', 'admin@example.com', '$2y$10$8khu/HMqCgbsV4KMKaGWy.T3m1LlR3bqQxLk4EjmdNxIh93d8rQe2', 'admin', NOW()),
 ('Workflow Manager', 'manager@example.com', '$2y$10$8khu/HMqCgbsV4KMKaGWy.T3m1LlR3bqQxLk4EjmdNxIh93d8rQe2', 'manager', NOW()),
-('Staff Member', 'staff@example.com', '$2y$10$8khu/HMqCgbsV4KMKaGWy.T3m1LlR3bqQxLk4EjmdNxIh93d8rQe2', 'staff', NOW());
+('Staff Member', 'staff@example.com', '$2y$10$8khu/HMqCgbsV4KMKaGWy.T3m1LlR3bqQxLk4EjmdNxIh93d8rQe2', 'staff', NOW()),
+('Client User', 'client@example.com', '$2y$10$8khu/HMqCgbsV4KMKaGWy.T3m1LlR3bqQxLk4EjmdNxIh93d8rQe2', 'client', NOW());

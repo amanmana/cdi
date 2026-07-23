@@ -4,7 +4,8 @@ INSERT OR IGNORE INTO users (id, name, email, password_hash, role, unit) VALUES
 (1, 'System Admin', 'admin@example.com', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', 'admin', 'IT Support'),
 (2, 'Workflow Manager', 'manager@example.com', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', 'manager', 'Events'),
 (3, 'Staff Member', 'staff@example.com', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', 'staff', 'Graphic'),
-(4, 'Lead Designer', 'designer@example.com', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', 'staff', 'Graphic');
+(4, 'Lead Designer', 'designer@example.com', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', 'staff', 'Graphic'),
+(5, 'Client User', 'client@example.com', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', 'client', 'Business Unit');
 
 -- Seed Units
 INSERT OR IGNORE INTO units (id, name, form_schema) VALUES
