@@ -1,0 +1,679 @@
+JOB_ALL: User: 21 isDelegate: YES
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:22:39
+JOB_ALL: User: 21 isDelegate: YES
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:22:41
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 21 isDelegate: YES
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:23:34
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 21 isDelegate: YES
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:23:35
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 21 isDelegate: YES
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:25:37
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 21 isDelegate: YES
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:26:18
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 21 isDelegate: YES
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:26:23
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 2 Result: NOT FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 2 isDelegate: NO
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+SHOW_AUTH: User: 21 Role: staff Unit: Graphic IsDelegate: YES DelegateUnit: Graphic IsDelegateOfUnit: YES Assigned: NO
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+SHOW_AUTH: User: 21 Role: staff Unit: Graphic IsDelegate: YES DelegateUnit: Graphic IsDelegateOfUnit: YES Assigned: NO
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 21 isDelegate: YES
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:27:44
+DELEG_FIND: ID: 18 Result: NOT FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 18 Result: NOT FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 18 isDelegate: NO
+DELEG_FIND: ID: 18 Result: NOT FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 18 Result: NOT FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 18 role: staff isDelegate: NO Time: 2026-01-22 14:28:04
+DELEG_FIND: ID: 18 Result: NOT FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 18 isDelegate: NO
+DELEG_FIND: ID: 18 Result: NOT FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 18 Result: NOT FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 18 role: staff isDelegate: NO Time: 2026-01-22 14:28:15
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 21 isDelegate: YES
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+JOB_ALL: User: 21 isDelegate: YES
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:28:39
+DISPATCH: Path: /admin/job-requests/45 User: 21 role: staff
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+SHOW_AUTH: User: 21 Role: staff Unit: Graphic IsDelegate: YES DelegateUnit: Graphic IsDelegateOfUnit: YES Assigned: NO
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+DELEG_FIND: ID: 21 Result: FOUND SQL: 
+            SELECT d.*, m.unit as manager_unit, m.role as manager_role
+            FROM delegations d
+            JOIN users m ON d.manager_id = m.id
+            WHERE d.delegate_id = ? 
+              AND d.status = 'active' 
+              AND d.start_date <= CURDATE() 
+              AND d.end_date >= CURDATE()
+            LIMIT 1
+        
+User: 21 role: staff isDelegate: YES Time: 2026-01-22 14:32:23

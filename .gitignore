@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build & Cache
+dist/
+.wrangler/
+.vite/
+
+# OS & Environment
+.DS_Store
+*.env
+*.log
+storage/logs/*.log
