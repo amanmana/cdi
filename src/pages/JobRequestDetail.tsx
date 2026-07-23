@@ -902,8 +902,13 @@ export const JobRequestDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Workflow Actions Card (Staff & Admin only, hidden on Manager page) */}
-          {!(user?.role === 'manager' || user?.is_acting_manager) && (
+          {/* Workflow Actions Card (Hidden on Manager page and when Staff has completed their part) */}
+          {!(user?.role === 'manager' || user?.is_acting_manager) &&
+            !(user?.role === 'staff' && (
+              data?.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
+              history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE') ||
+              request.status === 'completed'
+            )) && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4">
               <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
                 <ShieldCheck className="w-4 h-4 text-indigo-600" />
