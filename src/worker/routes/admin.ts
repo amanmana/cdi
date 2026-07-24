@@ -33,13 +33,16 @@ admin.get('/dashboard-stats', async (c) => {
   let whereClause = '';
   const params: any[] = [];
 
-  // Scoping for Staff vs Manager/Admin
+  // Scoping for Staff vs Manager vs Client
   if (user.role === 'staff') {
     whereClause = ' WHERE INSTR(\',\' || assigned_staff_ids || \',\', \',\' || ? || \',\') > 0 AND status != \'manager_approval\'';
     params.push(String(user.id));
   } else if (user.role === 'client') {
     whereClause = ' WHERE (client_email = ? OR client_name = ?)';
     params.push(user.email, user.name);
+  } else if (user.role === 'manager' && user.unit) {
+    whereClause = ' WHERE unit = ?';
+    params.push(user.unit);
   }
 
 

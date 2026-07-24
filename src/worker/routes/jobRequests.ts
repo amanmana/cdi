@@ -57,6 +57,9 @@ jobRequestsRouter.get('/', async (c) => {
   } else if (user && user.role === 'client') {
     query += ` AND j.client_email = ?`;
     params.push(user.email);
+  } else if (user && user.role === 'manager' && user.unit) {
+    query += ` AND j.unit = ?`;
+    params.push(user.unit);
   }
 
   if (search) {
