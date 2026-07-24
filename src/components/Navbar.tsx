@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Search, Shield, LayoutDashboard, PlusCircle } from 'lucide-react';
+import { LogOut, Search, Shield, LayoutDashboard, PlusCircle, User } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -99,6 +99,12 @@ export const Navbar: React.FC = () => {
                       <LayoutDashboard className="w-4 h-4 text-blue-600" /> Dashboard
                     </Link>
                   )}
+                </li>
+
+                <li>
+                  <Link to="/portal/profile" className="py-2.5 font-medium text-slate-700">
+                    <User className="w-4 h-4 text-blue-600" /> My Profile
+                  </Link>
                 </li>
 
                 <li>

@@ -133,4 +133,50 @@ auth.get('/me', async (c) => {
   });
 });
 
+auth.post('/change-password', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+
+  if (!token) {
+    return c.json({ error: 'Tidak didaftarkan atau token tidak sah.' }, 401);
+  }
+
+  const payload = await verifyToken(token);
+  if (!payload) {
+    return c.json({ error: 'Tidak didaftarkan atau token tidak sah.' }, 401);
+  }
+
+  const { currentPassword, newPassword } = await c.req.json();
+  if (!currentPassword || !newPassword) {
+    return c.json({ error: 'Sila lengkapkan semua medan kata laluan.' }, 400);
+  }
+
+  // Get current user password_hash
+  const user = await c.env.DB
+    .prepare('SELECT id, password_hash FROM users WHERE id = ?')
+    .bind(payload.id)
+    .first<{ id: number; password_hash: string }>();
+
+  if (!user) {
+    return c.json({ error: 'Pengguna tidak ditemui.' }, 404);
+  }
+
+  // Verify current password
+  const isValid = await verifyPassword(currentPassword, user.password_hash);
+  if (!isValid) {
+    return c.json({ error: 'Kata laluan semasa tidak betul.' }, 400);
+  }
+
+  // Hash new password
+  const newHash = await hashPassword(newPassword);
+
+  // Update password_hash
+  await c.env.DB
+    .prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+    .bind(newHash, user.id)
+    .run();
+
+  return c.json({ success: true, message: 'Kata laluan berjaya dikemas kini.' });
+});
+
 export default auth;

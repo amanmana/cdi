@@ -17,6 +17,7 @@ import { UsersManagement } from './pages/UsersManagement';
 import { UnitsManagement } from './pages/UnitsManagement';
 import { SettingsPage } from './pages/SettingsPage';
 import { BackupPage } from './pages/BackupPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 const AdminIndexRedirect: React.FC = () => {
   const { user } = useAuth();
@@ -81,6 +82,7 @@ export const App: React.FC = () => {
                 <Route path="units" element={<UnitsManagement />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="backup" element={<BackupPage />} />
+                <Route path="profile" element={<ProfilePage />} />
               </Route>
 
               {/* Fallback */}
