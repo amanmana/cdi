@@ -208,9 +208,11 @@ export const UnitsManagement: React.FC = () => {
                         <Sliders className="w-3 h-3" /> Form
                       </button>
                     )}
-                    <button onClick={() => handleDeleteUnit(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete unit">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {u.name !== 'Administrator' && (
+                      <button onClick={() => handleDeleteUnit(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete unit">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
