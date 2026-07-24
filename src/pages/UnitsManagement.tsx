@@ -357,30 +357,30 @@ export const UnitsManagement: React.FC = () => {
                   <p className="text-xs text-slate-400 italic text-center py-4">No dynamic fields added yet. Add a field above to see the preview.</p>
                 ) : (
                   schemaFields.map((f, index) => (
-                    <div key={index} className="flex gap-4 group">
-                      <div className="flex-1">
-                        <label className="label text-xs font-bold text-slate-700 py-1">
+                    <div key={index} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative group flex gap-4 transition-all hover:border-blue-300 hover:shadow-md">
+                      <div className="flex-1 pr-10">
+                        <label className="label text-sm font-bold text-slate-800 py-1">
                           {f.label} {f.required && <span className="text-rose-500">*</span>}
                         </label>
                         
                         {f.type === 'text' && (
-                          <input type="text" placeholder={f.placeholder} className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-sm" disabled />
+                          <input type="text" placeholder={f.placeholder} className="input input-bordered bg-slate-50 border-slate-200 rounded-xl w-full text-sm" disabled />
                         )}
                         
                         {f.type === 'textarea' && (
-                          <textarea placeholder={f.placeholder} className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full text-sm h-24" disabled></textarea>
+                          <textarea placeholder={f.placeholder} className="textarea textarea-bordered bg-slate-50 border-slate-200 rounded-xl w-full text-sm h-24" disabled></textarea>
                         )}
                         
                         {f.type === 'number' && (
-                          <input type="number" placeholder={f.placeholder} className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-sm" disabled />
+                          <input type="number" placeholder={f.placeholder} className="input input-bordered bg-slate-50 border-slate-200 rounded-xl w-full text-sm" disabled />
                         )}
                         
                         {f.type === 'date' && (
-                          <input type="date" className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-sm text-slate-400" disabled />
+                          <input type="date" className="input input-bordered bg-slate-50 border-slate-200 rounded-xl w-full text-sm text-slate-400" disabled />
                         )}
                         
                         {f.type === 'select' && (
-                          <select className="select select-bordered bg-white border-slate-200 rounded-xl w-full text-sm" disabled>
+                          <select className="select select-bordered bg-slate-50 border-slate-200 rounded-xl w-full text-sm" disabled>
                             <option value="">{f.placeholder || 'Select an option'}</option>
                             {f.options?.map((opt, i) => (
                               <option key={i} value={opt}>{opt}</option>
@@ -389,22 +389,22 @@ export const UnitsManagement: React.FC = () => {
                         )}
                         
                         {f.type === 'radio' && (
-                          <div className="space-y-2 mt-2">
+                          <div className="space-y-3 mt-3">
                             {f.options?.map((opt, i) => (
-                              <label key={i} className="flex items-center gap-2 cursor-pointer">
+                              <label key={i} className="flex items-center gap-3 cursor-pointer">
                                 <input type="radio" name={`radio_preview_${index}`} className="radio radio-primary radio-sm" disabled />
-                                <span className="text-sm text-slate-700">{opt}</span>
+                                <span className="text-sm font-medium text-slate-700">{opt}</span>
                               </label>
                             ))}
                           </div>
                         )}
                         
                         {f.type === 'checkbox' && (
-                          <div className="space-y-2 mt-2">
+                          <div className="space-y-3 mt-3">
                             {f.options?.map((opt, i) => (
-                              <label key={i} className="flex items-center gap-2 cursor-pointer">
+                              <label key={i} className="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox" className="checkbox checkbox-primary checkbox-sm rounded" disabled />
-                                <span className="text-sm text-slate-700">{opt}</span>
+                                <span className="text-sm font-medium text-slate-700">{opt}</span>
                               </label>
                             ))}
                           </div>
@@ -412,22 +412,24 @@ export const UnitsManagement: React.FC = () => {
                       </div>
                       
                       {/* Action Buttons for this field */}
-                      <div className="flex flex-col gap-1 mt-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex gap-1">
-                          <button onClick={() => handleMoveField(index, 'up')} disabled={index === 0} className="btn btn-xs btn-square btn-ghost text-slate-400 hover:text-slate-700">
-                            ↑
-                          </button>
-                          <button onClick={() => handleMoveField(index, 'down')} disabled={index === schemaFields.length - 1} className="btn btn-xs btn-square btn-ghost text-slate-400 hover:text-slate-700">
-                            ↓
-                          </button>
-                        </div>
-                        <div className="flex gap-1 mt-1">
-                          <button onClick={() => handleEditField(index)} className="btn btn-xs btn-square btn-outline border-blue-200 text-blue-600 hover:bg-blue-50">
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => handleRemoveField(index)} className="btn btn-xs btn-square btn-outline border-rose-200 text-rose-600 hover:bg-rose-50">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                      <div className="absolute top-4 right-4 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex flex-col gap-1 bg-white p-1 rounded-xl shadow-lg border border-slate-100">
+                          <div className="flex gap-1">
+                            <button onClick={() => handleMoveField(index, 'up')} disabled={index === 0} className="btn btn-xs btn-square btn-ghost text-slate-400 hover:text-slate-700 rounded-lg">
+                              ↑
+                            </button>
+                            <button onClick={() => handleMoveField(index, 'down')} disabled={index === schemaFields.length - 1} className="btn btn-xs btn-square btn-ghost text-slate-400 hover:text-slate-700 rounded-lg">
+                              ↓
+                            </button>
+                          </div>
+                          <div className="flex gap-1">
+                            <button onClick={() => handleEditField(index)} className="btn btn-xs btn-square btn-ghost text-blue-600 hover:bg-blue-50 rounded-lg">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleRemoveField(index)} className="btn btn-xs btn-square btn-ghost text-rose-600 hover:bg-rose-50 rounded-lg">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

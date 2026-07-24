@@ -219,12 +219,14 @@ export const PublicHome: React.FC = () => {
 
               {/* Dynamic Unit Schema Fields */}
               {currentUnitObj && currentUnitObj.form_schema && currentUnitObj.form_schema.length > 0 && (
-                <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-4">
-                  <span className="text-xs font-bold text-blue-800 uppercase tracking-wider block">
-                    {selectedUnit} Unit Requirements
-                  </span>
+                <div className="space-y-5 mt-8 mb-4">
+                  <div className="border-b border-slate-200 pb-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
+                      {selectedUnit} Unit Requirements
+                    </span>
+                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-5">
                     {currentUnitObj.form_schema.map((field) => (
                       <div key={field.id} className="form-control">
                         <label className="label pt-0 pb-1">
