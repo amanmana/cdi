@@ -587,10 +587,10 @@ export const JobRequestDetail: React.FC = () => {
                   </span>
 
                   {/* EDIT Button matching Reference Image 2 */}
-                  {(user?.role === 'admin' ||
+                  {(request.status === 'staff_processing') && (user?.role === 'admin' ||
                     user?.role === 'manager' ||
                     user?.is_acting_manager ||
-                    (user?.role === 'staff' && request.status !== 'completed' && request.status !== 'rejected' && !isUserDone)) && (
+                    (user?.role === 'staff' && !isUserDone)) && (
                     <button
                       type="button"
                       onClick={() => {
