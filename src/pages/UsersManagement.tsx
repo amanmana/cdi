@@ -37,15 +37,13 @@ export const UsersManagement: React.FC = () => {
   const internalUsers = users.filter((u) => u.role !== 'client');
   const clientUsers = users.filter((u) => u.role === 'client');
 
-  // Unit groups derived only from internal staff
-  const unitGroups = Array.from(
-    new Set(internalUsers.map((u) => (u.unit && u.unit.trim() ? u.unit.trim() : 'Unassigned')))
-  ).sort();
+  // Unit groups derived from the `units` table — shows ALL units, even empty ones
+  const unitGroups = units.map((u) => u.name).sort();
 
   const filteredInternalUsers =
     activeUnitTab === 'all'
       ? internalUsers
-      : internalUsers.filter((u) => (u.unit && u.unit.trim() ? u.unit.trim() : 'Unassigned') === activeUnitTab);
+      : internalUsers.filter((u) => (u.unit || '').trim() === activeUnitTab);
 
   const handleOpenModal = (u: any = null) => {
     if (u) {
@@ -122,7 +120,7 @@ export const UsersManagement: React.FC = () => {
   };
   const getUnitTabCount = (tabKey: string) =>
     tabKey === 'all' ? internalUsers.length
-      : internalUsers.filter((u) => (u.unit && u.unit.trim() ? u.unit.trim() : 'Unassigned') === tabKey).length;
+      : internalUsers.filter((u) => (u.unit || '').trim() === tabKey).length;
 
   const isClientModal = role === 'client';
 
