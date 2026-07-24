@@ -230,7 +230,7 @@ admin.post('/users', async (c) => {
   try {
     const existing = await db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').bind(cleanEmail).first();
     if (existing) {
-      return c.json({ error: `Email address '${cleanEmail}' is already registered.` }, 400);
+      return c.json({ error: 'Email address is already in use. Please use a different email.' }, 400);
     }
 
     const hash = await hashPassword(password);
@@ -259,7 +259,7 @@ admin.put('/users/:id', async (c) => {
       .bind(cleanEmail, targetId, String(id))
       .first();
     if (existing) {
-      return c.json({ error: `Email address '${cleanEmail}' is already registered to another user.` }, 400);
+      return c.json({ error: 'Email address is already in use by another user. Please use a different email.' }, 400);
     }
 
     if (password) {

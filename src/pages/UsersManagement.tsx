@@ -74,6 +74,17 @@ export const UsersManagement: React.FC = () => {
     e.preventDefault();
     setSaveError('');
 
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Client-side check: email duplication against loaded users list
+    const isEmailTaken = users.some(
+      (u) => u.email.toLowerCase().trim() === cleanEmail && u.id !== editingUser?.id
+    );
+    if (isEmailTaken) {
+      setSaveError('Email address is already in use. Please use a different email.');
+      return;
+    }
+
     // Frontend validation: unit is mandatory for internal staff
     if (role !== 'client' && !unit) {
       setSaveError('Please select a unit before saving.');
@@ -88,18 +99,25 @@ export const UsersManagement: React.FC = () => {
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: name.trim(), email: email.toLowerCase().trim(), password, role, unit: role === 'client' ? '' : unit }),
+        body: JSON.stringify({ name: name.trim(), email: cleanEmail, password, role, unit: role === 'client' ? '' : unit }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (res.ok && data?.success) {
         setShowModal(false);
         fetchUsers();
       } else {
-        setSaveError(data.error || data.message || 'Failed to save. Please try again.');
+        const errorMsg = data?.error || data?.message || (res.status === 400 ? 'Email address is already in use or invalid data.' : 'Failed to save. Please try again.');
+        setSaveError(errorMsg);
       }
-    } catch (err: any) {
-      setSaveError(err?.message || 'Network error. Please check your connection.');
+    } catch {
+      setSaveError('Email address is already in use or connection issue. Please verify email address.');
     } finally {
       setIsSaving(false);
     }
@@ -324,7 +342,26 @@ export const UsersManagement: React.FC = () => {
               </div>
               <div>
                 <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-1">Email Address</label>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="input input-bordered input-sm bg-slate-50 border-slate-200 rounded-xl w-full h-11 text-sm font-medium" />
+                {(() => {
+                  const clean = email.toLowerCase().trim();
+                  const isTaken = clean.length > 0 && users.some((u) => u.email.toLowerCase().trim() === clean && u.id !== editingUser?.id);
+                  return (
+                    <>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value); setSaveError(''); }}
+                        className={`input input-bordered input-sm bg-slate-50 rounded-xl w-full h-11 text-sm font-medium ${isTaken ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200'}`}
+                      />
+                      {isTaken && (
+                        <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                          <span>⚠</span> Email address already in use. Please use a different email.
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div>
                 <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-1">Password {editingUser && '(Leave blank to keep unchanged)'}</label>
