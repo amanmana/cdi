@@ -239,6 +239,39 @@ export const PublicHome: React.FC = () => {
                 </div>
               </div>
 
+              {/* Title Field */}
+              <div className="form-control">
+                <label className="label pt-0 pb-1.5">
+                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
+                    Title <span className="text-rose-500">*</span>
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="test"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
+                />
+              </div>
+
+              {/* Description Field */}
+              <div className="form-control">
+                <label className="label pt-0 pb-1.5">
+                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
+                    Description
+                  </span>
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder="Enter additional description or instructions..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-4"
+                ></textarea>
+              </div>
+
               {/* Dynamic Unit Schema Fields */}
               {currentUnitObj && currentUnitObj.form_schema && currentUnitObj.form_schema.length > 0 && (
                 <div className="space-y-5 mt-8 mb-4">
@@ -348,39 +381,6 @@ export const PublicHome: React.FC = () => {
                   </div>
                 </div>
               )}
-
-              {/* Title Field */}
-              <div className="form-control">
-                <label className="label pt-0 pb-1.5">
-                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
-                    Title <span className="text-rose-500">*</span>
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="test"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
-                />
-              </div>
-
-              {/* Description Field */}
-              <div className="form-control">
-                <label className="label pt-0 pb-1.5">
-                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
-                    Description
-                  </span>
-                </label>
-                <textarea
-                  rows={4}
-                  placeholder="Enter additional description or instructions..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-4"
-                ></textarea>
-              </div>
 
               <div className="pt-2 flex justify-center">
                 <Turnstile 
