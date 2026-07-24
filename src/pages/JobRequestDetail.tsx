@@ -292,6 +292,10 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   const toggleStaffSelection = (staffId: number) => {
+    // If the logged-in user is staff, prevent them from removing themselves
+    if (user?.role === 'staff' && staffId === user?.id) {
+      return;
+    }
     if (selectedStaff.includes(staffId)) {
       setSelectedStaff(selectedStaff.filter((sid) => sid !== staffId));
     } else {
@@ -1431,27 +1435,38 @@ export const JobRequestDetail: React.FC = () => {
             <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/80 max-h-64 overflow-y-auto space-y-2.5">
               {teamMembers && teamMembers.map((m: any) => {
                 const isSelected = selectedStaff.includes(m.id);
+                const isSelfStaff = user?.role === 'staff' && m.id === user?.id;
                 return (
                   <div
                     key={m.id}
-                    onClick={() => toggleStaffSelection(m.id)}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
-                      isSelected
+                    onClick={() => !isSelfStaff && toggleStaffSelection(m.id)}
+                    className={`p-3 rounded-2xl border transition-all flex items-center gap-3 ${
+                      isSelfStaff ? 'opacity-65 cursor-not-allowed bg-slate-100/50 border-slate-200' : 'cursor-pointer'
+                    } ${
+                      !isSelfStaff && isSelected
                         ? 'bg-white border-blue-500/80 shadow-sm'
-                        : 'bg-white/60 border-slate-100 hover:bg-white hover:border-slate-200'
+                        : !isSelfStaff
+                        ? 'bg-white/60 border-slate-100 hover:bg-white hover:border-slate-200'
+                        : ''
                     }`}
                   >
                     {/* Custom Checkbox matching Image 3 */}
                     <div
                       className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                        isSelected ? 'bg-blue-600 text-white' : 'border-2 border-slate-300 bg-white'
+                        isSelected 
+                          ? isSelfStaff 
+                            ? 'bg-slate-400 text-white' 
+                            : 'bg-blue-600 text-white' 
+                          : 'border-2 border-slate-300 bg-white'
                       }`}
                     >
                       {isSelected && <span className="text-xs font-black">✓</span>}
                     </div>
 
                     <div>
-                      <div className="text-xs font-bold text-slate-900">{m.name}</div>
+                      <div className="text-xs font-bold text-slate-900">
+                        {m.name} {isSelfStaff && <span className="text-[10px] text-slate-400 font-semibold italic">(You)</span>}
+                      </div>
                       <div className="text-[10px] font-semibold text-slate-400">{m.email}</div>
                     </div>
                   </div>
