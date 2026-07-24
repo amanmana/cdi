@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FolderGit2, Plus, Trash2, Sliders } from 'lucide-react';
+import { FolderGit2, Plus, Trash2, Sliders, Edit2, Check, X } from 'lucide-react';
 
 interface SchemaField {
   id: string;
@@ -22,6 +22,11 @@ export const UnitsManagement: React.FC = () => {
   const [fieldType, setFieldType] = useState('text');
   const [fieldOptions, setFieldOptions] = useState('');
   const [fieldRequired, setFieldRequired] = useState(false);
+
+  // Rename state
+  const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
+  const [editingUnitName, setEditingUnitName] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const fetchUnits = () => {
     fetch('/api/admin/units', { headers: { Authorization: `Bearer ${token}` } })
@@ -94,6 +99,25 @@ export const UnitsManagement: React.FC = () => {
     fetchUnits();
   };
 
+  const handleStartRename = (u: any) => {
+    setEditingUnitId(u.id);
+    setEditingUnitName(u.name);
+    setTimeout(() => renameInputRef.current?.focus(), 50);
+  };
+
+  const handleRenameUnit = async (id: number) => {
+    const trimmed = editingUnitName.trim();
+    if (!trimmed) return;
+    await fetch(`/api/admin/units/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    setEditingUnitId(null);
+    setEditingUnitName('');
+    fetchUnits();
+  };
+
   return (
     <div className="space-y-8">
       {/* Header Banner */}
@@ -132,20 +156,55 @@ export const UnitsManagement: React.FC = () => {
           <h3 className="font-bold text-[11px] text-slate-400 uppercase tracking-widest mb-3">Units List</h3>
           <div className="space-y-2.5">
             {units.map((u) => (
-              <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <div>
-                  <div className="font-bold text-sm text-slate-900">{u.name}</div>
-                  <div className="text-[10px] text-slate-400 font-medium">{u.form_schema?.length || 0} dynamic form fields</div>
+              <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 gap-2">
+                <div className="flex-1 min-w-0">
+                  {editingUnitId === u.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        ref={renameInputRef}
+                        type="text"
+                        value={editingUnitName}
+                        onChange={(e) => setEditingUnitName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRenameUnit(u.id);
+                          if (e.key === 'Escape') { setEditingUnitId(null); setEditingUnitName(''); }
+                        }}
+                        className="input input-bordered input-xs bg-white border-blue-300 rounded-lg flex-1 h-8 text-sm font-bold focus:border-blue-500 w-full"
+                      />
+                      <button
+                        onClick={() => handleRenameUnit(u.id)}
+                        className="btn btn-xs bg-blue-600 hover:bg-blue-700 border-blue-600 text-white rounded-lg w-7 h-7 p-0 flex items-center justify-center shrink-0"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { setEditingUnitId(null); setEditingUnitName(''); }}
+                        className="btn btn-xs btn-ghost text-slate-400 hover:bg-slate-100 rounded-lg w-7 h-7 p-0 flex items-center justify-center shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="font-bold text-sm text-slate-900">{u.name}</div>
+                      <div className="text-[10px] text-slate-400 font-medium">{u.form_schema?.length || 0} dynamic form fields</div>
+                    </>
+                  )}
                 </div>
 
-                <div className="flex gap-1.5">
-                  <button onClick={() => handleOpenBuilder(u)} className="btn btn-outline btn-xs border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl gap-1 font-bold">
-                    <Sliders className="w-3 h-3" /> Form
-                  </button>
-                  <button onClick={() => handleDeleteUnit(u.id)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                {editingUnitId !== u.id && (
+                  <div className="flex gap-1.5 shrink-0">
+                    <button onClick={() => handleStartRename(u)} className="btn btn-ghost btn-xs text-slate-500 hover:bg-slate-200 rounded-xl" title="Rename unit">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleOpenBuilder(u)} className="btn btn-outline btn-xs border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl gap-1 font-bold">
+                      <Sliders className="w-3 h-3" /> Form
+                    </button>
+                    <button onClick={() => handleDeleteUnit(u.id)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

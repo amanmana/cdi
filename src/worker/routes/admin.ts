@@ -170,17 +170,27 @@ admin.post('/units', async (c) => {
   return c.json({ success: true, message: 'Unit added' });
 });
 
-// Update Unit Schema
+// Update Unit (name and/or schema)
 admin.put('/units/:id', async (c) => {
   const db = c.env.DB;
   const id = c.req.param('id');
-  const { form_schema } = await c.req.json();
+  const { name, form_schema } = await c.req.json();
 
-  await db.prepare('UPDATE units SET form_schema = ? WHERE id = ?')
-    .bind(JSON.stringify(form_schema || []), id)
-    .run();
+  if (name !== undefined && form_schema !== undefined) {
+    await db.prepare('UPDATE units SET name = ?, form_schema = ? WHERE id = ?')
+      .bind(name, JSON.stringify(form_schema || []), id)
+      .run();
+  } else if (name !== undefined) {
+    await db.prepare('UPDATE units SET name = ? WHERE id = ?')
+      .bind(name, id)
+      .run();
+  } else {
+    await db.prepare('UPDATE units SET form_schema = ? WHERE id = ?')
+      .bind(JSON.stringify(form_schema || []), id)
+      .run();
+  }
 
-  return c.json({ success: true, message: 'Unit schema updated' });
+  return c.json({ success: true, message: 'Unit updated' });
 });
 
 // Delete Unit
