@@ -1052,8 +1052,8 @@ export const JobRequestDetail: React.FC = () => {
                 <span>Workflow Actions</span>
               </div>
 
-            {/* Note / Report Section (Staff Page Only) */}
-            {user?.role === 'staff' && !user?.is_acting_manager && (
+            {/* Note / Report Section (Staff Page Only, or assigned Managers) */}
+            {((user?.role === 'staff' && !user?.is_acting_manager) || data.staffDetails?.some((s: any) => s.id === user?.id)) && (
               <div className="space-y-3 pt-2">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">
                   NOTE / REPORT
