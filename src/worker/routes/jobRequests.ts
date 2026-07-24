@@ -479,10 +479,32 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
     VALUES (?, 'STAFF_DONE', ?, ?, ?)
   `).bind(request.id, user.id, user.name, `${user.name} marked their part as completed.`).run();
 
-  // Mark job request status as completed
-  await db.prepare(`
-    UPDATE job_requests SET status = 'completed', current_step_name = 'Completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `).bind(request.id).run();
+  // Check if ALL assigned staff members have completed their part
+  let allDone = true;
+  if (request.assigned_staff_ids) {
+    const assignedStaffIds = request.assigned_staff_ids.split(',').map((id: string) => Number(id.trim()));
+    
+    // Get distinct actors who did STAFF_DONE for this job request
+    const { results } = await db.prepare(`
+      SELECT DISTINCT actor_id FROM workflow_logs 
+      WHERE job_request_id = ? AND action = 'STAFF_DONE'
+    `).bind(request.id).all();
+    
+    const doneStaffIds = (results || []).map((r: any) => Number(r.actor_id));
+    
+    for (const staffId of assignedStaffIds) {
+      if (!doneStaffIds.includes(staffId)) {
+        allDone = false;
+        break;
+      }
+    }
+  }
+
+  if (allDone) {
+    await db.prepare(`
+      UPDATE job_requests SET status = 'completed', current_step_name = 'Completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(request.id).run();
+  }
 
   return c.json({ success: true, message: 'Part marked as done.' });
 });

@@ -42,16 +42,7 @@ admin.get('/dashboard-stats', async (c) => {
     params.push(user.email, user.name);
   }
 
-  // Auto-sync status for job requests marked done by staff in workflow_logs
-  try {
-    await db.prepare(`
-      UPDATE job_requests 
-      SET status = 'completed', current_step_name = 'Completed' 
-      WHERE status != 'completed' AND id IN (
-        SELECT DISTINCT job_request_id FROM workflow_logs WHERE action = 'STAFF_DONE'
-      )
-    `).run();
-  } catch (e) {}
+
 
   const totalRequests = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${whereClause}`).bind(...params).first<{ count: number }>();
   
