@@ -21,6 +21,7 @@ export const UsersManagement: React.FC = () => {
   const [unit, setUnit] = useState('');
   const [organisation, setOrganisation] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const fetchUsers = () => {
     fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } })
@@ -66,6 +67,7 @@ export const UsersManagement: React.FC = () => {
     }
     setShowModal(true);
     setSaveError('');
+    setIsSaving(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,6 +80,7 @@ export const UsersManagement: React.FC = () => {
       return;
     }
 
+    setIsSaving(true);
     const endpoint = editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users';
     const method = editingUser ? 'PUT' : 'POST';
 
@@ -85,18 +88,20 @@ export const UsersManagement: React.FC = () => {
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name, email, password, role, unit: role === 'client' ? '' : unit }),
+        body: JSON.stringify({ name: name.trim(), email: email.toLowerCase().trim(), password, role, unit: role === 'client' ? '' : unit }),
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setShowModal(false);
         fetchUsers();
       } else {
-        setSaveError(data.error || 'Failed to save. Please try again.');
+        setSaveError(data.error || data.message || 'Failed to save. Please try again.');
       }
-    } catch {
-      setSaveError('Network error. Please check your connection.');
+    } catch (err: any) {
+      setSaveError(err?.message || 'Network error. Please check your connection.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -369,13 +374,15 @@ export const UsersManagement: React.FC = () => {
               {/* Error Banner */}
               {saveError && (
                 <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold">
-                  <span className="text-rose-500">⚠</span> {saveError}
+                  <span className="text-rose-500 font-bold">⚠</span> {saveError}
                 </div>
               )}
 
               <div className="modal-action mt-4 pt-4 border-t border-slate-100 flex gap-2">
-                <button type="button" onClick={() => setShowModal(false)} className="btn btn-ghost btn-sm rounded-xl">Cancel</button>
-                <button type="submit" className={`btn btn-sm text-white font-bold rounded-xl px-5 border-none ${isClientModal ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}>Save</button>
+                <button type="button" disabled={isSaving} onClick={() => setShowModal(false)} className="btn btn-ghost btn-sm rounded-xl">Cancel</button>
+                <button type="submit" disabled={isSaving} className={`btn btn-sm text-white font-bold rounded-xl px-6 border-none ${isClientModal ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                  {isSaving ? <span className="loading loading-spinner loading-xs" /> : 'Save'}
+                </button>
               </div>
             </form>
           </div>

@@ -225,12 +225,23 @@ admin.post('/users', async (c) => {
   const { name, email, password, role, unit } = await c.req.json();
   if (!name || !email || !password) return c.json({ error: 'Missing required fields' }, 400);
 
-  const hash = await hashPassword(password);
-  await db.prepare('INSERT INTO users (name, email, password_hash, role, unit) VALUES (?, ?, ?, ?, ?)')
-    .bind(name, email, hash, role || 'staff', unit || null)
-    .run();
+  const cleanEmail = email.toLowerCase().trim();
 
-  return c.json({ success: true, message: 'User created' });
+  try {
+    const existing = await db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').bind(cleanEmail).first();
+    if (existing) {
+      return c.json({ error: `Email address '${cleanEmail}' is already registered.` }, 400);
+    }
+
+    const hash = await hashPassword(password);
+    await db.prepare('INSERT INTO users (name, email, password_hash, role, unit) VALUES (?, ?, ?, ?, ?)')
+      .bind(name.trim(), cleanEmail, hash, role || 'staff', unit || null)
+      .run();
+
+    return c.json({ success: true, message: 'User created' });
+  } catch (err: any) {
+    return c.json({ error: err?.message || 'Failed to create user' }, 400);
+  }
 });
 
 // Update User
@@ -241,19 +252,31 @@ admin.put('/users/:id', async (c) => {
 
   const numId = parseInt(id, 10);
   const targetId = isNaN(numId) ? id : numId;
+  const cleanEmail = email.toLowerCase().trim();
 
-  if (password) {
-    const hash = await hashPassword(password);
-    await db.prepare('UPDATE users SET name = ?, email = ?, password_hash = ?, role = ?, unit = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
-      .bind(name, email, hash, role, unit || null, targetId, id)
-      .run();
-  } else {
-    await db.prepare('UPDATE users SET name = ?, email = ?, role = ?, unit = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
-      .bind(name, email, role, unit || null, targetId, id)
-      .run();
+  try {
+    const existing = await db.prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id != ? AND CAST(id AS TEXT) != ?')
+      .bind(cleanEmail, targetId, String(id))
+      .first();
+    if (existing) {
+      return c.json({ error: `Email address '${cleanEmail}' is already registered to another user.` }, 400);
+    }
+
+    if (password) {
+      const hash = await hashPassword(password);
+      await db.prepare('UPDATE users SET name = ?, email = ?, password_hash = ?, role = ?, unit = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
+        .bind(name.trim(), cleanEmail, hash, role, unit || null, targetId, id)
+        .run();
+    } else {
+      await db.prepare('UPDATE users SET name = ?, email = ?, role = ?, unit = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
+        .bind(name.trim(), cleanEmail, role, unit || null, targetId, id)
+        .run();
+    }
+
+    return c.json({ success: true, message: 'User updated' });
+  } catch (err: any) {
+    return c.json({ error: err?.message || 'Failed to update user' }, 400);
   }
-
-  return c.json({ success: true, message: 'User updated' });
 });
 
 // Delete User (Cascades child references in delegations, job_tasks, and staff_reports before deleting user)
