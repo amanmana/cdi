@@ -21,6 +21,8 @@ export const UsersManagement: React.FC = () => {
   const [newUnitName, setNewUnitName] = useState('');
   const [addUnitLoading, setAddUnitLoading] = useState(false);
   const newUnitInputRef = useRef<HTMLInputElement>(null);
+  // Holds the unit name to auto-select after the units list re-fetches
+  const pendingUnitRef = useRef<string | null>(null);
 
   const fetchUsers = () => {
     fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } })
@@ -39,6 +41,14 @@ export const UsersManagement: React.FC = () => {
   useEffect(() => {
     fetchUsers();
   }, [token]);
+
+  // After units list updates, apply any pending auto-selection
+  useEffect(() => {
+    if (pendingUnitRef.current) {
+      setUnit(pendingUnitRef.current);
+      pendingUnitRef.current = null;
+    }
+  }, [units]);
 
   // Derive unique unit groups from user data dynamically
   const unitGroups = Array.from(
@@ -98,12 +108,12 @@ export const UsersManagement: React.FC = () => {
     });
     const data = await res.json();
     if (data.success) {
-      // Refresh units list
+      // Store desired unit name — will be applied after units list re-fetches
+      pendingUnitRef.current = trimmed;
+      // Refresh units list (triggers the useEffect above to auto-select)
       const unitsRes = await fetch('/api/public/units');
       const unitsData = await unitsRes.json();
       if (Array.isArray(unitsData)) setUnits(unitsData);
-      // Auto-select the newly created unit
-      setUnit(trimmed);
     }
     setNewUnitName('');
     setAddingUnit(false);
