@@ -514,11 +514,38 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {/* Status Capsule Badge & Progress Indicator matching Reference Image */}
-              <div className="flex items-center gap-4 shrink-0">
-                <div className="flex flex-col items-center justify-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mb-1"></span>
-                  <span className="text-xs font-extrabold text-indigo-600">{percent}%</span>
-                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">PROGRESS</span>
+              <div className="flex items-center gap-5 shrink-0">
+                <div className="relative flex items-center justify-center w-14 h-14 shrink-0">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 50 50">
+                    {/* Track circle */}
+                    <circle
+                      cx="25"
+                      cy="25"
+                      r="21"
+                      className="stroke-slate-100"
+                      strokeWidth="5"
+                      fill="transparent"
+                    />
+                    {/* Progress circle */}
+                    <circle
+                      cx="25"
+                      cy="25"
+                      r="21"
+                      className="stroke-indigo-600 transition-all duration-500 ease-out"
+                      strokeWidth="5"
+                      strokeDasharray={2 * Math.PI * 21}
+                      strokeDashoffset={2 * Math.PI * 21 - (percent / 100) * (2 * Math.PI * 21)}
+                      strokeLinecap="round"
+                      fill="transparent"
+                    />
+                  </svg>
+                  {/* Inner Label */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-[11px] font-black text-indigo-600 leading-none">{percent}%</span>
+                    <span className="text-[7px] font-extrabold text-slate-400 uppercase tracking-wider mt-0.5">
+                      PROGRESS
+                    </span>
+                  </div>
                 </div>
 
                 <div>{renderStatusCapsule(request.status)}</div>
