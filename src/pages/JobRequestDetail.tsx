@@ -300,6 +300,11 @@ export const JobRequestDetail: React.FC = () => {
     if (user?.role === 'staff' && staffId === user?.id) {
       return;
     }
+    // Prevent removing any staff who has already completed their part
+    const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === staffId);
+    if (projectStaffDetail?.is_done) {
+      return;
+    }
     if (selectedStaff.includes(staffId)) {
       setSelectedStaff(selectedStaff.filter((sid) => sid !== staffId));
     } else {
@@ -1467,16 +1472,19 @@ export const JobRequestDetail: React.FC = () => {
               {teamMembers && teamMembers.map((m: any) => {
                 const isSelected = selectedStaff.includes(m.id);
                 const isSelfStaff = user?.role === 'staff' && m.id === user?.id;
+                const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === m.id);
+                const isAlreadyDone = projectStaffDetail?.is_done || false;
+                const isLocked = isSelfStaff || isAlreadyDone;
                 return (
                   <div
                     key={m.id}
-                    onClick={() => !isSelfStaff && toggleStaffSelection(m.id)}
+                    onClick={() => !isLocked && toggleStaffSelection(m.id)}
                     className={`p-3 rounded-2xl border transition-all flex items-center gap-3 ${
-                      isSelfStaff ? 'opacity-65 cursor-not-allowed bg-slate-100/50 border-slate-200' : 'cursor-pointer'
+                      isLocked ? 'opacity-65 cursor-not-allowed bg-slate-100/50 border-slate-200' : 'cursor-pointer'
                     } ${
-                      !isSelfStaff && isSelected
+                      !isLocked && isSelected
                         ? 'bg-white border-blue-500/80 shadow-sm'
-                        : !isSelfStaff
+                        : !isLocked
                         ? 'bg-white/60 border-slate-100 hover:bg-white hover:border-slate-200'
                         : ''
                     }`}
@@ -1485,7 +1493,7 @@ export const JobRequestDetail: React.FC = () => {
                     <div
                       className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                         isSelected 
-                          ? isSelfStaff 
+                          ? isLocked 
                             ? 'bg-slate-400 text-white' 
                             : 'bg-blue-600 text-white' 
                           : 'border-2 border-slate-300 bg-white'
@@ -1496,7 +1504,9 @@ export const JobRequestDetail: React.FC = () => {
 
                     <div>
                       <div className="text-xs font-bold text-slate-900">
-                        {m.name} {isSelfStaff && <span className="text-[10px] text-slate-400 font-semibold italic">(You)</span>}
+                        {m.name} 
+                        {isSelfStaff && <span className="text-[10px] text-slate-400 font-semibold italic ml-1">(You)</span>}
+                        {isAlreadyDone && <span className="text-[10px] text-emerald-600 font-semibold italic ml-1">(Done)</span>}
                       </div>
                       <div className="text-[10px] font-semibold text-slate-400">{m.email}</div>
                     </div>
