@@ -20,7 +20,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, stepName }) =>
         return {
           bg: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300',
           icon: <Wrench className="w-3.5 h-3.5 mr-1 animate-pulse" />,
-          label: stepName || 'Staff Processing',
+          label: 'Staff Processing',
         };
       case 'completed':
         return {

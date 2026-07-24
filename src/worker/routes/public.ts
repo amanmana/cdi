@@ -62,10 +62,16 @@ publicApi.post('/job-requests', async (c) => {
     const numbers = Math.floor(100000 + Math.random() * 900000).toString();
     const ticketNo = letters + numbers;
 
+        const unitRow = await c.env.DB
+      .prepare('SELECT id FROM units WHERE name = ?')
+      .bind(unit)
+      .first<{ id: number }>();
+    const unitId = unitRow?.id || null;
+
     const res = await c.env.DB
       .prepare(
-        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, additional_data, unit, status, current_step_name, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Manager Review', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, additional_data, unit, unit_id, status, current_step_name, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Manager Review', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
       .bind(
         ticketNo,
@@ -74,7 +80,8 @@ publicApi.post('/job-requests', async (c) => {
         title,
         description || '',
         additional_data ? JSON.stringify(additional_data) : null,
-        unit
+        unit,
+        unitId
       )
       .run();
 

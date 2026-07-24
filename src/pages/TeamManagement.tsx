@@ -30,6 +30,7 @@ export const TeamManagement: React.FC = () => {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUnitFilter, setSelectedUnitFilter] = useState('All');
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -151,6 +152,12 @@ export const TeamManagement: React.FC = () => {
     }
   };
 
+  const filteredStaffMembers = user?.role === 'manager' && user?.unit
+    ? staffMembers.filter((m) => m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim())
+    : selectedUnitFilter === 'All'
+      ? staffMembers
+      : staffMembers.filter((m) => m.unit === selectedUnitFilter);
+
   return (
     <div className="space-y-6 antialiased">
       {/* Top Header matching Reference Image 1 */}
@@ -184,9 +191,53 @@ export const TeamManagement: React.FC = () => {
             </p>
           </div>
           <span className="text-xs font-black text-blue-600 uppercase tracking-widest">
-            {staffMembers.length} STAFF
+            {filteredStaffMembers.length} STAFF
           </span>
         </div>
+
+        {/* Unit Filter Tabs */}
+        {user?.role === 'admin' && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4 mb-4">
+            <button
+              onClick={() => setSelectedUnitFilter('All')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all duration-200 flex items-center gap-2 ${
+                selectedUnitFilter === 'All'
+                  ? 'bg-slate-900 text-white shadow-md shadow-slate-900/10'
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/60 shadow-sm'
+              }`}
+            >
+              <span>ALL UNITS</span>
+              <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[9px] font-black rounded-lg ${
+                selectedUnitFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {staffMembers.length}
+              </span>
+            </button>
+
+            {units.filter((u: any) => u.name !== 'Administrator').map((unit) => {
+              const count = staffMembers.filter((m) => m.unit === unit.name).length;
+
+              return (
+                <button
+                  key={unit.id}
+                  onClick={() => setSelectedUnitFilter(unit.name)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all duration-200 flex items-center gap-2 ${
+                    selectedUnitFilter === unit.name
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/60 shadow-sm'
+                  }`}
+                >
+                  <span className="uppercase">{unit.name}</span>
+                  <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[9px] font-black rounded-lg ${
+                    selectedUnitFilter === unit.name ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Team Members Table matching Reference Image 1 */}
         <div className="overflow-x-auto">
@@ -206,14 +257,14 @@ export const TeamManagement: React.FC = () => {
                     <span className="loading loading-spinner loading-md text-blue-600"></span>
                   </td>
                 </tr>
-              ) : staffMembers.length === 0 ? (
+              ) : filteredStaffMembers.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="text-center py-12 text-sm text-slate-400 font-semibold">
-                    No team members found. Click "Add New Staff" to create one.
+                    No team members found.
                   </td>
                 </tr>
               ) : (
-                staffMembers.map((member, idx) => {
+                filteredStaffMembers.map((member, idx) => {
                   const colorClass = AVATAR_COLORS[idx % AVATAR_COLORS.length];
                   const isDropdownOpen = openDropdownId === member.id;
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Plus, Edit2, Trash2, Users, Building2, UserCircle2, ExternalLink } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, Users, Building2, UserCircle2, ExternalLink, ShieldAlert, AlertTriangle, X } from 'lucide-react';
 
 export const UsersManagement: React.FC = () => {
   const { token } = useAuth();
@@ -8,6 +8,10 @@ export const UsersManagement: React.FC = () => {
   const [units, setUnits] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+
+  // Lightbox delete modal state
+  const [userToDelete, setUserToDelete] = useState<any | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
 
   // Main section tab: 'staff' | 'clients'
   const [mainTab, setMainTab] = useState<'staff' | 'clients'>('staff');
@@ -123,18 +127,31 @@ export const UsersManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
-    await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-    fetchUsers();
+  const handlePromptDeleteUser = (u: any) => {
+    setUserToDelete(u);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setDeletingUser(true);
+    try {
+      await fetch(`/api/admin/users/${userToDelete.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingUser(false);
+    }
   };
 
   const getRoleBadge = (userRole: string) => {
     switch (userRole) {
-      case 'admin':   return <span className="badge bg-rose-50 text-rose-600 border border-rose-200 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg">ADMIN</span>;
-      case 'manager': return <span className="badge bg-amber-50 text-amber-600 border border-amber-200 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg">MANAGER</span>;
-      case 'staff':   return <span className="badge bg-blue-50 text-blue-600 border border-blue-200 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg">STAFF</span>;
-      default:        return <span className="badge bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg">CLIENT</span>;
+      case 'admin':     return <span className="badge bg-rose-50 text-rose-600 border border-rose-200 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg">ADMIN</span>;
+      case 'manager':   return <span className="badge bg-amber-50 text-amber-600 border border-amber-200 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg">MANAGER</span>;
+      case 'staff':     return <span className="badge bg-blue-50 text-blue-600 border border-blue-200 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg">STAFF</span>;
+      case 'archived':  return <span className="badge bg-slate-100 text-slate-500 border border-slate-300 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg">DEACTIVATED</span>;
+      default:          return <span className="badge bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg">CLIENT</span>;
     }
   };
 
@@ -256,7 +273,7 @@ export const UsersManagement: React.FC = () => {
                         <td className="text-center">
                           <div className="flex justify-center gap-1">
                             <button onClick={() => handleOpenModal(u)} className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-xl"><Edit2 className="w-4 h-4" /></button>
-                            <button onClick={() => handleDelete(u.id)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl"><Trash2 className="w-4 h-4" /></button>
+                             <button onClick={() => handlePromptDeleteUser(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete user"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </tr>
@@ -312,7 +329,7 @@ export const UsersManagement: React.FC = () => {
                       <td className="text-center">
                         <div className="flex justify-center gap-1">
                           <button onClick={() => handleOpenModal(u)} className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-xl"><Edit2 className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete(u.id)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handlePromptDeleteUser(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete user"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>
@@ -422,6 +439,78 @@ export const UsersManagement: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Lightbox Confirmation Modal for Deactivating User (Soft Delete) */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 !mt-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 text-amber-400 flex items-center justify-center shrink-0 border border-white/10">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">Deactivate User Account</h3>
+                  <p className="text-xs text-slate-400 font-medium">Soft Delete Verification</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUserToDelete(null)}
+                className="btn btn-sm btn-ghost btn-circle text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content Body */}
+            <div className="p-6 space-y-5">
+              <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 space-y-2">
+                <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Historical Data & Log Preservation</span>
+                </div>
+                <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                  Adakah anda pasti ingin menyahaktifkan pengguna <strong className="font-extrabold text-slate-900">"{userToDelete.name}"</strong> ({userToDelete.email})?
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium pt-1 border-t border-amber-200/60">
+                  ℹ️ Pengguna ini tidak lagi boleh log masuk atau ditugaskan kepada job baharu. Namun, <strong>semua sejarah job, log audit, & laporan silam akan KEKAL DIPELIHARA 100%</strong> di dalam pangkalan data.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setUserToDelete(null)}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteUser}
+                  disabled={deletingUser}
+                  className="btn bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md shadow-slate-900/20 transition-all gap-2"
+                >
+                  {deletingUser ? (
+                    <>
+                      <span className="loading loading-spinner loading-xs"></span>
+                      <span>Deactivating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldAlert className="w-4 h-4 text-amber-400" />
+                      <span>Deactivate User</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

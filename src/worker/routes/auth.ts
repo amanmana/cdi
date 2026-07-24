@@ -20,12 +20,21 @@ auth.post('/login', async (c) => {
   }
 
   const user = await c.env.DB
-    .prepare('SELECT * FROM users WHERE email = ?')
+    .prepare(`
+      SELECT u.id, u.name, u.email, u.password_hash, u.role, u.unit_id, COALESCE(un.name, u.unit) as unit 
+      FROM users u 
+      LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
+      WHERE u.email = ?
+    `)
     .bind(email)
-    .first<{ id: number; name: string; email: string; password_hash: string; role: 'admin' | 'manager' | 'staff' | 'client'; unit: string }>();
+    .first<{ id: number; name: string; email: string; password_hash: string; role: 'admin' | 'manager' | 'staff' | 'client'; unit_id?: number | null; unit: string }>();
 
   if (!user) {
     return c.json({ error: 'E-mel atau kata laluan tidak sah.' }, 401);
+  }
+
+  if ((user.role as string) === 'archived') {
+    return c.json({ error: 'Akaun anda telah dinyahaktifkan (Deactivated). Sila hubungi Pentadbir Sistem.' }, 403);
   }
 
   const isValid = await verifyPassword(password, user.password_hash);
@@ -51,7 +60,7 @@ auth.post('/login', async (c) => {
 });
 
 auth.post('/register', async (c) => {
-  const { name, email, password, role, unit } = await c.req.json();
+  const { name, email, password, role, unit, unit_id } = await c.req.json();
   if (!name || !email || !password) {
     return c.json({ error: 'Sila lengkapkan nama, e-mel dan kata laluan.' }, 400);
   }
@@ -69,8 +78,8 @@ auth.post('/register', async (c) => {
   const userRole = role || 'client';
 
   const res = await c.env.DB
-    .prepare('INSERT INTO users (name, email, password_hash, role, unit, created_at) VALUES (?, ?, ?, ?, ?, datetime("now"))')
-    .bind(name, email, pwdHash, userRole, unit || null)
+    .prepare('INSERT INTO users (name, email, password_hash, role, unit_id, unit, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"))')
+    .bind(name, email, pwdHash, userRole, unit_id || null, unit || null)
     .run();
 
   const newUser: AuthUser = {
@@ -104,7 +113,12 @@ auth.get('/me', async (c) => {
   }
 
   const user = await c.env.DB
-    .prepare('SELECT id, name, email, role, unit FROM users WHERE id = ?')
+    .prepare(`
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, COALESCE(un.name, u.unit) as unit 
+      FROM users u 
+      LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
+      WHERE u.id = ?
+    `)
     .bind(payload.id)
     .first<AuthUser>();
 
@@ -115,9 +129,10 @@ auth.get('/me', async (c) => {
   const today = new Date().toISOString().split('T')[0];
   const delegation = await c.env.DB
     .prepare(
-      `SELECT d.*, m.unit as manager_unit, m.role as manager_role
+      `SELECT d.*, COALESCE(un.name, m.unit) as manager_unit, m.role as manager_role
        FROM delegations d
        JOIN users m ON d.manager_id = m.id
+       LEFT JOIN units un ON (m.unit_id = un.id OR m.unit = un.name)
        WHERE d.delegate_id = ? AND d.status = 'active' AND d.start_date <= ? AND d.end_date >= ?
        LIMIT 1`
     )

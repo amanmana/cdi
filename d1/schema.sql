@@ -7,8 +7,10 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'client', -- admin, manager, staff, client
+  unit_id INTEGER,                     -- Foreign Key to units(id)
   unit TEXT,                           -- Associated unit name
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (unit_id) REFERENCES units(id)
 );
 
 -- Service Units Table
@@ -24,13 +26,15 @@ CREATE TABLE IF NOT EXISTS delegations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   manager_id INTEGER NOT NULL,
   delegate_id INTEGER NOT NULL,
+  unit_id INTEGER,                     -- Foreign Key to units(id)
   unit TEXT NOT NULL,
   start_date TEXT NOT NULL,
   end_date TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active', -- active, expired, cancelled
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (manager_id) REFERENCES users(id),
-  FOREIGN KEY (delegate_id) REFERENCES users(id)
+  FOREIGN KEY (delegate_id) REFERENCES users(id),
+  FOREIGN KEY (unit_id) REFERENCES units(id)
 );
 
 -- Job Requests Table
@@ -41,6 +45,7 @@ CREATE TABLE IF NOT EXISTS job_requests (
   client_email TEXT NOT NULL,
   title TEXT NOT NULL,
   description TEXT,
+  unit_id INTEGER,                     -- Foreign Key to units(id)
   unit TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'manager_approval', -- manager_approval, staff_processing, completed, rejected
   current_step_name TEXT DEFAULT 'Manager Review',
@@ -49,7 +54,8 @@ CREATE TABLE IF NOT EXISTS job_requests (
   deadline TEXT,
   additional_data TEXT,                             -- JSON string for dynamic fields
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (unit_id) REFERENCES units(id)
 );
 
 -- Sub-Tasks Table for Designers / Staff
