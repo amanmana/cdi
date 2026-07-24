@@ -53,7 +53,7 @@ jobRequestsRouter.get('/', async (c) => {
   // Role Scoping
   if (user && user.role === 'staff') {
     query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 AND j.status != 'manager_approval'`;
-    params.push(user.id);
+    params.push(String(user.id));
   } else if (user && user.role === 'client') {
     query += ` AND j.client_email = ?`;
     params.push(user.email);
