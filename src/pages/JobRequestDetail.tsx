@@ -705,7 +705,7 @@ export const JobRequestDetail: React.FC = () => {
           </div>
 
           {/* Comment from Manager Card */}
-          {managerComment && (
+          {managerComment && user?.role !== 'client' && (
             <div className="bg-amber-50/30 p-6 rounded-2xl border border-amber-100/70 space-y-4 shadow-sm">
               <div className="flex items-center gap-2 text-xs font-black text-amber-700 uppercase tracking-wider">
                 <MessageSquare className="w-4 h-4 text-amber-600" />
