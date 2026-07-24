@@ -170,11 +170,15 @@ admin.post('/units', async (c) => {
   return c.json({ success: true, message: 'Unit added' });
 });
 
-// Update Unit (name and/or schema)
+// Update Unit (name and/or schema) — cascades name change to all users in that unit
 admin.put('/units/:id', async (c) => {
   const db = c.env.DB;
   const id = c.req.param('id');
   const { name, form_schema } = await c.req.json();
+
+  // Fetch current unit name before update (needed for cascade)
+  const existing = await db.prepare('SELECT name FROM units WHERE id = ?').bind(id).first<{ name: string }>();
+  const oldName = existing?.name;
 
   if (name !== undefined && form_schema !== undefined) {
     await db.prepare('UPDATE units SET name = ?, form_schema = ? WHERE id = ?')
@@ -187,6 +191,13 @@ admin.put('/units/:id', async (c) => {
   } else {
     await db.prepare('UPDATE units SET form_schema = ? WHERE id = ?')
       .bind(JSON.stringify(form_schema || []), id)
+      .run();
+  }
+
+  // Cascade: update all users who had the old unit name
+  if (name !== undefined && oldName && oldName !== name) {
+    await db.prepare('UPDATE users SET unit = ? WHERE unit = ?')
+      .bind(name, oldName)
       .run();
   }
 
