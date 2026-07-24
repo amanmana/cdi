@@ -120,6 +120,7 @@ export const JobRequestDetail: React.FC = () => {
   const totalStaff = data.staffDetails?.length || 0;
   const completedStaff = data.staffDetails?.filter((s: any) => s.is_done).length || 0;
   const percent = request.status === 'completed' ? 100 : totalStaff > 0 ? Math.round((completedStaff / totalStaff) * 100) : 0;
+  const isUserDone = data.staffDetails?.find((s: any) => s.id === user?.id)?.is_done || false;
 
   const handleOpenApproveModal = () => {
     if (!startDate) {
@@ -584,7 +585,7 @@ export const JobRequestDetail: React.FC = () => {
                   {(user?.role === 'admin' ||
                     user?.role === 'manager' ||
                     user?.is_acting_manager ||
-                    (user?.role === 'staff' && request.status !== 'completed' && request.status !== 'rejected')) && (
+                    (user?.role === 'staff' && request.status !== 'completed' && request.status !== 'rejected' && !isUserDone)) && (
                     <button
                       type="button"
                       onClick={() => {
