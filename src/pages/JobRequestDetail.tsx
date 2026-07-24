@@ -20,6 +20,7 @@ import {
   Copy,
   AlertCircle,
   X,
+  Wrench,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
@@ -309,6 +310,33 @@ export const JobRequestDetail: React.FC = () => {
       setSelectedStaff(selectedStaff.filter((sid) => sid !== staffId));
     } else {
       setSelectedStaff([...selectedStaff, staffId]);
+    }
+  };
+
+  const handleDevReset = async () => {
+    if (!window.confirm("Reset this request back to Pending Manager Approval?")) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/job-requests/${id}/reset-dev`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        // Refresh details
+        fetchDetail();
+        alert("Request status successfully reset to Pending Approval!");
+      } else {
+        alert(resData.error || "Reset failed");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error resetting request");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1605,6 +1633,20 @@ export const JobRequestDetail: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* TEMPORARY DEV TOOLS FOR TESTING */}
+      <div className="fixed bottom-6 right-6 z-50 bg-slate-900/95 text-white p-4.5 rounded-2xl border border-slate-800 shadow-2xl flex flex-col gap-2 max-w-xs backdrop-blur-sm">
+        <div className="flex items-center gap-1.5 text-[10px] font-black text-amber-400 uppercase tracking-widest">
+          <Wrench className="w-3.5 h-3.5 animate-pulse" /> DEV PANEL
+        </div>
+        <button
+          type="button"
+          onClick={handleDevReset}
+          className="btn btn-xs bg-amber-500 hover:bg-amber-600 border-none text-slate-900 font-extrabold text-[10px] rounded-xl tracking-wider py-1.5 h-auto uppercase"
+        >
+          Reset to Pending
+        </button>
+      </div>
     </div>
   );
 };

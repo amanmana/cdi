@@ -532,6 +532,35 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
   return c.json({ success: true, message: 'Part marked as done.' });
 });
 
+// POST /api/job-requests/:id/reset-dev - Temporary developer endpoint to reset request status for testing
+jobRequestsRouter.post('/:id/reset-dev', async (c) => {
+  const db = c.env.DB;
+  const idParam = c.req.param('id');
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) return c.json({ error: 'Job request not found' }, 404);
+
+  // Reset request fields
+  await db.prepare(`
+    UPDATE job_requests 
+    SET status = 'manager_approval', 
+        current_step_name = 'Manager Approval', 
+        start_date = NULL, 
+        deadline = NULL,
+        assigned_staff_ids = NULL,
+        updated_at = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `).bind(request.id).run();
+
+  // Keep only the SUBMIT log and delete others
+  await db.prepare(`
+    DELETE FROM workflow_logs 
+    WHERE job_request_id = ? AND action != 'SUBMIT'
+  `).bind(request.id).run();
+
+  return c.json({ success: true, message: 'Request status reset successfully.' });
+});
+
 // DELETE /api/job-requests/:id - Delete request
 jobRequestsRouter.delete('/:id', async (c) => {
   const db = c.env.DB;
