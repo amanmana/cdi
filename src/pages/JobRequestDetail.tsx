@@ -706,21 +706,21 @@ export const JobRequestDetail: React.FC = () => {
 
           {/* Comment from Manager Card */}
           {managerComment && (
-            <div className="bg-amber-50/40 p-6 rounded-3xl border border-amber-100/60 space-y-4 shadow-sm">
+            <div className="bg-amber-50/30 p-6 rounded-2xl border border-amber-100/70 space-y-4 shadow-sm">
               <div className="flex items-center gap-2 text-xs font-black text-amber-700 uppercase tracking-wider">
                 <MessageSquare className="w-4 h-4 text-amber-600" />
-                <span>Comment from Manager</span>
+                <span>COMMENT FROM MANAGER</span>
               </div>
-              <div className="bg-white p-4.5 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                     MANAGER MESSAGE
                   </span>
-                  <span className="text-[9px] font-extrabold text-amber-600 uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded-md">
+                  <span className="text-[9px] font-extrabold text-amber-600 uppercase tracking-wider bg-amber-50/60 px-2.5 py-0.5 rounded-md">
                     — {approveLog.actor_name || 'Manager'}
                   </span>
                 </div>
-                <p className="text-xs font-bold text-slate-800 leading-relaxed mt-1 whitespace-pre-wrap">
+                <p className="text-sm font-semibold text-slate-800 leading-relaxed whitespace-pre-wrap">
                   {managerComment}
                 </p>
               </div>
