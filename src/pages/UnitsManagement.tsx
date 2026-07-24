@@ -192,7 +192,7 @@ export const UnitsManagement: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <div className="font-bold text-sm text-slate-900">{u.name}</div>
+                      <div className="font-bold text-sm text-slate-900">{u.name} ({u.staff_count || 0})</div>
                       <div className="text-[10px] text-slate-400 font-medium">{u.form_schema?.length || 0} dynamic form fields</div>
                     </>
                   )}

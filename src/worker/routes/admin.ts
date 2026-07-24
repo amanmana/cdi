@@ -152,10 +152,15 @@ admin.post('/team/delegation/:id/cancel', async (c) => {
 // Units List
 admin.get('/units', async (c) => {
   const db = c.env.DB;
-  const { results } = await db.prepare('SELECT * FROM units ORDER BY name ASC').all();
+  const { results } = await db.prepare(`
+    SELECT u.*, (SELECT COUNT(*) FROM users WHERE users.unit = u.name) as staff_count 
+    FROM units u 
+    ORDER BY u.name ASC
+  `).all();
   const formatted = (results || []).map((u: any) => ({
     ...u,
     form_schema: u.form_schema ? JSON.parse(u.form_schema) : [],
+    staff_count: u.staff_count || 0
   }));
   return c.json(formatted);
 });
