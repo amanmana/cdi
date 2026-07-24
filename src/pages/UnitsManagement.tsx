@@ -203,9 +203,11 @@ export const UnitsManagement: React.FC = () => {
                     <button onClick={() => handleStartRename(u)} className="btn btn-ghost btn-xs text-slate-500 hover:bg-slate-200 rounded-xl" title="Rename unit">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => handleOpenBuilder(u)} className="btn btn-outline btn-xs border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl gap-1 font-bold">
-                      <Sliders className="w-3 h-3" /> Form
-                    </button>
+                    {u.name !== 'Administrator' && (
+                      <button onClick={() => handleOpenBuilder(u)} className="btn btn-outline btn-xs border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl gap-1 font-bold">
+                        <Sliders className="w-3 h-3" /> Form
+                      </button>
+                    )}
                     <button onClick={() => handleDeleteUnit(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete unit">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
