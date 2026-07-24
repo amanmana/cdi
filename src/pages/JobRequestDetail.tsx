@@ -966,79 +966,6 @@ export const JobRequestDetail: React.FC = () => {
 
         {/* RIGHT COLUMN (1 Column Wide) matching Reference Image 2 */}
         <div className="space-y-6">
-          {/* PROJECT TIMELINE Card */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-5">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase tracking-wider">
-              <Calendar className="w-4 h-4 text-blue-600" />
-              <span>PROJECT TIMELINE</span>
-            </div>
-
-            <div className="space-y-4">
-              {/* Start Date */}
-              <div className="flex items-center gap-3 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                    START DATE
-                  </span>
-                  <span className="text-xs font-extrabold text-slate-800">
-                    {formatDateDisplay(request.start_date)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Deadline */}
-              <div className="flex items-center gap-3 bg-rose-50/40 p-3.5 rounded-2xl border border-rose-100/60">
-                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-extrabold text-rose-400 uppercase tracking-wider block">
-                    DATELINE / DEADLINE
-                  </span>
-                  <span className="text-xs font-extrabold text-rose-600">
-                    {formatDateDisplay(request.deadline)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* PART COMPLETED CARD WITH VIEW NOTE BUTTON (For completed Staff) */}
-          {user?.role === 'staff' && !user?.is_acting_manager && (
-            data?.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
-            history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE') ||
-            request.status === 'completed'
-          ) && (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 text-center">
-              <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
-                <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="text-base font-extrabold text-emerald-800 tracking-wider uppercase">
-                  PART COMPLETED
-                </h3>
-                <p className="text-xs font-semibold text-emerald-600 leading-relaxed max-w-xs mx-auto">
-                  You have finalized your work for this project.
-                </p>
-              </div>
-
-              {/* View Note Button */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowViewNotesModal(true)}
-                  className="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md gap-2 flex items-center justify-center"
-                >
-                  <FileText className="w-4 h-4 text-emerald-400" /> View Note
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Workflow Actions Card (Hidden for Client and when Staff has completed their part) */}
           {user?.role !== 'client' &&
             !(user?.role === 'staff' && (
@@ -1198,6 +1125,79 @@ export const JobRequestDetail: React.FC = () => {
             )}
           </div>
         )}
+
+          {/* PROJECT TIMELINE Card */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-5">
+            <div className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase tracking-wider">
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <span>PROJECT TIMELINE</span>
+            </div>
+
+            <div className="space-y-4">
+              {/* Start Date */}
+              <div className="flex items-center gap-3 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                    START DATE
+                  </span>
+                  <span className="text-xs font-extrabold text-slate-800">
+                    {formatDateDisplay(request.start_date)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Deadline */}
+              <div className="flex items-center gap-3 bg-rose-50/40 p-3.5 rounded-2xl border border-rose-100/60">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold text-rose-400 uppercase tracking-wider block">
+                    DATELINE / DEADLINE
+                  </span>
+                  <span className="text-xs font-extrabold text-rose-600">
+                    {formatDateDisplay(request.deadline)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PART COMPLETED CARD WITH VIEW NOTE BUTTON (For completed Staff) */}
+          {user?.role === 'staff' && !user?.is_acting_manager && (
+            data?.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
+            history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE') ||
+            request.status === 'completed'
+          ) && (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 text-center">
+              <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
+                <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-extrabold text-emerald-800 tracking-wider uppercase">
+                  PART COMPLETED
+                </h3>
+                <p className="text-xs font-semibold text-emerald-600 leading-relaxed max-w-xs mx-auto">
+                  You have finalized your work for this project.
+                </p>
+              </div>
+
+              {/* View Note Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowViewNotesModal(true)}
+                  className="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md gap-2 flex items-center justify-center"
+                >
+                  <FileText className="w-4 h-4 text-emerald-400" /> View Note
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Activity History Card matching Reference Image 2 */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4">
