@@ -123,6 +123,9 @@ export const JobRequestDetail: React.FC = () => {
   const percent = request.status === 'completed' ? 100 : totalStaff > 0 ? Math.round((completedStaff / totalStaff) * 100) : 0;
   const isUserDone = data.staffDetails?.find((s: any) => s.id === user?.id)?.is_done || false;
 
+  const approveLog = history?.find((h: any) => h.action === 'APPROVE');
+  const managerComment = approveLog ? approveLog.comment : null;
+
   const handleOpenApproveModal = () => {
     if (!startDate) {
       setStartDate(new Date().toISOString().split('T')[0]);
@@ -700,6 +703,29 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Comment from Manager Card */}
+          {managerComment && (
+            <div className="bg-amber-50/40 p-6 rounded-3xl border border-amber-100/60 space-y-4 shadow-sm">
+              <div className="flex items-center gap-2 text-xs font-black text-amber-700 uppercase tracking-wider">
+                <MessageSquare className="w-4 h-4 text-amber-600" />
+                <span>Comment from Manager</span>
+              </div>
+              <div className="bg-white p-4.5 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    MANAGER MESSAGE
+                  </span>
+                  <span className="text-[9px] font-extrabold text-amber-600 uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded-md">
+                    — {approveLog.actor_name || 'Manager'}
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-800 leading-relaxed mt-1 whitespace-pre-wrap">
+                  {managerComment}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Workflow Progress Stepper Card matching Reference Image 2 */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
