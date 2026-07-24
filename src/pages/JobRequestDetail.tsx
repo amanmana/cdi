@@ -1052,8 +1052,8 @@ export const JobRequestDetail: React.FC = () => {
                 <span>Workflow Actions</span>
               </div>
 
-            {/* Note / Report Section (Staff Page Only, or assigned Managers) */}
-            {((user?.role === 'staff' && !user?.is_acting_manager) || data.staffDetails?.some((s: any) => s.id === user?.id)) && (
+            {/* Note / Report Section (Staff Page Only) */}
+            {user?.role === 'staff' && !user?.is_acting_manager && (
               <div className="space-y-3 pt-2">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">
                   NOTE / REPORT
@@ -1456,12 +1456,14 @@ export const JobRequestDetail: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setShowMarkDoneModal(false);
-                  const textarea = document.querySelector('textarea');
-                  if (textarea) textarea.focus();
+                  if (user?.role === 'staff' && !user?.is_acting_manager) {
+                    const textarea = document.querySelector('textarea');
+                    if (textarea) textarea.focus();
+                  }
                 }}
                 className="btn bg-slate-100 hover:bg-slate-200 border-none text-slate-600 font-extrabold text-xs rounded-2xl px-4 h-12 uppercase tracking-wider flex-1"
               >
-                WAIT, LET ME ADD A NOTE
+                {(user?.role === 'staff' && !user?.is_acting_manager) ? 'WAIT, LET ME ADD A NOTE' : 'CANCEL'}
               </button>
             </div>
           </div>
