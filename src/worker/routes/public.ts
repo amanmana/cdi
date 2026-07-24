@@ -4,6 +4,7 @@ import { D1Database } from '@cloudflare/workers-types';
 type Env = {
   Bindings: {
     DB: D1Database;
+    TURNSTILE_SECRET_KEY: string;
   };
 };
 
@@ -26,10 +27,34 @@ publicApi.get('/units', async (c) => {
 // Submit a new job request (Public)
 publicApi.post('/job-requests', async (c) => {
   try {
-    const { client_name, client_email, title, description, unit, additional_data } = await c.req.json();
+    const { client_name, client_email, title, description, unit, additional_data, turnstileToken } = await c.req.json();
 
-    if (!client_name || !client_email || !title || !unit) {
-      return c.json({ error: 'Please fill in full name, email, title, and target unit.' }, 400);
+    if (!client_name || !client_email || !title || !unit || !turnstileToken) {
+      return c.json({ error: 'Please fill in full name, email, title, target unit, and complete the security verification.' }, 400);
+    }
+
+    // Verify Turnstile
+    const turnstileSecret = c.env.TURNSTILE_SECRET_KEY;
+    if (turnstileSecret) {
+      const formData = new FormData();
+      formData.append('secret', turnstileSecret);
+      formData.append('response', turnstileToken);
+      
+      const ip = c.req.header('CF-Connecting-IP');
+      if (ip) {
+        formData.append('remoteip', ip);
+      }
+
+      const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const verifyData: any = await verifyRes.json();
+      if (!verifyData.success) {
+        console.error('Turnstile verification failed:', verifyData);
+        return c.json({ error: 'Security verification (Turnstile) failed. Please try again.' }, 403);
+      }
     }
 
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';

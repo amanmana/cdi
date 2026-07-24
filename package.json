@@ -13,6 +13,7 @@
     "d1:init": "wrangler d1 execute cdi-db --local --file=./d1/schema.sql && wrangler d1 execute cdi-db --local --file=./d1/seed.sql"
   },
   "dependencies": {
+    "@marsidev/react-turnstile": "^1.5.3",
     "hono": "^4.7.2",
     "jose": "^5.9.6",
     "lucide-react": "^0.469.0",

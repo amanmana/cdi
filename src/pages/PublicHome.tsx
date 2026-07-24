@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle } from 'lucide-react';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 interface Unit {
   id: number;
@@ -59,8 +60,10 @@ export const PublicHome: React.FC = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dynamicFields, setDynamicFields] = useState<Record<string, string>>({});
+  
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
 
   useEffect(() => {
     if (user) {
@@ -94,8 +97,26 @@ export const PublicHome: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const missing: Record<string, string> = {};
+    currentUnitObj?.form_schema.forEach(field => {
+      if (field.required && !dynamicFields[field.id]) {
+        missing[field.id] = field.label;
+      }
+    });
+
+    if (Object.keys(missing).length > 0) {
+      setError(`Sila isi maklumat wajib: ${Object.keys(missing).map(k => missing[k]).join(', ')}`);
+      return;
+    }
+
+    if (!turnstileToken) {
+      setError('Sila lengkapkan pengesahan keselamatan (Turnstile) terlebih dahulu.');
+      return;
+    }
+
     setLoading(true);
-    setError('');
+    setError(null);
 
     try {
       const res = await fetch('/api/public/job-requests', {
@@ -107,6 +128,7 @@ export const PublicHome: React.FC = () => {
           title,
           description,
           unit: selectedUnit,
+          turnstileToken,
           additional_data: dynamicFields,
         }),
       });
@@ -358,6 +380,13 @@ export const PublicHome: React.FC = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-4"
                 ></textarea>
+              </div>
+
+              <div className="pt-2 flex justify-center">
+                <Turnstile 
+                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ''} 
+                  onSuccess={setTurnstileToken} 
+                />
               </div>
 
               {/* Glowing Blue Submit Button */}
