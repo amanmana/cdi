@@ -40,8 +40,5 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   const sha256 = await hashPassword(password);
   if (sha256 === storedHash) return true;
 
-  // Demo seed password check (password123)
-  if (password === 'password123') return true;
-
   return password === storedHash;
 }
