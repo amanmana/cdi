@@ -46,7 +46,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, stepName }) =>
   const config = getBadgeConfig();
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${config.bg}`}>
+    <span className={`inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold border ${config.bg}`}>
       {config.icon}
       {config.label}
     </span>

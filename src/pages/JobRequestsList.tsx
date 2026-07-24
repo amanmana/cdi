@@ -53,15 +53,15 @@ export const JobRequestsList: React.FC = () => {
 
   const renderStatusBadge = (status: string, stepName?: string) => {
     if (status === 'completed') {
-      return <span className="bg-emerald-500 text-white font-extrabold uppercase rounded-full px-4 py-1 text-[11px] tracking-wider shadow-sm">COMPLETED</span>;
+      return <span className="inline-flex items-center justify-center whitespace-nowrap bg-emerald-500 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">COMPLETED</span>;
     }
     if (status === 'rejected') {
-      return <span className="bg-rose-500 text-white font-extrabold uppercase rounded-full px-4 py-1 text-[11px] tracking-wider shadow-sm">REJECTED</span>;
+      return <span className="inline-flex items-center justify-center whitespace-nowrap bg-rose-500 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">REJECTED</span>;
     }
     if (status === 'manager_approval') {
-      return <span className="bg-amber-500 text-white font-extrabold uppercase rounded-full px-4 py-1 text-[11px] tracking-wider shadow-sm">MANAGER APPROVAL</span>;
+      return <span className="inline-flex items-center justify-center whitespace-nowrap bg-amber-500 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">MANAGER APPROVAL</span>;
     }
-    return <span className="bg-indigo-600 text-white font-extrabold uppercase rounded-full px-4 py-1 text-[11px] tracking-wider shadow-sm">{stepName ? stepName.toUpperCase() : 'STAFF PROCESSING'}</span>;
+    return <span className="inline-flex items-center justify-center whitespace-nowrap bg-indigo-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">{stepName ? stepName.toUpperCase() : 'STAFF PROCESSING'}</span>;
   };
 
   const formatDate = (dateStr?: string) => {
