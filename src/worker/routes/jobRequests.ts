@@ -752,9 +752,17 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
 
   const assignedStr = Array.isArray(staff_ids) ? staff_ids.join(',') : '';
 
+  // Option B: Automatically set status to staff_processing when staff is assigned
+  let newStatus = request.status;
+  let newStepName = request.current_step_name;
+  if ((request.status === 'manager_approval' || request.status === 'pending') && Array.isArray(staff_ids) && staff_ids.length > 0) {
+    newStatus = 'staff_processing';
+    newStepName = 'Staff Processing';
+  }
+
   await db.prepare(`
-    UPDATE job_requests SET assigned_staff_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `).bind(assignedStr, request.id).run();
+    UPDATE job_requests SET assigned_staff_ids = ?, status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+  `).bind(assignedStr, newStatus, newStepName, request.id).run();
 
   let staffNamesStr = 'None';
   if (Array.isArray(staff_ids) && staff_ids.length > 0) {

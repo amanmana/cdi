@@ -106,7 +106,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Designer / Staff Assigned Tasks Card */}
-      {(user?.role === 'staff' || user?.role === 'admin') && (
+      {user?.role === 'staff' && (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
