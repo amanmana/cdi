@@ -73,8 +73,11 @@ export const PublicHome: React.FC = () => {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          setUnits(data);
-          setSelectedUnit(data[0].name);
+          const publicUnits = data.filter((u) => u.name !== 'Administrator');
+          setUnits(publicUnits);
+          if (publicUnits.length > 0) {
+            setSelectedUnit(publicUnits[0].name);
+          }
         }
       })
       .catch((err) => {
