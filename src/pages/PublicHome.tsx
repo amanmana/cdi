@@ -12,6 +12,7 @@ interface Unit {
     type: string;
     options?: string[];
     required?: boolean;
+    placeholder?: string;
   }>;
 }
 
@@ -232,25 +233,87 @@ export const PublicHome: React.FC = () => {
                           </span>
                         </label>
 
-                        {field.type === 'select' ? (
+                        {field.type === 'select' && (
                           <select
                             required={field.required}
                             value={dynamicFields[field.id] || ''}
                             onChange={(e) => handleDynamicChange(field.id, e.target.value)}
                             className="select select-bordered select-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
                           >
-                            <option value="">-- Select {field.label} --</option>
+                            <option value="">-- {field.placeholder || `Select ${field.label}`} --</option>
                             {field.options?.map((opt) => (
                               <option key={opt} value={opt}>
                                 {opt}
                               </option>
                             ))}
                           </select>
-                        ) : (
+                        )}
+                        
+                        {field.type === 'textarea' && (
+                          <textarea
+                            required={field.required}
+                            placeholder={field.placeholder || `Enter ${field.label}...`}
+                            value={dynamicFields[field.id] || ''}
+                            onChange={(e) => handleDynamicChange(field.id, e.target.value)}
+                            className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full h-24 text-xs font-medium"
+                          ></textarea>
+                        )}
+                        
+                        {field.type === 'radio' && (
+                          <div className="space-y-2 mt-1">
+                            {field.options?.map((opt) => (
+                              <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                  type="radio" 
+                                  name={`dynamic_${field.id}`}
+                                  value={opt}
+                                  checked={dynamicFields[field.id] === opt}
+                                  onChange={(e) => handleDynamicChange(field.id, e.target.value)}
+                                  required={field.required}
+                                  className="radio radio-primary radio-sm" 
+                                />
+                                <span className="text-sm text-slate-700">{opt}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {field.type === 'checkbox' && (
+                          <div className="space-y-2 mt-1">
+                            {field.options?.map((opt) => {
+                              // For checkbox, value is comma separated string
+                              const currentValues = dynamicFields[field.id] ? dynamicFields[field.id].split(', ') : [];
+                              const isChecked = currentValues.includes(opt);
+                              
+                              return (
+                                <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                                  <input 
+                                    type="checkbox" 
+                                    value={opt}
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      let newValues = [...currentValues];
+                                      if (e.target.checked) {
+                                        newValues.push(opt);
+                                      } else {
+                                        newValues = newValues.filter(v => v !== opt);
+                                      }
+                                      handleDynamicChange(field.id, newValues.join(', '));
+                                    }}
+                                    className="checkbox checkbox-primary checkbox-sm rounded" 
+                                  />
+                                  <span className="text-sm text-slate-700">{opt}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {['text', 'number', 'date'].includes(field.type) && (
                           <input
                             type={field.type}
                             required={field.required}
-                            placeholder={`Enter ${field.label}...`}
+                            placeholder={field.placeholder || `Enter ${field.label}...`}
                             value={dynamicFields[field.id] || ''}
                             onChange={(e) => handleDynamicChange(field.id, e.target.value)}
                             className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"

@@ -8,6 +8,7 @@ interface SchemaField {
   type: string;
   options?: string[];
   required: boolean;
+  placeholder?: string;
 }
 
 export const UnitsManagement: React.FC = () => {
@@ -22,6 +23,8 @@ export const UnitsManagement: React.FC = () => {
   const [fieldType, setFieldType] = useState('text');
   const [fieldOptions, setFieldOptions] = useState('');
   const [fieldRequired, setFieldRequired] = useState(false);
+  const [fieldPlaceholder, setFieldPlaceholder] = useState('');
+  const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
 
   // Rename state
   const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
@@ -57,26 +60,73 @@ export const UnitsManagement: React.FC = () => {
   const handleOpenBuilder = (unit: any) => {
     setSelectedUnit(unit);
     setSchemaFields(unit.form_schema || []);
+    setEditingFieldIndex(null);
+    setFieldLabel('');
+    setFieldType('text');
+    setFieldOptions('');
+    setFieldRequired(false);
+    setFieldPlaceholder('');
   };
 
   const handleAddField = () => {
     if (!fieldLabel.trim()) return;
     const fieldId = fieldLabel.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const isOptionsType = ['select', 'radio', 'checkbox'].includes(fieldType);
+    
     const newField: SchemaField = {
       id: fieldId,
-      label: fieldLabel,
+      label: fieldLabel.trim(),
       type: fieldType,
-      options: fieldType === 'select' ? fieldOptions.split(',').map((o) => o.trim()) : undefined,
+      options: isOptionsType ? fieldOptions.split(',').map((o) => o.trim()).filter(o => o) : undefined,
       required: fieldRequired,
+      placeholder: fieldPlaceholder.trim() || undefined,
     };
-    setSchemaFields([...schemaFields, newField]);
+
+    if (editingFieldIndex !== null) {
+      const updatedFields = [...schemaFields];
+      updatedFields[editingFieldIndex] = newField;
+      setSchemaFields(updatedFields);
+      setEditingFieldIndex(null);
+    } else {
+      setSchemaFields([...schemaFields, newField]);
+    }
+    
     setFieldLabel('');
+    setFieldType('text');
     setFieldOptions('');
     setFieldRequired(false);
+    setFieldPlaceholder('');
+  };
+
+  const handleEditField = (index: number) => {
+    const field = schemaFields[index];
+    setFieldLabel(field.label);
+    setFieldType(field.type);
+    setFieldOptions(field.options ? field.options.join(', ') : '');
+    setFieldRequired(field.required);
+    setFieldPlaceholder(field.placeholder || '');
+    setEditingFieldIndex(index);
+  };
+
+  const handleMoveField = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === schemaFields.length - 1) return;
+    
+    const updatedFields = [...schemaFields];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const temp = updatedFields[index];
+    updatedFields[index] = updatedFields[targetIndex];
+    updatedFields[targetIndex] = temp;
+    setSchemaFields(updatedFields);
   };
 
   const handleRemoveField = (index: number) => {
     setSchemaFields(schemaFields.filter((_, i) => i !== index));
+    if (editingFieldIndex === index) {
+      setEditingFieldIndex(null);
+      setFieldLabel('');
+      setFieldPlaceholder('');
+    }
   };
 
   const handleSaveSchema = async () => {
@@ -235,8 +285,8 @@ export const UnitsManagement: React.FC = () => {
               </div>
 
               {/* Field Generator Inputs */}
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
-                <div>
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-3 mb-6">
+                <div className="md:col-span-3">
                   <label className="label text-[11px] font-bold text-slate-700 uppercase tracking-wider py-1">Field Label</label>
                   <input
                     type="text"
@@ -247,65 +297,139 @@ export const UnitsManagement: React.FC = () => {
                   />
                 </div>
 
-                <div>
+                <div className="md:col-span-3">
                   <label className="label text-[11px] font-bold text-slate-700 uppercase tracking-wider py-1">Input Type</label>
                   <select value={fieldType} onChange={(e) => setFieldType(e.target.value)} className="select select-bordered select-sm bg-white border-slate-200 rounded-xl w-full text-xs h-10">
                     <option value="text">Text Input</option>
-                    <option value="select">Select Dropdown</option>
+                    <option value="textarea">Textarea (Long Text)</option>
                     <option value="number">Number Input</option>
                     <option value="date">Date Picker</option>
+                    <option value="select">Select Dropdown</option>
+                    <option value="radio">Radio Buttons</option>
+                    <option value="checkbox">Checkboxes</option>
                   </select>
                 </div>
 
-                {fieldType === 'select' ? (
-                  <div>
+                {['select', 'radio', 'checkbox'].includes(fieldType) ? (
+                  <div className="md:col-span-4">
                     <label className="label text-[11px] font-bold text-slate-700 uppercase tracking-wider py-1">Options (Comma-separated)</label>
                     <input
                       type="text"
-                      placeholder="Hardware, Software"
+                      placeholder="Option 1, Option 2, Option 3"
                       value={fieldOptions}
                       onChange={(e) => setFieldOptions(e.target.value)}
                       className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full text-xs h-10"
                     />
                   </div>
                 ) : (
-                  <div className="flex items-end pb-2">
-                    <label className="label cursor-pointer gap-2 py-0">
-                      <input
-                        type="checkbox"
-                        checked={fieldRequired}
-                        onChange={(e) => setFieldRequired(e.target.checked)}
-                        className="checkbox checkbox-primary checkbox-xs rounded"
-                      />
-                      <span className="label-text text-xs text-slate-600 font-bold">Required Field</span>
-                    </label>
+                  <div className="md:col-span-4">
+                    <label className="label text-[11px] font-bold text-slate-700 uppercase tracking-wider py-1">Placeholder (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Enter the serial number..."
+                      value={fieldPlaceholder}
+                      onChange={(e) => setFieldPlaceholder(e.target.value)}
+                      className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full text-xs h-10"
+                    />
                   </div>
                 )}
 
-                <div className="flex items-end">
-                  <button type="button" onClick={handleAddField} className="btn btn-primary btn-sm bg-blue-600 border-blue-600 text-white font-bold rounded-xl w-full h-10">
-                    Add Field
+                <div className="md:col-span-2 flex flex-col justify-end gap-2 pb-0">
+                  <label className="label cursor-pointer justify-start gap-2 py-0 mb-1">
+                    <input
+                      type="checkbox"
+                      checked={fieldRequired}
+                      onChange={(e) => setFieldRequired(e.target.checked)}
+                      className="checkbox checkbox-primary checkbox-xs rounded"
+                    />
+                    <span className="label-text text-xs text-slate-600 font-bold">Required</span>
+                  </label>
+                  <button type="button" onClick={handleAddField} className={`btn btn-sm text-white font-bold rounded-xl w-full h-9 ${editingFieldIndex !== null ? 'bg-amber-500 hover:bg-amber-600 border-amber-500' : 'bg-blue-600 hover:bg-blue-700 border-blue-600'}`}>
+                    {editingFieldIndex !== null ? 'Update Field' : 'Add Field'}
                   </button>
                 </div>
               </div>
 
               {/* Schema Preview */}
-              <h3 className="font-bold text-sm text-slate-900 mb-3">Form Fields Preview ({schemaFields.length})</h3>
-              <div className="space-y-2.5">
+              <h3 className="font-bold text-sm text-slate-900 mb-3">Live Form Preview ({schemaFields.length} fields)</h3>
+              <div className="space-y-4 bg-slate-50 border border-slate-200 p-6 rounded-2xl">
                 {schemaFields.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No dynamic fields added yet.</p>
+                  <p className="text-xs text-slate-400 italic text-center py-4">No dynamic fields added yet. Add a field above to see the preview.</p>
                 ) : (
                   schemaFields.map((f, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div>
-                        <span className="font-bold text-sm text-slate-900">{f.label}</span>
-                        <span className="badge bg-blue-50 text-blue-700 border-none font-bold text-[10px] uppercase ml-2 px-2 py-0.5">{f.type}</span>
-                        {f.required && <span className="badge bg-rose-50 text-rose-600 border-none font-bold text-[10px] uppercase ml-1 px-2 py-0.5">Required</span>}
-                        {f.options && <div className="text-[11px] text-slate-500 font-medium mt-0.5">Options: {f.options.join(', ')}</div>}
+                    <div key={index} className="flex gap-4 group">
+                      <div className="flex-1">
+                        <label className="label text-xs font-bold text-slate-700 py-1">
+                          {f.label} {f.required && <span className="text-rose-500">*</span>}
+                        </label>
+                        
+                        {f.type === 'text' && (
+                          <input type="text" placeholder={f.placeholder} className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-sm" disabled />
+                        )}
+                        
+                        {f.type === 'textarea' && (
+                          <textarea placeholder={f.placeholder} className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full text-sm h-24" disabled></textarea>
+                        )}
+                        
+                        {f.type === 'number' && (
+                          <input type="number" placeholder={f.placeholder} className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-sm" disabled />
+                        )}
+                        
+                        {f.type === 'date' && (
+                          <input type="date" className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-sm text-slate-400" disabled />
+                        )}
+                        
+                        {f.type === 'select' && (
+                          <select className="select select-bordered bg-white border-slate-200 rounded-xl w-full text-sm" disabled>
+                            <option value="">{f.placeholder || 'Select an option'}</option>
+                            {f.options?.map((opt, i) => (
+                              <option key={i} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        )}
+                        
+                        {f.type === 'radio' && (
+                          <div className="space-y-2 mt-2">
+                            {f.options?.map((opt, i) => (
+                              <label key={i} className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name={`radio_preview_${index}`} className="radio radio-primary radio-sm" disabled />
+                                <span className="text-sm text-slate-700">{opt}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {f.type === 'checkbox' && (
+                          <div className="space-y-2 mt-2">
+                            {f.options?.map((opt, i) => (
+                              <label key={i} className="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" className="checkbox checkbox-primary checkbox-sm rounded" disabled />
+                                <span className="text-sm text-slate-700">{opt}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <button onClick={() => handleRemoveField(index)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      
+                      {/* Action Buttons for this field */}
+                      <div className="flex flex-col gap-1 mt-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-1">
+                          <button onClick={() => handleMoveField(index, 'up')} disabled={index === 0} className="btn btn-xs btn-square btn-ghost text-slate-400 hover:text-slate-700">
+                            ↑
+                          </button>
+                          <button onClick={() => handleMoveField(index, 'down')} disabled={index === schemaFields.length - 1} className="btn btn-xs btn-square btn-ghost text-slate-400 hover:text-slate-700">
+                            ↓
+                          </button>
+                        </div>
+                        <div className="flex gap-1 mt-1">
+                          <button onClick={() => handleEditField(index)} className="btn btn-xs btn-square btn-outline border-blue-200 text-blue-600 hover:bg-blue-50">
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleRemoveField(index)} className="btn btn-xs btn-square btn-outline border-rose-200 text-rose-600 hover:bg-rose-50">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))
                 )}
