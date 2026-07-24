@@ -131,6 +131,10 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   const handleConfirmApprove = async () => {
+    if (!deadline) {
+      alert("Please set a deadline date before approving this request.");
+      return;
+    }
     setActionLoading(true);
     try {
       // 1. Update assigned team
@@ -1290,13 +1294,14 @@ export const JobRequestDetail: React.FC = () => {
 
               <div>
                 <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
-                  Deadline
+                  Deadline <span className="text-rose-500 font-bold">*</span>
                 </label>
                 <input
                   type="date"
                   value={deadline}
                   onChange={(e) => setDeadline(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-xl h-11 px-3 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+                  required
                 />
               </div>
             </div>
