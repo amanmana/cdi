@@ -204,10 +204,24 @@ admin.put('/units/:id', async (c) => {
   return c.json({ success: true, message: 'Unit updated' });
 });
 
-// Delete Unit
+// Delete Unit (Blocked if staff are assigned to it)
 admin.delete('/units/:id', async (c) => {
   const db = c.env.DB;
   const id = c.req.param('id');
+
+  const unit = await db.prepare('SELECT id, name FROM units WHERE id = ?').bind(id).first<{ id: number; name: string }>();
+  if (!unit) {
+    return c.json({ error: 'Unit not found' }, 404);
+  }
+
+  // Check if any users belong to this unit
+  const assigned = await db.prepare('SELECT COUNT(*) as count FROM users WHERE unit = ?').bind(unit.name).first<{ count: number }>();
+  if (assigned && assigned.count > 0) {
+    return c.json({
+      error: `Tidak boleh memadam unit '${unit.name}' kerana terdapat ${assigned.count} orang pengguna/staf di dalamnya. Sila tukar unit pengguna tersebut terlebih dahulu.`
+    }, 400);
+  }
+
   await db.prepare('DELETE FROM units WHERE id = ?').bind(id).run();
   return c.json({ success: true, message: 'Unit deleted' });
 });

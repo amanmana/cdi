@@ -90,13 +90,19 @@ export const UnitsManagement: React.FC = () => {
     fetchUnits();
   };
 
-  const handleDeleteUnit = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this unit?')) return;
-    await fetch(`/api/admin/units/${id}`, {
+  const handleDeleteUnit = async (u: any) => {
+    if (!window.confirm(`Adakah anda pasti ingin memadam unit "${u.name}"?`)) return;
+    const res = await fetch(`/api/admin/units/${u.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
-    fetchUnits();
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (selectedUnit?.id === u.id) setSelectedUnit(null);
+      fetchUnits();
+    } else {
+      alert(data.error || 'Gagal memadam unit.');
+    }
   };
 
   const handleStartRename = (u: any) => {
@@ -200,7 +206,7 @@ export const UnitsManagement: React.FC = () => {
                     <button onClick={() => handleOpenBuilder(u)} className="btn btn-outline btn-xs border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl gap-1 font-bold">
                       <Sliders className="w-3 h-3" /> Form
                     </button>
-                    <button onClick={() => handleDeleteUnit(u.id)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl">
+                    <button onClick={() => handleDeleteUnit(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete unit">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
