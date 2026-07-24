@@ -29,6 +29,7 @@ class Unit
         if ($oldUnit) {
             $db->execute("UPDATE users SET unit = ? WHERE unit = ?", [$name, $oldUnit['name']]);
             $db->execute("UPDATE job_requests SET unit = ? WHERE unit = ?", [$name, $oldUnit['name']]);
+            $db->execute("UPDATE delegations SET unit = ? WHERE unit = ?", [$name, $oldUnit['name']]);
         }
         
         return true;

@@ -52,7 +52,7 @@ export const Login: React.FC = () => {
     if (email.includes('manager')) {
       demoRole = 'manager';
       demoName = 'Workflow Manager';
-      demoUnit = 'Events';
+      demoUnit = 'Graphic';
     } else if (email.includes('staff') || email.includes('designer')) {
       demoRole = 'staff';
       demoName = 'Staff Member';

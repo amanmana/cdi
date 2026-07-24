@@ -21,6 +21,7 @@ import {
   AlertCircle,
   X,
   Wrench,
+  Users,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
@@ -58,6 +59,10 @@ export const JobRequestDetail: React.FC = () => {
 
   // View Notes Modal State for Completed Staff
   const [showViewNotesModal, setShowViewNotesModal] = useState(false);
+
+  // Status Change Modal State (Pending / Cancel)
+  const [showStatusModal, setShowStatusModal] = useState<'on_hold' | 'cancelled' | null>(null);
+  const [statusReason, setStatusReason] = useState('');
 
   // Sub-task builder state
   const [taskTitle, setTaskTitle] = useState('');
@@ -470,7 +475,7 @@ export const JobRequestDetail: React.FC = () => {
   const renderStatusCapsule = (status: string) => {
     if (status === 'manager_approval') {
       return (
-        <span className="bg-amber-400 text-slate-950 font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm">
+        <span className="bg-blue-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm">
           MANAGER APPROVAL
         </span>
       );
@@ -489,8 +494,22 @@ export const JobRequestDetail: React.FC = () => {
         </span>
       );
     }
+    if (status === 'on_hold') {
+      return (
+        <span className="bg-amber-500 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5" /> PENDING / ON HOLD
+        </span>
+      );
+    }
+    if (status === 'cancelled') {
+      return (
+        <span className="bg-slate-700 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm flex items-center gap-1.5">
+          <XCircle className="w-3.5 h-3.5" /> CANCELLED
+        </span>
+      );
+    }
     return (
-      <span className="bg-indigo-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm">
+      <span className="bg-purple-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm">
         STAFF PROCESSING
       </span>
     );
@@ -593,6 +612,82 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             </div>
 
+            {/* Dedicated Standalone TEAM ASSIGNMENT & STATUS Slate Card */}
+            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/80 shadow-md shadow-slate-100 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 shadow-inner">
+                    <Users className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        TEAM ASSIGNMENT & STATUS
+                      </h3>
+                      {data.staffDetails && data.staffDetails.length > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-50 text-blue-700">
+                          {data.staffDetails.filter((s: any) => s.is_done).length} / {data.staffDetails.length} DONE
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Assigned staff team working on this project
+                    </span>
+                  </div>
+                </div>
+
+                {/* EDIT Button */}
+                {(request.status === 'staff_processing') && (user?.role === 'admin' ||
+                  user?.role === 'manager' ||
+                  user?.is_acting_manager ||
+                  (user?.role === 'staff' && !isUserDone)) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (request.assigned_staff_ids) {
+                        setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
+                      }
+                      setShowManageTeamModal(true);
+                    }}
+                    className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-extrabold uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" /> EDIT TEAM
+                  </button>
+                )}
+              </div>
+
+              {data.staffDetails && data.staffDetails.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {data.staffDetails.map((s: any) => (
+                    <div key={s.id} className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/70 flex items-center justify-between shadow-xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-white text-slate-800 font-black text-xs flex items-center justify-center border border-slate-200 shrink-0 shadow-inner">
+                          {s.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-black text-slate-900 truncate">{s.name}</div>
+                          <div className="text-[10px] font-semibold text-slate-400 truncate">{s.email}</div>
+                        </div>
+                      </div>
+                      {s.is_done ? (
+                        <span className="badge bg-emerald-500 text-white font-extrabold text-[9px] uppercase px-3 py-2 rounded-xl border-none tracking-wider shrink-0 gap-1 shadow-xs">
+                          ✓ DONE
+                        </span>
+                      ) : (
+                        <span className="badge bg-white text-slate-500 font-extrabold text-[9px] uppercase px-3 py-2 border border-slate-200/80 tracking-wider shrink-0">
+                          PENDING
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-center text-xs text-slate-400 font-semibold italic">
+                  ● No staff assigned yet
+                </div>
+              )}
+            </div>
+
             {/* Client Info Soft Box */}
             <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -613,62 +708,6 @@ export const JobRequestDetail: React.FC = () => {
                     {request.client_email}
                   </span>
                 </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-200/60">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    TEAM ASSIGNMENT & STATUS
-                  </span>
-
-                  {/* EDIT Button matching Reference Image 2 */}
-                  {(request.status === 'staff_processing') && (user?.role === 'admin' ||
-                    user?.role === 'manager' ||
-                    user?.is_acting_manager ||
-                    (user?.role === 'staff' && !isUserDone)) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (request.assigned_staff_ids) {
-                          setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
-                        }
-                        setShowManageTeamModal(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-800 text-xs font-extrabold uppercase flex items-center gap-1 transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" /> EDIT
-                    </button>
-                  )}
-                </div>
-
-                {data.staffDetails && data.staffDetails.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                    {data.staffDetails.map((s: any) => (
-                      <div key={s.id} className="bg-white p-3.5 rounded-2xl border border-slate-200/80 flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8.5 h-8.5 rounded-full bg-slate-100 text-slate-700 font-extrabold text-xs flex items-center justify-center border border-slate-200 shrink-0">
-                            {s.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-black text-slate-900 truncate">{s.name}</div>
-                            <div className="text-[10px] font-semibold text-slate-400 truncate">{s.email}</div>
-                          </div>
-                        </div>
-                        {s.is_done ? (
-                          <span className="badge bg-emerald-500 text-white font-extrabold text-[9px] uppercase px-3 py-1 rounded-xl border-none tracking-wider shrink-0 gap-1 shadow-sm">
-                            ✓ DONE
-                          </span>
-                        ) : (
-                          <span className="badge bg-slate-100 text-slate-500 font-extrabold text-[9px] uppercase px-2.5 py-1 border-none tracking-wider shrink-0">
-                            PENDING
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-xs text-slate-400 italic font-semibold block my-2">● Not yet assigned</span>
-                )}
               </div>
             </div>
 
@@ -728,7 +767,7 @@ export const JobRequestDetail: React.FC = () => {
           )}
 
           {/* Workflow Progress Stepper Card matching Reference Image 2 */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 h-[300px]">
             <h2 className="text-base font-extrabold text-slate-900 tracking-tight mb-6">
               Workflow Progress
             </h2>
@@ -804,164 +843,7 @@ export const JobRequestDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Designer Sub-Tasks Breakdown (Admin only) */}
-          {user?.role === 'admin' && (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-6">
-                <div>
-                  <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    <ListTodo className="w-5 h-5 text-indigo-600" /> Designer Sub-Tasks Breakdown
-                  </h2>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">
-                    Create and assign specific tasks to designers for this job request.
-                  </p>
-                </div>
-                {totalTasksCount > 0 && (
-                  <span className="badge bg-indigo-50 text-indigo-700 font-bold text-xs px-3 py-1 border-none">
-                    {completedTasksCount} of {totalTasksCount} Sub-tasks Completed
-                  </span>
-                )}
-              </div>
 
-              {/* Add Sub-Task Form */}
-              {user?.role !== 'client' && (
-                <form
-                  onSubmit={handleCreateSubTask}
-                  className="bg-slate-50 p-5 rounded-2xl border border-slate-200 grid grid-cols-1 md:grid-cols-4 gap-3 mb-6"
-                >
-                  <div className="md:col-span-2">
-                    <label className="label text-[11px] font-bold text-slate-700 uppercase tracking-wider py-1">
-                      Task Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Design FB Banner Concept A"
-                      value={taskTitle}
-                      onChange={(e) => setTaskTitle(e.target.value)}
-                      className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="label text-[11px] font-bold text-slate-700 uppercase tracking-wider py-1">
-                      Assign Designer *
-                    </label>
-                    <select
-                      required
-                      value={taskAssignee}
-                      onChange={(e) => setTaskAssignee(e.target.value)}
-                      className="select select-bordered select-sm bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
-                    >
-                      <option value="">-- Select Designer --</option>
-                      {teamMembers.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.role})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="label text-[11px] font-bold text-slate-700 uppercase tracking-wider py-1">
-                      Due Date
-                    </label>
-                    <input
-                      type="date"
-                      value={taskDueDate}
-                      onChange={(e) => setTaskDueDate(e.target.value)}
-                      className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
-                    />
-                  </div>
-
-                  <div className="md:col-span-4 flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={actionLoading}
-                      className="btn bg-indigo-600 hover:bg-indigo-700 border-indigo-600 text-white font-bold text-xs rounded-xl h-10 px-5 gap-1.5 shadow-md shadow-indigo-500/20"
-                    >
-                      <Plus className="w-4 h-4" /> Add Sub-Task
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Tasks List */}
-              <div className="space-y-3">
-                {tasks && tasks.length > 0 ? (
-                  tasks.map((task: any) => (
-                    <div
-                      key={task.id}
-                      className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3"
-                    >
-                      <div className="flex items-start gap-3">
-                        <button
-                          onClick={() =>
-                            handleTaskStatusChange(
-                              task.id,
-                              task.status === 'completed' ? 'in_progress' : 'completed'
-                            )
-                          }
-                          className={`mt-0.5 shrink-0 w-5 h-5 rounded-lg flex items-center justify-center border transition-all ${
-                            task.status === 'completed'
-                              ? 'bg-emerald-500 border-emerald-500 text-white'
-                              : 'border-slate-300 bg-white text-transparent hover:border-indigo-600'
-                          }`}
-                        >
-                          <CheckSquare className="w-3.5 h-3.5" />
-                        </button>
-                        <div>
-                          <h4
-                            className={`font-bold text-sm ${
-                              task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-900'
-                            }`}
-                          >
-                            {task.title}
-                          </h4>
-                          <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
-                            <span>
-                              Assigned to: <strong className="text-indigo-600">{task.assigned_to_name}</strong>
-                            </span>
-                            <span>•</span>
-                            <span>
-                              Due: <strong className="text-slate-700">{task.due_date || 'N/A'}</strong>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <select
-                          value={task.status}
-                          onChange={(e) => handleTaskStatusChange(task.id, e.target.value)}
-                          className="select select-bordered select-xs bg-white border-slate-200 rounded-lg text-xs font-bold"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                        </select>
-
-                        {(user?.role === 'admin' ||
-                          user?.role === 'manager' ||
-                          user?.id === task.assigned_by_user_id) && (
-                          <button
-                            onClick={() => handleDeleteTask(task.id)}
-                            className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-lg"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 italic text-center py-6">
-                    No sub-tasks created yet. Click "Add Sub-Task" to break down work for designers.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* RIGHT COLUMN (1 Column Wide) matching Reference Image 2 */}
@@ -986,10 +868,12 @@ export const JobRequestDetail: React.FC = () => {
                   NOTE / REPORT
                 </span>
 
-                {reports && reports.length > 0 && (
+                {reports && reports.filter((r: any) => user?.role !== 'staff' || user?.is_acting_manager || r.staff_id === user?.id).length > 0 && (
                   <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                    {reports.map((r: any) => (
-                      <div key={r.id} className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100/90 space-y-1.5 shadow-sm">
+                    {reports
+                      .filter((r: any) => user?.role !== 'staff' || user?.is_acting_manager || r.staff_id === user?.id)
+                      .map((r: any) => (
+                        <div key={r.id} className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100/90 space-y-1.5 shadow-sm">
                         <div className="flex items-center justify-between">
                           <div className="text-[10px] font-bold text-slate-400">
                             {r.created_at ? formatDateDisplay(r.created_at) : 'Recent'}
@@ -1084,42 +968,132 @@ export const JobRequestDetail: React.FC = () => {
 
                 {request.status === 'staff_processing' && (
                   <>
-                    {(data.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
-                      history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE')) ? (
-                      /* PART COMPLETED Box matching Reference Image 1 & 2 */
-                      <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-3xl p-6 text-center space-y-2 my-2">
-                        <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
-                          <CheckCircle2 className="w-5.5 h-5.5 stroke-[2.5]" />
+                    {selectedStaff.includes(user?.id) && (
+                      (data.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
+                        history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE')) ? (
+                        /* PART COMPLETED Box matching Reference Image 1 & 2 */
+                        <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-3xl p-6 text-center space-y-2 my-2">
+                          <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
+                            <CheckCircle2 className="w-5.5 h-5.5 stroke-[2.5]" />
+                          </div>
+                          <div className="text-xs font-black text-emerald-800 tracking-wider uppercase">
+                            PART COMPLETED
+                          </div>
+                          <div className="text-xs font-semibold text-emerald-600 leading-relaxed">
+                            You have finalized your work for this project.
+                          </div>
                         </div>
-                        <div className="text-xs font-black text-emerald-800 tracking-wider uppercase">
-                          PART COMPLETED
-                        </div>
-                        <div className="text-xs font-semibold text-emerald-600 leading-relaxed">
-                          You have finalized your work for this project.
-                        </div>
-                      </div>
-                    ) : (
-                      /* Bright Cyan MARK MY PART AS DONE button for Staff */
-                      <button
-                        type="button"
-                        onClick={() => setShowMarkDoneModal(true)}
-                        disabled={actionLoading}
-                        className="btn w-full bg-sky-400 hover:bg-sky-500 border-none text-white font-extrabold text-xs rounded-2xl h-12 uppercase tracking-wider shadow-lg shadow-sky-400/25 gap-2"
-                      >
-                        <CheckCircle2 className="w-4.5 h-4.5" /> MARK MY PART AS DONE
-                      </button>
+                      ) : (
+                        /* Bright Cyan MARK MY PART AS DONE button for Staff */
+                        <button
+                          type="button"
+                          onClick={() => setShowMarkDoneModal(true)}
+                          disabled={actionLoading}
+                          className="btn w-full bg-sky-400 hover:bg-sky-500 border-none text-white font-extrabold text-xs rounded-2xl h-12 uppercase tracking-wider shadow-lg shadow-sky-400/25 gap-2"
+                        >
+                          <CheckCircle2 className="w-4.5 h-4.5" /> MARK MY PART AS DONE
+                        </button>
+                      )
                     )}
 
-                    {(user?.role === 'admin' || user?.role === 'manager') && (
-                      <button
-                        onClick={handleComplete}
-                        disabled={actionLoading}
-                        className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-12 border-none shadow-lg shadow-indigo-500/20 uppercase tracking-wider gap-2 mt-2"
-                      >
-                        <ShieldCheck className="w-4.5 h-4.5" /> MARK PROJECT COMPLETED
-                      </button>
+                    {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+                      <div className="space-y-2.5 mt-3 pt-3 border-t border-slate-100">
+                        <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
+                          MANAGER STATUS CONTROLS
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleComplete}
+                          disabled={actionLoading}
+                          className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-indigo-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
+                        >
+                          <ShieldCheck className="w-4 h-4" /> MARK PROJECT COMPLETED
+                        </button>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
+                            disabled={actionLoading}
+                            className="btn bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
+                          >
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> PENDING
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
+                            disabled={actionLoading}
+                            className="btn bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
+                          >
+                            <XCircle className="w-3.5 h-3.5 text-rose-600" /> CANCEL
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </>
+                )}
+
+                {/* Status controls when Project is On Hold or Cancelled */}
+                {(request.status === 'on_hold' || request.status === 'cancelled') && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+                  <div className={`p-6 rounded-3xl border shadow-sm space-y-4 ${
+                    request.status === 'on_hold' ? 'bg-amber-50/50 border-amber-200/80' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                        request.status === 'on_hold' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {request.status === 'on_hold' ? <Clock className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                          Status: {request.status === 'on_hold' ? 'Pending / On Hold' : 'Cancelled'}
+                        </h4>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {request.status === 'on_hold' ? 'Project Temporarily Paused' : 'Project Terminated'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed bg-white/80 p-3.5 rounded-2xl border border-slate-100">
+                      {request.status === 'on_hold'
+                        ? 'Projek ini dijeda sementara. Anda boleh menyambung semula pemprosesan pada bila-bila masa.'
+                        : 'Projek ini telah dibatalkan. Anda boleh menyambung semula jika perlu.'}
+                    </p>
+
+                    <div className="flex flex-col gap-2.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setActionLoading(true);
+                          try {
+                            const res = await fetch(`/api/job-requests/${id}/change-status`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ new_status: 'staff_processing', reason: 'Resumed project processing' }),
+                            });
+                            const resData = await res.json();
+                            if (resData.success) fetchDetail();
+                          } finally {
+                            setActionLoading(false);
+                          }
+                        }}
+                        disabled={actionLoading}
+                        className="btn w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-blue-500/20 gap-2 normal-case tracking-wide"
+                      >
+                        <ShieldCheck className="w-4 h-4" /> Resume Processing
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleComplete}
+                        disabled={actionLoading}
+                        className="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-500/20 gap-2 normal-case tracking-wide"
+                      >
+                        <CheckCircle2 className="w-4 h-4" /> Mark Completed
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -1200,62 +1174,64 @@ export const JobRequestDetail: React.FC = () => {
           )}
 
           {/* Activity History Card matching Reference Image 2 */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-extrabold text-slate-900">Activity History</h3>
-              <button
-                onClick={handleCopyHistory}
-                className="btn btn-primary bg-indigo-600 hover:bg-indigo-700 text-white btn-xs rounded-xl font-bold gap-1 normal-case px-3"
-              >
-                <Copy className="w-3 h-3" /> {copied ? 'Copied!' : 'Copy History'}
-              </button>
-            </div>
+          {user?.role !== 'client' && (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 h-[300px] flex flex-col">
+              <div className="flex items-center justify-between shrink-0 mb-3">
+                <h3 className="text-sm font-extrabold text-slate-900">Activity History</h3>
+                <button
+                  onClick={handleCopyHistory}
+                  className="btn btn-primary bg-indigo-600 hover:bg-indigo-700 text-white btn-xs rounded-xl font-bold gap-1 normal-case px-3"
+                >
+                  <Copy className="w-3 h-3" /> {copied ? 'Copied!' : 'Copy History'}
+                </button>
+              </div>
 
-            <div className="space-y-4 relative pl-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-              {history && history.length > 0 ? (
-                history.map((h: any) => (
-                  <div key={h.id} className="relative space-y-1">
-                    <div className="absolute -left-[1.35rem] top-1 w-2.5 h-2.5 rounded-full border-2 border-indigo-600 bg-white"></div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      {h.created_at}
-                    </div>
-                    <div className="text-xs font-extrabold text-slate-900 uppercase">{h.action}</div>
-                    <div className="text-xs text-slate-500 font-semibold">
-                      by {h.actor_name || 'System / Public'}
-                    </div>
-                    {h.comment && (
-                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs italic font-medium text-slate-600 mt-1">
-                        "{(() => {
-                          const comment = h.comment || '';
-                          if (comment.includes('Updated assigned staff list:') || comment.includes('Updated team assignment to:')) {
-                            const rawList = comment.split(':')[1]?.trim() || '';
-                            if (rawList && /^[0-9,\s]+$/.test(rawList)) {
-                              const ids = rawList.split(',').map((idStr: string) => parseInt(idStr.trim()));
-                              const names = ids
-                                .map((idNum: number) => teamMembers.find((tm) => tm.id === idNum)?.name)
-                                .filter(Boolean);
-                              if (names.length > 0) {
-                                return `Updated team assignment to: ${names.join(', ')}`;
+              <div className="flex-1 overflow-y-auto space-y-4 relative pl-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100 pr-1">
+                {history && history.length > 0 ? (
+                  history.map((h: any) => (
+                    <div key={h.id} className="relative space-y-1">
+                      <div className="absolute -left-[1.35rem] top-1 w-2.5 h-2.5 rounded-full border-2 border-indigo-600 bg-white"></div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {h.created_at}
+                      </div>
+                      <div className="text-xs font-extrabold text-slate-900 uppercase">{h.action}</div>
+                      <div className="text-xs text-slate-500 font-semibold">
+                        by {h.actor_name || 'System / Public'}
+                      </div>
+                      {h.comment && (
+                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs italic font-medium text-slate-600 mt-1">
+                          "{(() => {
+                            const comment = h.comment || '';
+                            if (comment.includes('Updated assigned staff list:') || comment.includes('Updated team assignment to:')) {
+                              const rawList = comment.split(':')[1]?.trim() || '';
+                              if (rawList && /^[0-9,\s]+$/.test(rawList)) {
+                                const ids = rawList.split(',').map((idStr: string) => parseInt(idStr.trim()));
+                                const names = ids
+                                  .map((idNum: number) => teamMembers.find((tm) => tm.id === idNum)?.name)
+                                  .filter(Boolean);
+                                if (names.length > 0) {
+                                  return `Updated team assignment to: ${names.join(', ')}`;
+                                }
                               }
                             }
-                          }
-                          return comment;
-                        })()}"
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-slate-400 italic">No activity history logged yet.</p>
-              )}
+                            return comment;
+                          })()}"
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No activity history logged yet.</p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* APPROVE THIS REQUEST MODAL matching Reference Image 1 */}
       {showApproveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6 md:p-8 space-y-6 relative overflow-hidden">
             {/* Modal Title & Subtitle */}
             <div>
@@ -1273,8 +1249,10 @@ export const JobRequestDetail: React.FC = () => {
                 Assign to Staff Member
               </label>
               <div className="border border-blue-600 rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 bg-white">
-                {teamMembers.map((m) => {
-                  const isChecked = selectedStaff.includes(m.id);
+                {teamMembers
+                  .filter((m: any) => (user?.role !== 'manager' && user?.role !== 'staff') || !user?.unit || m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim())
+                  .map((m) => {
+                    const isChecked = selectedStaff.includes(m.id);
                   return (
                     <label
                       key={m.id}
@@ -1371,7 +1349,7 @@ export const JobRequestDetail: React.FC = () => {
 
       {/* REJECT THIS REQUEST MODAL matching Reference Image */}
       {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-8 space-y-6">
             {/* Modal Title in Red matching Reference Image */}
             <div className="text-center space-y-2">
@@ -1422,7 +1400,7 @@ export const JobRequestDetail: React.FC = () => {
 
       {/* MARK AS DONE CONFIRMATION MODAL matching Reference Image */}
       {showMarkDoneModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-100 max-w-md w-full p-8 text-center space-y-6">
             {/* Big Question Mark Circle Icon matching Reference Image */}
             <div className="flex justify-center pt-2">
@@ -1472,7 +1450,7 @@ export const JobRequestDetail: React.FC = () => {
 
       {/* EDIT REPORT MODAL matching Reference Image */}
       {editingReportId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-8 space-y-6">
             {/* Modal Title matching Reference Image */}
             <div>
@@ -1516,7 +1494,7 @@ export const JobRequestDetail: React.FC = () => {
 
       {/* MANAGE TEAM ASSIGNMENT MODAL matching Reference Image 3 */}
       {showManageTeamModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-8 space-y-6">
             {/* Title & Subtitle matching Reference Image 3 */}
             <div>
@@ -1530,8 +1508,10 @@ export const JobRequestDetail: React.FC = () => {
 
             {/* Staff List with Checkboxes matching Reference Image 3 */}
             <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/80 max-h-64 overflow-y-auto space-y-2.5">
-              {teamMembers && teamMembers.map((m: any) => {
-                const isSelected = selectedStaff.includes(m.id);
+              {teamMembers && teamMembers
+                .filter((m: any) => (user?.role !== 'manager' && user?.role !== 'staff') || !user?.unit || m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim())
+                .map((m: any) => {
+                  const isSelected = selectedStaff.includes(m.id);
                 const isSelfStaff = user?.role === 'staff' && m.id === user?.id;
                 const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === m.id);
                 const isAlreadyDone = projectStaffDetail?.is_done || false;
@@ -1599,7 +1579,7 @@ export const JobRequestDetail: React.FC = () => {
       )}
       {/* VIEW NOTES MODAL FOR COMPLETED STAFF */}
       {showViewNotesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 md:p-8 space-y-6">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -1627,22 +1607,24 @@ export const JobRequestDetail: React.FC = () => {
 
             {/* Notes List Container */}
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-              {reports && reports.length > 0 ? (
-                reports.map((r: any) => (
-                  <div key={r.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1.5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="text-[10px] font-bold text-slate-400">
-                        {r.created_at ? formatDateDisplay(r.created_at) : 'Recent'}
+              {reports && reports.filter((r: any) => user?.role !== 'staff' || user?.is_acting_manager || r.staff_id === user?.id).length > 0 ? (
+                reports
+                  .filter((r: any) => user?.role !== 'staff' || user?.is_acting_manager || r.staff_id === user?.id)
+                  .map((r: any) => (
+                    <div key={r.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] font-bold text-slate-400">
+                          {r.created_at ? formatDateDisplay(r.created_at) : 'Recent'}
+                        </div>
+                        <div className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">
+                          — {r.staff_name || 'STAFF'}
+                        </div>
                       </div>
-                      <div className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">
-                        — {r.staff_name || 'STAFF'}
+                      <div className="text-xs font-bold text-slate-800 leading-relaxed">
+                        {r.report_text}
                       </div>
                     </div>
-                    <div className="text-xs font-bold text-slate-800 leading-relaxed">
-                      {r.report_text}
-                    </div>
-                  </div>
-                ))
+                  ))
               ) : (
                 <div className="text-center py-8 space-y-2">
                   <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
@@ -1662,6 +1644,100 @@ export const JobRequestDetail: React.FC = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM LIGHTBOX MODAL FOR PENDING / CANCEL STATUS CHANGE */}
+      {showStatusModal && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden my-auto">
+            {/* Modal Header */}
+            <div className={`p-6 text-white flex items-center justify-between ${showStatusModal === 'on_hold' ? 'bg-amber-500' : 'bg-rose-600'}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center shrink-0">
+                  {showStatusModal === 'on_hold' ? <Clock className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">
+                    {showStatusModal === 'on_hold' ? 'Set Project to Pending / On Hold' : 'Cancel Project'}
+                  </h3>
+                  <p className="text-[11px] text-white/80 font-medium">Manager Workflow Verification</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowStatusModal(null)}
+                className="btn btn-sm btn-ghost btn-circle text-white/80 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                {showStatusModal === 'on_hold'
+                  ? 'Sila nyatakan sebab permohonan/projek ini diletakkan di dalam status Pending / On Hold:'
+                  : 'Sila nyatakan sebab permohonan/projek ini dibatalkan:'}
+              </p>
+
+              <textarea
+                rows={3}
+                placeholder={showStatusModal === 'on_hold' ? 'Contoh: Menunggu maklum balas borang tambahan daripada client...' : 'Contoh: Dibatalkan atas arahan pihak atasan / client...'}
+                value={statusReason}
+                onChange={(e) => setStatusReason(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all resize-none shadow-inner"
+              ></textarea>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowStatusModal(null)}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = showStatusModal;
+                    const reason = statusReason.trim();
+                    setActionLoading(true);
+                    fetch(`/api/job-requests/${id}/change-status`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ new_status: target, reason: reason }),
+                    })
+                      .then((res) => res.json())
+                      .then((resData) => {
+                        if (resData.success) {
+                          setShowStatusModal(null);
+                          setStatusReason('');
+                          fetchDetail();
+                        } else {
+                          alert(resData.error || 'Gagal mengemaskini status projek.');
+                        }
+                      })
+                      .catch((err) => console.error(err))
+                      .finally(() => setActionLoading(false));
+                  }}
+                  disabled={actionLoading}
+                  className={`btn text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md gap-2 ${
+                    showStatusModal === 'on_hold' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
+                  }`}
+                >
+                  {actionLoading ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    <>
+                      {showStatusModal === 'on_hold' ? <Clock className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                      <span>Confirm {showStatusModal === 'on_hold' ? 'Pending / On Hold' : 'Cancel Project'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

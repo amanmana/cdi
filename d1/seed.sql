@@ -1,12 +1,3 @@
--- Seed Initial Admin, Manager, Staff Users (Password: password123)
--- PBKDF2 WebCrypto hashes for password123
-INSERT OR IGNORE INTO users (id, name, email, password_hash, role, unit) VALUES
-(1, 'System Admin', 'admin@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'admin', 'IT Support'),
-(2, 'Workflow Manager', 'manager@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'manager', 'Events'),
-(3, 'Staff Member', 'staff@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'staff', 'Graphic'),
-(4, 'Lead Designer', 'designer@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'staff', 'Graphic'),
-(5, 'Client User', 'client@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'client', 'Business Unit');
-
 -- Seed Units
 INSERT OR IGNORE INTO units (id, name, form_schema) VALUES
 (1, 'Events', '[{"id":"event_name","label":"Event Name","type":"text","required":true},{"id":"event_date","label":"Event Date","type":"date","required":true}]'),
@@ -14,9 +5,20 @@ INSERT OR IGNORE INTO units (id, name, form_schema) VALUES
 (3, 'Socmed', '[{"id":"platform","label":"Platform","type":"select","options":["Facebook","Instagram","TikTok"],"required":true}]'),
 (4, 'Writer', '[{"id":"word_count","label":"Estimated Words","type":"number","required":false}]');
 
+-- Seed Initial Admin, Manager, Staff Users (Password: password123)
+-- PBKDF2 WebCrypto hashes for password123
+INSERT OR IGNORE INTO users (id, name, email, password_hash, role, unit_id, unit) VALUES
+(1, 'System Admin', 'admin@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'admin', NULL, 'IT Support'),
+(2, 'Workflow Manager', 'manager@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'manager', 2, 'Graphic'),
+(3, 'Staff Member', 'staff@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'staff', 2, 'Graphic'),
+(4, 'Lead Designer', 'designer@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'staff', 2, 'Graphic'),
+(5, 'Client User', 'client@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'client', NULL, 'Business Unit'),
+(6, 'Pat', 'writermanager@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'manager', 4, 'Writer');
+
 -- Seed Sample Job Request
-INSERT OR IGNORE INTO job_requests (id, ticket_no, client_name, client_email, title, description, unit, status, current_step_name, assigned_staff_ids, start_date, deadline, additional_data) VALUES
-(1, 'VT397304', 'Ahmad Client', 'ahmad@mimos.my', 'Annual Gala Dinner Design Request', 'Need poster and social media banner designs for annual gala dinner.', 'Graphic', 'staff_processing', 'Staff Processing', '3,4', '2026-07-20', '2026-07-30', '{"media_type":"Poster"}');
+INSERT OR IGNORE INTO job_requests (id, ticket_no, client_name, client_email, title, description, unit_id, unit, status, current_step_name, assigned_staff_ids, start_date, deadline, additional_data) VALUES
+(1, 'VT397304', 'Ahmad Client', 'ahmad@mimos.my', 'Annual Gala Dinner Design Request', 'Need poster and social media banner designs for annual gala dinner.', 2, 'Graphic', 'staff_processing', 'Staff Processing', '3,4', '2026-07-20', '2026-07-30', '{"media_type":"Poster"}'),
+(2, 'IR196974', 'testclient writer', 'clientwriter@mail.com', 'Test client writer', 'Writer job request description.', 4, 'Writer', 'manager_approval', 'Manager Review', NULL, '2026-07-24', '2026-07-31', '{}');
 
 -- Seed Sub-Tasks for Job Request 1
 INSERT OR IGNORE INTO job_tasks (id, job_request_id, title, description, assigned_to_user_id, assigned_by_user_id, status, due_date) VALUES

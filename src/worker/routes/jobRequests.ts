@@ -13,16 +13,48 @@ type Env = {
 
 export const jobRequestsRouter = new Hono<Env>();
 
-// Middleware to verify authentication token
 jobRequestsRouter.use('*', async (c, next) => {
   const authHeader = c.req.header('Authorization');
   const token = authHeader ? authHeader.replace('Bearer ', '') : null;
   if (!token) return c.json({ error: 'Unauthorized' }, 401);
 
-  const user = await verifyToken(token);
-  if (!user) return c.json({ error: 'Session expired' }, 401);
+  const payload = await verifyToken(token);
+  if (!payload) return c.json({ error: 'Session expired' }, 401);
 
-  c.set('user', user);
+  const freshUser = await c.env.DB
+    .prepare(`
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, COALESCE(un.name, u.unit) as unit 
+      FROM users u 
+      LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
+      WHERE u.id = ?
+    `)
+    .bind(payload.id)
+    .first<any>();
+
+  if (freshUser) {
+    const today = new Date().toISOString().split('T')[0];
+    const delegation = await c.env.DB
+      .prepare(
+        `SELECT d.*, m.unit_id as manager_unit_id, COALESCE(un.name, m.unit) as manager_unit
+         FROM delegations d
+         JOIN users m ON d.manager_id = m.id
+         LEFT JOIN units un ON (m.unit_id = un.id OR m.unit = un.name)
+         WHERE d.delegate_id = ? AND d.status = 'active' AND d.start_date <= ? AND d.end_date >= ?
+         LIMIT 1`
+      )
+      .bind(freshUser.id, today, today)
+      .first<{ manager_unit_id: number; manager_unit: string }>();
+
+    c.set('user', {
+      ...freshUser,
+      is_acting_manager: !!delegation,
+      acting_manager_unit_id: delegation ? delegation.manager_unit_id : null,
+      acting_manager_unit: delegation ? delegation.manager_unit : null,
+    });
+  } else {
+    c.set('user', payload);
+  }
+
   await next();
 });
 
@@ -44,27 +76,39 @@ jobRequestsRouter.get('/', async (c) => {
 
   let query = `
     SELECT j.*, 
+           COALESCE(un.name, j.unit) as unit,
            (SELECT GROUP_CONCAT(name, ', ') FROM users WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || id || ',') > 0) as assigned_staff_name
     FROM job_requests j
+    LEFT JOIN units un ON (j.unit_id = un.id OR j.unit = un.name)
     WHERE 1=1
   `;
   const params: any[] = [];
 
   // Role Scoping
+  const managerUnit = (user as any)?.acting_manager_unit || user?.unit;
   if (user && user.role === 'staff') {
     query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 AND j.status != 'manager_approval'`;
     params.push(String(user.id));
   } else if (user && user.role === 'client') {
     query += ` AND j.client_email = ?`;
     params.push(user.email);
-  } else if (user && user.role === 'manager' && user.unit) {
-    query += ` AND j.unit = ?`;
-    params.push(user.unit);
+  } else if (user && (user.role === 'manager' || (user as any)?.is_acting_manager) && managerUnit) {
+    query += ` AND (j.unit = ? OR j.unit_id IN (SELECT id FROM units WHERE name = ?))`;
+    params.push(managerUnit, managerUnit);
   }
 
   if (search) {
-    query += ` AND (j.ticket_no LIKE ? OR j.title LIKE ? OR j.client_name LIKE ?)`;
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    query += ` AND (
+      j.ticket_no LIKE ? 
+      OR j.title LIKE ? 
+      OR j.client_name LIKE ? 
+      OR EXISTS (
+        SELECT 1 FROM users u 
+        WHERE u.name LIKE ? 
+          AND INSTR(',' || j.assigned_staff_ids || ',', ',' || u.id || ',') > 0
+      )
+    )`;
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
 
   query += ` ORDER BY j.created_at DESC`;
@@ -162,14 +206,313 @@ jobRequestsRouter.put('/tasks/:taskId/status', async (c) => {
   return c.json({ success: true, message: 'Task status updated.' });
 });
 
-// DELETE /api/job-requests/tasks/:taskId - Delete sub-task
-jobRequestsRouter.delete('/tasks/:taskId', async (c) => {
+// Preset Management Endpoints (Get, Delete/Hide, Add)
+// Preset Management Endpoints (User-Scoped per Staff/Manager/Admin)
+jobRequestsRouter.get('/presets', async (c) => {
   const db = c.env.DB;
-  const taskId = c.req.param('taskId');
+  const user = c.get('user');
+  const userId = user.id;
 
-  await db.prepare('DELETE FROM job_tasks WHERE id = ?').bind(taskId).run();
+  try {
+    const hiddenClientsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_hidden_clients_${userId}`).first<{ value: string }>();
+    const hiddenProjectsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_hidden_projects_${userId}`).first<{ value: string }>();
+    const customClientsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_custom_clients_${userId}`).first<{ value: string }>();
+    const customProjectsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_custom_projects_${userId}`).first<{ value: string }>();
 
-  return c.json({ success: true, message: 'Task deleted.' });
+    const parseArray = (val?: string): string[] => {
+      if (!val) return [];
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed.filter((item) => typeof item === 'string');
+        if (typeof parsed === 'string') return [parsed];
+      } catch (e) {}
+      return [];
+    };
+
+    const hiddenClients = parseArray(hiddenClientsRow?.value);
+    const hiddenProjects = parseArray(hiddenProjectsRow?.value);
+    const customClients = parseArray(customClientsRow?.value);
+    const customProjects = parseArray(customProjectsRow?.value);
+
+    // Query DB for client names and titles from jobs assigned to or logged by this user
+    const { results: dbClients } = await db.prepare(
+      "SELECT DISTINCT client_name FROM job_requests WHERE client_name IS NOT NULL AND client_name != '' AND (assigned_staff_ids LIKE ? OR client_email = ?)"
+    ).bind(`%${userId}%`, user.email || '').all<{ client_name: string }>();
+
+    const { results: dbProjects } = await db.prepare(
+      "SELECT DISTINCT title FROM job_requests WHERE title IS NOT NULL AND title != '' AND (assigned_staff_ids LIKE ? OR client_email = ?)"
+    ).bind(`%${userId}%`, user.email || '').all<{ title: string }>();
+
+    const rawClients = [
+      ...customClients,
+      ...(dbClients || []).map((r) => r.client_name),
+    ];
+
+    const rawProjects = [
+      ...customProjects,
+      ...(dbProjects || []).map((r) => r.title),
+    ];
+
+    const clients = Array.from(new Set(rawClients)).filter((c) => !hiddenClients.includes(c));
+    const projects = Array.from(new Set(rawProjects)).filter((p) => !hiddenProjects.includes(p));
+
+    return c.json({ clients, projects });
+  } catch (err: any) {
+    console.error('Error fetching presets:', err);
+    return c.json({ clients: [], projects: [] });
+  }
+});
+
+jobRequestsRouter.post('/presets/delete', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const userId = user.id;
+  const { type, value } = await c.req.json();
+
+  if (!type || !value) {
+    return c.json({ error: 'Type and value are required.' }, 400);
+  }
+
+  const keyName = type === 'client' ? `preset_hidden_clients_${userId}` : `preset_hidden_projects_${userId}`;
+  const customKeyName = type === 'client' ? `preset_custom_clients_${userId}` : `preset_custom_projects_${userId}`;
+
+  const parseArray = (val?: string): string[] => {
+    if (!val) return [];
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.filter((item) => typeof item === 'string');
+      if (typeof parsed === 'string') return [parsed];
+    } catch (e) {}
+    return [];
+  };
+
+  try {
+    const existingHidden = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(keyName).first<{ value: string }>();
+    let hiddenList: string[] = parseArray(existingHidden?.value);
+    if (!hiddenList.includes(value)) {
+      hiddenList.push(value);
+      await db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').bind(keyName, JSON.stringify(hiddenList)).run();
+    }
+
+    const existingCustom = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(customKeyName).first<{ value: string }>();
+    if (existingCustom?.value) {
+      let customList: string[] = parseArray(existingCustom?.value);
+      customList = customList.filter((v) => v !== value);
+      await db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').bind(customKeyName, JSON.stringify(customList)).run();
+    }
+
+    return c.json({ success: true, message: `Preset ${type} "${value}" deleted for user.` });
+  } catch (err: any) {
+    console.error('Error deleting preset:', err);
+    return c.json({ error: 'Failed to delete preset: ' + err.message }, 500);
+  }
+});
+
+jobRequestsRouter.post('/presets/add', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const userId = user.id;
+  const { type, value } = await c.req.json();
+
+  if (!type || !value || !value.trim()) {
+    return c.json({ error: 'Type and value are required.' }, 400);
+  }
+
+  const cleanVal = value.trim();
+  const keyName = type === 'client' ? `preset_custom_clients_${userId}` : `preset_custom_projects_${userId}`;
+  const hiddenKeyName = type === 'client' ? `preset_hidden_clients_${userId}` : `preset_hidden_projects_${userId}`;
+
+  const parseArray = (val?: string): string[] => {
+    if (!val) return [];
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.filter((item) => typeof item === 'string');
+      if (typeof parsed === 'string') return [parsed];
+    } catch (e) {}
+    return [];
+  };
+
+  try {
+    const existingCustom = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(keyName).first<{ value: string }>();
+    let customList: string[] = parseArray(existingCustom?.value);
+    if (!customList.includes(cleanVal)) {
+      customList.push(cleanVal);
+      await db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').bind(keyName, JSON.stringify(customList)).run();
+    }
+
+    const existingHidden = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(hiddenKeyName).first<{ value: string }>();
+    if (existingHidden?.value) {
+      let hiddenList: string[] = parseArray(existingHidden?.value);
+      hiddenList = hiddenList.filter((v) => v !== cleanVal);
+      await db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').bind(hiddenKeyName, JSON.stringify(hiddenList)).run();
+    }
+
+    return c.json({ success: true, message: `Preset ${type} "${cleanVal}" added for user.` });
+  } catch (err: any) {
+    console.error('Error adding preset:', err);
+    return c.json({ error: 'Failed to add preset: ' + err.message }, 500);
+  }
+});
+
+// POST /api/job-requests/create-internal - Manager/Admin direct job creation
+jobRequestsRouter.post('/create-internal', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+
+  if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
+    return c.json({ error: 'Unauthorized. Only Managers or Admins can create internal jobs.' }, 403);
+  }
+
+  const { title, description, client_name, client_email, unit, assigned_staff_ids, start_date, deadline } = await c.req.json();
+
+  if (!title) {
+    return c.json({ error: 'Title is required.' }, 400);
+  }
+
+  const targetUnit = unit || user.acting_manager_unit || user.unit || 'Graphic & Web';
+  const numbers = Math.floor(100000 + Math.random() * 900000).toString();
+  const ticketNo = 'INT' + numbers;
+
+  const unitRow = await db
+    .prepare('SELECT id FROM units WHERE name = ?')
+    .bind(targetUnit)
+    .first<{ id: number }>();
+  const unitId = unitRow?.id || null;
+
+  const assignedStr = Array.isArray(assigned_staff_ids) ? assigned_staff_ids.join(',') : (assigned_staff_ids || '');
+
+  const res = await db
+    .prepare(
+      `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, unit, unit_id, status, current_step_name, assigned_staff_ids, start_date, deadline, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'staff_processing', 'Staff Processing & Design', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    )
+    .bind(
+      ticketNo,
+      client_name || 'Pihak Atasan / Management Directive',
+      client_email || user.email || 'internal@cdi.app',
+      title,
+      description || '',
+      targetUnit,
+      unitId,
+      assignedStr,
+      start_date || null,
+      deadline || null
+    )
+    .run();
+
+  const requestId = res.meta.last_row_id as number;
+
+  let staffNamesStr = 'None';
+  if (Array.isArray(assigned_staff_ids) && assigned_staff_ids.length > 0) {
+    const placeholders = assigned_staff_ids.map(() => '?').join(',');
+    const { results: staffUsers } = await db.prepare(`
+      SELECT name FROM users WHERE id IN (${placeholders})
+    `).bind(...assigned_staff_ids).all();
+    if (staffUsers && staffUsers.length > 0) {
+      staffNamesStr = staffUsers.map((u: any) => u.name).join(', ');
+    }
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+       VALUES (?, 'INTERNAL_CREATE', ?, ?, 'Direct Creation', 'Staff Processing & Design', ?)`
+    )
+    .bind(requestId, user.id, user.name, `Created internal job "${title}". Assigned team: ${staffNamesStr}`)
+    .run();
+
+  return c.json({
+    success: true,
+    message: 'Internal job created successfully.',
+    ticket_no: ticketNo,
+    id: requestId
+  });
+});
+
+// POST /api/job-requests/self-initiated - Self-Initiated Staff Task Logging
+jobRequestsRouter.post('/self-initiated', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+
+  const { title, description, client_name, project_name, status, start_date, deadline } = await c.req.json();
+
+  if (!title) {
+    return c.json({ error: 'Work title is required.' }, 400);
+  }
+
+  const targetUnit = user.acting_manager_unit || user.unit || 'IT Support & Technical';
+  const numbers = Math.floor(100000 + Math.random() * 900000).toString();
+  const ticketNo = 'SELF' + numbers;
+
+  const unitRow = await db
+    .prepare('SELECT id FROM units WHERE name = ?')
+    .bind(targetUnit)
+    .first<{ id: number }>();
+  const unitId = unitRow?.id || null;
+
+  const finalStatus = status === 'completed' ? 'completed' : 'staff_processing';
+  const stepName = finalStatus === 'completed' ? 'Completed' : 'Staff Processing';
+  const assignedStr = user.id.toString();
+
+  const clientNameVal = client_name?.trim() || `Self-Initiated (${user.name})`;
+  const fullDescription = `${description || ''}${project_name ? `\n\n[PROJECT: ${project_name}]` : ''}`.trim();
+
+  const res = await db
+    .prepare(
+      `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, unit, unit_id, status, current_step_name, assigned_staff_ids, start_date, deadline, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    )
+    .bind(
+      ticketNo,
+      clientNameVal,
+      user.email || 'staff@cdi.app',
+      title,
+      fullDescription,
+      targetUnit,
+      unitId,
+      finalStatus,
+      stepName,
+      assignedStr,
+      start_date || new Date().toISOString().split('T')[0],
+      deadline || null
+    )
+    .run();
+
+  const requestId = res.meta.last_row_id as number;
+
+  await db
+    .prepare(
+      `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+       VALUES (?, 'SELF_TASK_CREATED', ?, ?, 'Staff Initiative', ?, ?)`
+    )
+    .bind(requestId, user.id, user.name, stepName, `Self-initiated task created for client "${clientNameVal}"`).run();
+
+  if (finalStatus === 'completed') {
+    try {
+      await db
+        .prepare(
+          `INSERT INTO staff_reports (job_request_id, staff_id, report_text)
+           VALUES (?, ?, ?)`
+        )
+        .bind(requestId, user.id, `Self-initiated task "${title}" completed. ${description || ''}`).run();
+    } catch (e) {
+      console.error('Error inserting staff_reports:', e);
+    }
+
+    await db
+      .prepare(
+        `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+         VALUES (?, 'STAFF_DONE', ?, ?, 'Staff Processing', 'Completed', 'Completed self-initiated task')`
+      )
+      .bind(requestId, user.id, user.name).run();
+  }
+
+  return c.json({
+    success: true,
+    message: 'Self-initiated task recorded successfully.',
+    request_id: requestId,
+    ticket_no: ticketNo,
+  });
 });
 
 // GET /api/job-requests/:id - Single job request detail
@@ -283,7 +626,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   if (!request) return c.json({ error: 'Job request not found' }, 404);
 
   const newStatus = 'staff_processing';
-  const newStepName = 'Staff Processing';
+  const newStepName = 'Staff Processing & Design';
   const fromStep = request.current_step_name || 'Manager Review';
 
   await db.prepare(
@@ -295,7 +638,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
      VALUES (?, 'APPROVE', ?, ?, ?, ?, ?)`
   ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || 'Approved by Manager').run();
 
-  return c.json({ success: true, message: 'Request approved and moved to Staff Processing.' });
+  return c.json({ success: true, message: 'Request approved and moved to Staff Processing & Design.' });
 });
 
 // POST /api/job-requests/:id/reject - Manager reject
@@ -355,6 +698,46 @@ jobRequestsRouter.post('/:id/complete', async (c) => {
   ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || 'Project completed').run();
 
   return c.json({ success: true, message: 'Project marked as completed.' });
+});
+
+// POST /api/job-requests/:id/change-status - Manager & Admin status change (Pending/On Hold, Cancelled, Resume, Complete)
+jobRequestsRouter.post('/:id/change-status', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const idParam = c.req.param('id');
+  const { new_status, reason } = await c.req.json();
+
+  const isManagerOrAdmin = user.role === 'admin' || user.role === 'manager' || user.is_acting_manager;
+  if (!isManagerOrAdmin) {
+    return c.json({ error: 'Hanya Pentadbir dan Pengurus sahaja yang mempunyai kuasa untuk menukar status projek.' }, 403);
+  }
+
+  const allowed = ['staff_processing', 'on_hold', 'cancelled', 'completed'];
+  if (!allowed.includes(new_status)) {
+    return c.json({ error: 'Status yang diminta tidak sah.' }, 400);
+  }
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) return c.json({ error: 'Permohonan projek tidak ditemui.' }, 404);
+
+  let stepName = request.current_step_name || 'Staff Processing';
+  if (new_status === 'on_hold') stepName = 'Pending / On Hold';
+  if (new_status === 'cancelled') stepName = 'Cancelled';
+  if (new_status === 'completed') stepName = 'Completed';
+  if (new_status === 'staff_processing') stepName = 'Staff Processing';
+
+  await db.prepare(
+    'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+  ).bind(new_status, stepName, request.id).run();
+
+  const actionName = new_status === 'on_hold' ? 'STATUS_PENDING' : new_status === 'cancelled' ? 'STATUS_CANCELLED' : new_status === 'completed' ? 'COMPLETE' : 'STATUS_RESUMED';
+
+  await db.prepare(
+    `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(request.id, actionName, user.id, user.name, request.current_step_name || 'In Progress', stepName, reason || `Status ditukar kepada ${stepName}`).run();
+
+  return c.json({ success: true, message: `Status projek berjaya dikemaskini kepada ${stepName}.` });
 });
 
 // POST /api/job-requests/:id/update-team - Update assigned staff team
@@ -533,48 +916,6 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
   }
 
   return c.json({ success: true, message: 'Part marked as done.' });
-});
-
-// POST /api/job-requests/:id/reset-dev - Temporary developer endpoint to reset request status for testing
-jobRequestsRouter.post('/:id/reset-dev', async (c) => {
-  const db = c.env.DB;
-  const idParam = c.req.param('id');
-
-  const request = await findJobRequest(db, idParam);
-  if (!request) return c.json({ error: 'Job request not found' }, 404);
-
-  // Reset request fields
-  await db.prepare(`
-    UPDATE job_requests 
-    SET status = 'manager_approval', 
-        current_step_name = 'Manager Approval', 
-        start_date = NULL, 
-        deadline = NULL,
-        assigned_staff_ids = NULL,
-        updated_at = CURRENT_TIMESTAMP 
-    WHERE id = ?
-  `).bind(request.id).run();
-
-  // Keep only the SUBMIT log and delete others
-  await db.prepare(`
-    DELETE FROM workflow_logs 
-    WHERE job_request_id = ? AND action != 'SUBMIT'
-  `).bind(request.id).run();
-
-  return c.json({ success: true, message: 'Request status reset successfully.' });
-});
-
-// DELETE /api/job-requests/:id - Delete request
-jobRequestsRouter.delete('/:id', async (c) => {
-  const db = c.env.DB;
-  const idParam = c.req.param('id');
-
-  const request = await findJobRequest(db, idParam);
-  if (!request) return c.json({ error: 'Job request not found' }, 404);
-
-  await db.prepare('DELETE FROM job_requests WHERE id = ?').bind(request.id).run();
-
-  return c.json({ success: true, message: 'Job request deleted.' });
 });
 
 export default jobRequestsRouter;

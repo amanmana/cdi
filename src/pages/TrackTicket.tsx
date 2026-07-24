@@ -181,13 +181,18 @@ export const TrackTicket: React.FC = () => {
                   {[
                     { key: 'submitted', label: 'Request Submitted' },
                     { key: 'manager_approval', label: 'Manager Review' },
-                    { key: 'staff_processing', label: 'Staff Processing & Design' },
+                    { key: 'staff_processing', label: 'Staff Processing' },
                     { key: 'completed', label: data.request.status === 'rejected' ? 'Rejected' : 'Completed' },
                   ].map((step, idx) => {
                     const isDone =
                       (step.key === 'submitted' && true) ||
                       (step.key === 'manager_approval' && data.request.status !== 'manager_approval') ||
                       (step.key === 'staff_processing' && (data.request.status === 'completed' || (data.request.total_staff > 0 && data.request.completed_staff === data.request.total_staff))) ||
+                      (step.key === 'completed' && (data.request.status === 'completed' || data.request.status === 'rejected'));
+
+                    const isActive =
+                      (step.key === 'manager_approval' && data.request.status === 'manager_approval') ||
+                      (step.key === 'staff_processing' && data.request.status === 'staff_processing' && !isDone) ||
                       (step.key === 'completed' && (data.request.status === 'completed' || data.request.status === 'rejected'));
 
                     return (
@@ -198,13 +203,15 @@ export const TrackTicket: React.FC = () => {
                               ? data.request.status === 'rejected' && step.key === 'completed'
                                 ? 'bg-rose-500 text-white shadow-rose-200'
                                 : 'bg-blue-600 text-white shadow-blue-200'
-                              : 'bg-slate-100 text-slate-400'
+                              : isActive
+                                ? 'bg-white border-2 border-blue-600 text-blue-600 shadow-blue-100 shadow-lg'
+                                : 'bg-slate-100 text-slate-400'
                           }`}
                         >
                           {isDone ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
                         </div>
                         <div className="pt-1">
-                          <h4 className={`font-bold text-sm ${isDone ? 'text-slate-800' : 'text-slate-400'}`}>
+                          <h4 className={`font-bold text-sm ${isDone ? 'text-slate-800' : isActive ? 'text-blue-600 font-extrabold' : 'text-slate-400'}`}>
                             {step.label}
                           </h4>
                         </div>
@@ -273,7 +280,7 @@ export const TrackTicket: React.FC = () => {
             Tired of manual tracking?
           </h3>
           <p className="text-xs text-slate-500 font-medium">
-            Register with your <strong className="text-slate-700">@mimos.my</strong> email to see all your projects in one place.
+            Register with your email to see all your projects in one place.
           </p>
           <div className="pt-1">
             <Link
