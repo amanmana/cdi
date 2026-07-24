@@ -71,17 +71,40 @@ jobRequestsRouter.get('/', async (c) => {
   // Attach completion stats for assigned staff / tasks
   const enriched = await Promise.all(
     (results || []).map(async (row: any) => {
-      const taskStats = await db.prepare(`
-        SELECT COUNT(*) as total_tasks,
-               SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_tasks
-        FROM job_tasks WHERE job_request_id = ?
-      `).bind(row.id).first<any>();
+      let assigned_staff: any[] = [];
+      let completedStaffCount = 0;
+      let totalStaffCount = 0;
 
-      const totalStaff = row.assigned_staff_ids ? row.assigned_staff_ids.split(',').length : 0;
+      if (row.assigned_staff_ids) {
+        const staffIds = row.assigned_staff_ids.split(',').map((id: string) => id.trim()).filter(Boolean);
+        totalStaffCount = staffIds.length;
+        if (staffIds.length > 0) {
+          const placeholders = staffIds.map(() => '?').join(',');
+          const { results: staffUsers } = await db.prepare(`
+            SELECT id, name FROM users WHERE id IN (${placeholders})
+          `).bind(...staffIds).all();
+
+          const { results: doneLogs } = await db.prepare(`
+            SELECT DISTINCT actor_id FROM workflow_logs 
+            WHERE job_request_id = ? AND action = 'STAFF_DONE'
+          `).bind(row.id).all();
+          const doneStaffSet = new Set((doneLogs || []).map((l: any) => Number(l.actor_id)));
+
+          assigned_staff = (staffUsers || []).map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            is_done: doneStaffSet.has(Number(u.id))
+          }));
+
+          completedStaffCount = staffIds.filter((id: string) => doneStaffSet.has(Number(id))).length;
+        }
+      }
+
       return {
         ...row,
-        total_staff: taskStats?.total_tasks || totalStaff,
-        completed_staff: taskStats?.completed_tasks || 0,
+        assigned_staff,
+        total_staff: totalStaffCount,
+        completed_staff: completedStaffCount,
         additional_data: row.additional_data ? JSON.parse(row.additional_data) : null,
       };
     })

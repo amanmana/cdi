@@ -174,17 +174,22 @@ export const JobRequestsList: React.FC = () => {
 
                       {/* Assigned Staff List with Checkmarks */}
                       <td className="py-4 px-4 align-top text-xs font-semibold text-slate-700">
-                        {req.assigned_staff_name ? (
+                        {req.assigned_staff && req.assigned_staff.length > 0 ? (
                           <div className="flex flex-wrap items-center gap-1.5">
-                            {req.assigned_staff_name.split(',').map((name: string, i: number) => (
-                              <span key={i} className="inline-flex items-center gap-1 text-slate-700 font-bold">
-                                <span className="text-emerald-500 font-extrabold">✓</span> {name.trim()}
-                                {i < req.assigned_staff_name.split(',').length - 1 && <span className="text-slate-300">,</span>}
+                            {req.assigned_staff.map((s: any, i: number) => (
+                              <span key={s.id} className="inline-flex items-center gap-1 font-bold">
+                                {s.is_done ? (
+                                  <span className="text-emerald-500 font-extrabold" title="Completed">✓</span>
+                                ) : (
+                                  <span className="text-slate-300 font-extrabold" title="Pending">○</span>
+                                )}
+                                <span className={s.is_done ? 'text-slate-700' : 'text-slate-400 font-medium'}>{s.name}</span>
+                                {i < req.assigned_staff.length - 1 && <span className="text-slate-300">,</span>}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-slate-300 font-medium italic">Unassigned</span>
+                          <span className="text-xs text-slate-400 italic">No staff assigned</span>
                         )}
                       </td>
 
