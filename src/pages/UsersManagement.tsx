@@ -20,6 +20,7 @@ export const UsersManagement: React.FC = () => {
   const [role, setRole] = useState<'admin' | 'manager' | 'staff' | 'client'>('staff');
   const [unit, setUnit] = useState('');
   const [organisation, setOrganisation] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   const fetchUsers = () => {
     fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } })
@@ -64,21 +65,39 @@ export const UsersManagement: React.FC = () => {
       setOrganisation('');
     }
     setShowModal(true);
+    setSaveError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaveError('');
+
+    // Frontend validation: unit is mandatory for internal staff
+    if (role !== 'client' && !unit) {
+      setSaveError('Please select a unit before saving.');
+      return;
+    }
+
     const endpoint = editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users';
     const method = editingUser ? 'PUT' : 'POST';
 
-    const res = await fetch(endpoint, {
-      method,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name, email, password, role, unit: role === 'client' ? '' : unit }),
-    });
+    try {
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name, email, password, role, unit: role === 'client' ? '' : unit }),
+      });
 
-    const data = await res.json();
-    if (data.success) { setShowModal(false); fetchUsers(); }
+      const data = await res.json();
+      if (data.success) {
+        setShowModal(false);
+        fetchUsers();
+      } else {
+        setSaveError(data.error || 'Failed to save. Please try again.');
+      }
+    } catch {
+      setSaveError('Network error. Please check your connection.');
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -335,14 +354,26 @@ export const UsersManagement: React.FC = () => {
                       Manage Units <ExternalLink className="w-2.5 h-2.5" />
                     </a>
                   </div>
-                  <select value={unit} onChange={(e) => setUnit(e.target.value)} className="select select-bordered select-sm bg-slate-50 border-slate-200 rounded-xl w-full h-11 text-sm font-medium">
+                  <select
+                    required
+                    value={unit}
+                    onChange={(e) => { setUnit(e.target.value); setSaveError(''); }}
+                    className={`select select-bordered select-sm bg-slate-50 rounded-xl w-full h-11 text-sm font-medium ${!unit ? 'border-slate-200' : 'border-emerald-400'}`}
+                  >
                     <option value="">-- Select Unit --</option>
                     {units.map((un) => <option key={un.id} value={un.name}>{un.name}</option>)}
                   </select>
                 </div>
               )}
 
-              <div className="modal-action mt-6 pt-4 border-t border-slate-100 flex gap-2">
+              {/* Error Banner */}
+              {saveError && (
+                <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold">
+                  <span className="text-rose-500">⚠</span> {saveError}
+                </div>
+              )}
+
+              <div className="modal-action mt-4 pt-4 border-t border-slate-100 flex gap-2">
                 <button type="button" onClick={() => setShowModal(false)} className="btn btn-ghost btn-sm rounded-xl">Cancel</button>
                 <button type="submit" className={`btn btn-sm text-white font-bold rounded-xl px-5 border-none ${isClientModal ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}>Save</button>
               </div>
