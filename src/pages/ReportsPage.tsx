@@ -145,16 +145,34 @@ export const ReportsPage: React.FC = () => {
     return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  // Open Preview Lightbox Modal for Staff Report
+  // Format Header Date Range e.g. "20–24 July 2026"
+  const formatHeaderDateRange = (start: Date, end: Date) => {
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const month = start.toLocaleDateString('en-GB', { month: 'long' });
+    const year = start.getFullYear();
+    const endMonth = end.toLocaleDateString('en-GB', { month: 'long' });
+    const endYear = end.getFullYear();
+
+    if (month === endMonth && year === endYear) {
+      return `${startDay}–${endDay} ${month} ${year}`;
+    }
+    return `${startDay} ${month} – ${endDay} ${endMonth} ${year}`;
+  };
+
+  // Open Preview Lightbox Modal for Staff Report (Exact User Requested Format)
   const handleOpenPreviewModal = (staffGroup: StaffReportGroup) => {
     if (!staffGroup.entries || staffGroup.entries.length === 0) return;
 
-    const lines = staffGroup.entries.map(
-      (entry) =>
-        `staff name: ${entry.staff_name}, Client: ${entry.client}, Project: ${entry.project}, Title: ${entry.title} > START DATE: ${entry.start_date}, Status: ${entry.status}`
-    );
+    const dateRangeStr = formatHeaderDateRange(currentWeekStart, currentWeekEnd);
+    const headerLine = `*${staffGroup.staff_name} Weekly Reports ${dateRangeStr}*`;
 
-    const formattedText = lines.join('\n\n');
+    const lines = staffGroup.entries.map((entry, idx) => {
+      const num = idx + 1;
+      return `${staffGroup.staff_name} > ${num} > Client: ${entry.client} > Project: ${entry.project} > ${entry.title} > ${entry.start_date} > ${entry.status}`;
+    });
+
+    const formattedText = `${headerLine}\n\n${lines.join('\n')}`;
     setPreviewStaffName(staffGroup.staff_name);
     setPreviewModalText(formattedText);
     setModalCopied(false);
