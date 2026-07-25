@@ -110,7 +110,11 @@ export const ReportsPage: React.FC = () => {
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) {
-            setStaffListOptions(data.filter((u) => u.role === 'staff' || u.role === 'manager'));
+            if (user?.role === 'manager' && user?.unit) {
+              setStaffListOptions(data.filter((u) => (u.role === 'staff' || u.role === 'manager') && u.unit === user.unit));
+            } else {
+              setStaffListOptions(data.filter((u) => u.role === 'staff' || u.role === 'manager'));
+            }
           }
         })
         .catch(() => {});
@@ -266,7 +270,9 @@ export const ReportsPage: React.FC = () => {
                     onChange={(e) => setSelectedStaffId(e.target.value)}
                     className="select select-bordered select-xs bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
                   >
-                    <option value="all">All Staff Members</option>
+                    <option value="all">
+                      {user?.role === 'manager' && user?.unit ? `All ${user.unit} Staff` : 'All Staff Members'}
+                    </option>
                     {staffListOptions.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} ({s.unit || 'Staff'})
@@ -275,22 +281,24 @@ export const ReportsPage: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Unit Filter */}
-                <div className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                  <select
-                    value={selectedUnit}
-                    onChange={(e) => setSelectedUnit(e.target.value)}
-                    className="select select-bordered select-xs bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
-                  >
-                    <option value="all">All Units</option>
-                    <option value="Graphic">Graphic</option>
-                    <option value="Translation">Translation</option>
-                    <option value="Video">Video</option>
-                    <option value="Writer">Writer</option>
-                    <option value="Corporate Comm">Corporate Comm</option>
-                  </select>
-                </div>
+                {/* Unit Filter - Only for Admin */}
+                {user?.role === 'admin' && (
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                    <select
+                      value={selectedUnit}
+                      onChange={(e) => setSelectedUnit(e.target.value)}
+                      className="select select-bordered select-xs bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
+                    >
+                      <option value="all">All Units</option>
+                      <option value="Graphic">Graphic</option>
+                      <option value="Translation">Translation</option>
+                      <option value="Video">Video</option>
+                      <option value="Writer">Writer</option>
+                      <option value="Corporate Comm">Corporate Comm</option>
+                    </select>
+                  </div>
+                )}
               </>
             )}
 
