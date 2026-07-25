@@ -369,6 +369,41 @@ admin.put('/users/:id', async (c) => {
   }
 });
 
+// Check if a user has any linked job records (for smart delete UI)
+admin.get('/users/:id/job-links', async (c) => {
+  const db = c.env.DB;
+  const idParam = c.req.param('id');
+  const numId = parseInt(idParam, 10);
+  const userId = !isNaN(numId) ? numId : null;
+
+  if (userId === null) {
+    return c.json({ hasJobLinks: false });
+  }
+
+  try {
+    const jobCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM job_requests WHERE INSTR(',' || assigned_staff_ids || ',', ',' || ? || ',') > 0`
+    ).bind(userId).first<{ count: number }>();
+
+    const logCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM workflow_logs WHERE actor_id = ?`
+    ).bind(userId).first<{ count: number }>();
+
+    const reportCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM staff_reports WHERE staff_id = ?`
+    ).bind(userId).first<{ count: number }>();
+
+    const hasJobLinks =
+      (jobCheck?.count ?? 0) > 0 ||
+      (logCheck?.count ?? 0) > 0 ||
+      (reportCheck?.count ?? 0) > 0;
+
+    return c.json({ hasJobLinks });
+  } catch (err: any) {
+    return c.json({ hasJobLinks: false });
+  }
+});
+
 // Deactivate / Soft Delete User (Preserves historical audit logs, job ties, and staff reports)
 admin.delete('/users/:id', async (c) => {
   const db = c.env.DB;
@@ -376,16 +411,53 @@ admin.delete('/users/:id', async (c) => {
   const numId = parseInt(idParam, 10);
 
   try {
-    if (!isNaN(numId)) {
-      await db.prepare("UPDATE users SET role = 'archived' WHERE id = ?").bind(numId).run();
-    } else {
-      await db.prepare("UPDATE users SET role = 'archived' WHERE CAST(id AS TEXT) = ?").bind(idParam).run();
+    // Check if user has any linked job records across all relevant tables
+    const userId = !isNaN(numId) ? numId : null;
+
+    let hasJobLinks = false;
+
+    if (userId !== null) {
+      // Check assigned_staff_ids in job_requests (comma-separated)
+      const jobCheck = await db.prepare(
+        `SELECT COUNT(*) as count FROM job_requests WHERE INSTR(',' || assigned_staff_ids || ',', ',' || ? || ',') > 0`
+      ).bind(userId).first<{ count: number }>();
+
+      // Check workflow_logs as actor
+      const logCheck = await db.prepare(
+        `SELECT COUNT(*) as count FROM workflow_logs WHERE actor_id = ?`
+      ).bind(userId).first<{ count: number }>();
+
+      // Check staff_reports
+      const reportCheck = await db.prepare(
+        `SELECT COUNT(*) as count FROM staff_reports WHERE staff_id = ?`
+      ).bind(userId).first<{ count: number }>();
+
+      hasJobLinks =
+        (jobCheck?.count ?? 0) > 0 ||
+        (logCheck?.count ?? 0) > 0 ||
+        (reportCheck?.count ?? 0) > 0;
     }
 
-    return c.json({ success: true, message: 'User deactivated successfully. All past job ties and logs remain preserved.' });
+    if (hasJobLinks) {
+      // Soft delete — preserve all historical data
+      if (userId !== null) {
+        await db.prepare("UPDATE users SET role = 'archived' WHERE id = ?").bind(userId).run();
+      } else {
+        await db.prepare("UPDATE users SET role = 'archived' WHERE CAST(id AS TEXT) = ?").bind(idParam).run();
+      }
+      return c.json({ success: true, type: 'soft', message: 'User deactivated. All job history, audit logs & reports are preserved.' });
+    } else {
+      // Hard delete — no records, safe to remove permanently
+      if (userId !== null) {
+        await db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
+      } else {
+        await db.prepare("DELETE FROM users WHERE CAST(id AS TEXT) = ?").bind(idParam).run();
+      }
+      return c.json({ success: true, type: 'hard', message: 'User permanently deleted from the database.' });
+    }
   } catch (err: any) {
-    console.error('Failed to deactivate user:', err);
-    return c.json({ error: 'Failed to deactivate user: ' + err.message }, 500);
+    console.error('Failed to delete user:', err);
+    return c.json({ error: 'Failed to delete user: ' + err.message }, 500);
   }
 });
 
