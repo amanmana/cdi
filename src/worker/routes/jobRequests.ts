@@ -370,15 +370,28 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
     let staffQuery = "SELECT id, name, email, role, unit FROM users WHERE role IN ('staff', 'manager', 'admin')";
     const staffParams: any[] = [];
 
-    if (staffIdFilter && staffIdFilter !== 'all') {
-      staffQuery += ' AND id = ?';
-      staffParams.push(staffIdFilter);
-    } else if (user.role === 'staff' && !user.is_acting_manager) {
+    if (user.role === 'staff' && !user.is_acting_manager) {
+      // Staff only sees themselves
       staffQuery += ' AND id = ?';
       staffParams.push(user.id);
-    } else if (unitFilter && unitFilter !== 'all') {
-      staffQuery += ' AND unit = ?';
-      staffParams.push(unitFilter);
+    } else if (user.role === 'manager') {
+      // Manager ONLY sees staff in their unit (or themselves)
+      if (staffIdFilter && staffIdFilter !== 'all') {
+        staffQuery += ' AND id = ?';
+        staffParams.push(staffIdFilter);
+      } else if (user.unit) {
+        staffQuery += ' AND (unit = ? OR id = ?)';
+        staffParams.push(user.unit, user.id);
+      }
+    } else {
+      // Admin role
+      if (staffIdFilter && staffIdFilter !== 'all') {
+        staffQuery += ' AND id = ?';
+        staffParams.push(staffIdFilter);
+      } else if (unitFilter && unitFilter !== 'all') {
+        staffQuery += ' AND unit = ?';
+        staffParams.push(unitFilter);
+      }
     }
 
     staffQuery += ' ORDER BY name ASC';
