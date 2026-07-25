@@ -455,37 +455,21 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
           if (statusFilter === 'staff_processing' && job.status === 'completed') return false;
         }
 
-        // Date Range Filtering for Weekly Browsing
+        // Strict Weekly Date Range Overlap Filter [startDate, endDate]
         if (startDate && endDate) {
-          const rawJobDate = job.execution_date || job.start_date || job.created_at;
-          const jobStartDate = normalizeDateStr(rawJobDate);
-          const jobUpdateDate = normalizeDateStr(job.updated_at) || jobStartDate;
+          const rawStart = job.execution_date || job.start_date || job.created_at;
+          const rawEnd = job.deadline || (job.status === 'completed' ? job.updated_at : null) || rawStart;
 
-          // 1. If job starts after the current week being viewed, do NOT include it
-          if (jobStartDate && jobStartDate > endDate) {
-            return false;
+          const jobStartDate = normalizeDateStr(rawStart);
+          const jobEndDate = normalizeDateStr(rawEnd) || jobStartDate;
+
+          if (jobStartDate && jobEndDate) {
+            // Check if [jobStartDate, jobEndDate] overlaps with [startDate, endDate]
+            return jobStartDate <= endDate && jobEndDate >= startDate;
           }
 
-          // 2. If job start/execution/created date falls within [startDate, endDate], include it
-          if (jobStartDate && jobStartDate >= startDate && jobStartDate <= endDate) {
-            return true;
-          }
-
-          const dates = [job.execution_date, job.start_date, job.created_at];
-          const hasDateInWeek = dates.some((raw) => {
-            const norm = normalizeDateStr(raw);
-            return norm && norm >= startDate && norm <= endDate;
-          });
-          if (hasDateInWeek) return true;
-
-          // 3. If job is completed, include only if it was completed/updated within this week
-          if (job.status === 'completed') {
-            return Boolean(jobUpdateDate && jobUpdateDate >= startDate && jobUpdateDate <= endDate);
-          }
-
-          // 4. Ongoing active jobs (staff_processing) only appear if started on or before endDate
-          if (job.status !== 'completed' && job.status !== 'rejected' && job.status !== 'cancelled') {
-            return Boolean(jobStartDate && jobStartDate <= endDate);
+          if (jobStartDate) {
+            return jobStartDate >= startDate && jobStartDate <= endDate;
           }
 
           return false;
