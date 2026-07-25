@@ -10,6 +10,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { JobRequestsList } from './pages/JobRequestsList';
+import { JobRequestDetail } from './pages/JobRequestDetail';
 import { ReportsPage } from './pages/ReportsPage';
 import { TeamManagement } from './pages/TeamManagement';
 import { UsersManagement } from './pages/UsersManagement';
