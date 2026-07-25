@@ -475,10 +475,10 @@ export const UsersManagement: React.FC = () => {
                   <span>Historical Data & Log Preservation</span>
                 </div>
                 <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                  Adakah anda pasti ingin menyahaktifkan pengguna <strong className="font-extrabold text-slate-900">"{userToDelete.name}"</strong> ({userToDelete.email})?
+                  Are you sure you want to deactivate the user <strong className="font-extrabold text-slate-900">"{userToDelete.name}"</strong> ({userToDelete.email})?
                 </p>
                 <p className="text-[11px] text-slate-500 font-medium pt-1 border-t border-amber-200/60">
-                  ℹ️ Pengguna ini tidak lagi boleh log masuk atau ditugaskan kepada job baharu. Namun, <strong>semua sejarah job, log audit, & laporan silam akan KEKAL DIPELIHARA 100%</strong> di dalam pangkalan data.
+                  ℹ️ This user will no longer be able to log in or be assigned to new jobs. However, <strong>all job history, audit logs, & past reports will be FULLY PRESERVED 100%</strong> in the database.
                 </p>
               </div>
 

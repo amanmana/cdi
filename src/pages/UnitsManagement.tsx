@@ -166,8 +166,8 @@ export const UnitsManagement: React.FC = () => {
     
     fetchUnits();
     setAlertModal({
-      title: 'Skema Berjaya Disimpan',
-      message: 'Skema borang berjaya disimpan!',
+      title: 'Form Schema Saved',
+      message: 'Form schema saved successfully!',
       type: 'success',
     });
   };
@@ -593,7 +593,7 @@ export const UnitsManagement: React.FC = () => {
                   <span>This action CANNOT be undone!</span>
                 </div>
                 <p className="text-xs text-rose-800 font-medium leading-relaxed">
-                  Adakah anda pasti ingin memadam unit <strong className="font-extrabold text-slate-900">"{unitToDelete.name}"</strong>?
+                  Are you sure you want to delete the unit <strong className="font-extrabold text-slate-900">"{unitToDelete.name}"</strong>?
                 </p>
               </div>
 
