@@ -354,6 +354,160 @@ jobRequestsRouter.post('/presets/add', async (c) => {
   }
 });
 
+// Weekly Automated Reports Endpoint for Staff & Managers
+jobRequestsRouter.get('/reports/weekly', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+
+  const startDate = c.req.query('start_date');
+  const endDate = c.req.query('end_date');
+  const unitFilter = c.req.query('unit');
+  const staffIdFilter = c.req.query('staff_id');
+  const statusFilter = c.req.query('status');
+
+  try {
+    // 1. Fetch relevant staff users
+    let staffQuery = "SELECT id, name, email, role, unit FROM users WHERE role IN ('staff', 'manager', 'admin')";
+    const staffParams: any[] = [];
+
+    if (staffIdFilter && staffIdFilter !== 'all') {
+      staffQuery += ' AND id = ?';
+      staffParams.push(staffIdFilter);
+    } else if (user.role === 'staff' && !user.is_acting_manager) {
+      staffQuery += ' AND id = ?';
+      staffParams.push(user.id);
+    } else if (unitFilter && unitFilter !== 'all') {
+      staffQuery += ' AND unit = ?';
+      staffParams.push(unitFilter);
+    }
+
+    staffQuery += ' ORDER BY name ASC';
+    const { results: staffList } = await db.prepare(staffQuery).bind(...staffParams).all<{
+      id: number;
+      name: string;
+      email: string;
+      role: string;
+      unit: string;
+    }>();
+
+    // 2. Query job_requests
+    let jobQuery = 'SELECT r.* FROM job_requests r WHERE 1=1';
+    const jobParams: any[] = [];
+
+    if (startDate && endDate) {
+      jobQuery += ` AND (
+        (date(r.execution_date) >= date(?) AND date(r.execution_date) <= date(?))
+        OR (date(r.start_date) >= date(?) AND date(r.start_date) <= date(?))
+        OR (date(r.created_at) >= date(?) AND date(r.created_at) <= date(?))
+        OR (date(r.updated_at) >= date(?) AND date(r.updated_at) <= date(?))
+      )`;
+      jobParams.push(startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate);
+    }
+
+    if (statusFilter && statusFilter !== 'all') {
+      jobQuery += ' AND r.status = ?';
+      jobParams.push(statusFilter);
+    }
+
+    jobQuery += ' ORDER BY r.created_at DESC';
+
+    const { results: allJobs } = await db.prepare(jobQuery).bind(...jobParams).all<{
+      id: number;
+      ticket_no: string;
+      title: string;
+      client_name: string;
+      client_email: string;
+      status: string;
+      current_step_name: string;
+      execution_date: string;
+      start_date: string;
+      deadline: string;
+      created_at: string;
+      updated_at: string;
+      assigned_staff_ids: string;
+      additional_data: string;
+      work_details: string;
+    }>();
+
+    // 3. Map entries per staff member
+    const reportsByStaff = (staffList || []).map((staff) => {
+      const staffIdStr = String(staff.id);
+
+      const staffJobs = (allJobs || []).filter((job) => {
+        // Self-initiated / direct tasks logged by this staff member
+        if (job.ticket_no?.startsWith('SELF') && job.client_email === staff.email) {
+          return true;
+        }
+        // Assigned staff team includes this staff member ID
+        if (job.assigned_staff_ids) {
+          const ids = job.assigned_staff_ids.split(',').map((id) => id.trim());
+          return ids.includes(staffIdStr);
+        }
+        return false;
+      });
+
+      const formattedEntries = staffJobs.map((job) => {
+        let extraProject = '';
+        let extraWorkDetails = '';
+
+        if (job.additional_data) {
+          try {
+            const extra = JSON.parse(job.additional_data);
+            if (extra.project) extraProject = extra.project;
+            if (extra.work_details) extraWorkDetails = extra.work_details;
+          } catch (e) {}
+        }
+        if (!extraWorkDetails && job.work_details) extraWorkDetails = job.work_details;
+
+        const projectName = extraProject || job.title;
+        const workTitle = extraWorkDetails ? `${job.title} — ${extraWorkDetails}` : job.title;
+
+        // Start Date formatting (e.g. 21/07/26 or YYYY-MM-DD)
+        const rawDate = job.execution_date || job.start_date || (job.created_at ? job.created_at.substring(0, 10) : '');
+        let formattedStartDate = rawDate;
+        if (rawDate && rawDate.includes('-')) {
+          const parts = rawDate.substring(0, 10).split('-');
+          if (parts.length === 3) {
+            formattedStartDate = `${parts[2]}/${parts[1]}/${parts[0].substring(2)}`;
+          }
+        }
+
+        return {
+          id: job.id,
+          ticket_no: job.ticket_no,
+          staff_name: staff.name,
+          client: job.client_name || 'Corporate Comm',
+          project: projectName,
+          title: workTitle,
+          start_date: formattedStartDate,
+          status: job.status === 'completed' ? 'Completed' : 'Staff Processing',
+          raw_status: job.status,
+        };
+      });
+
+      return {
+        staff_id: staff.id,
+        staff_name: staff.name,
+        staff_email: staff.email,
+        staff_unit: staff.unit,
+        entries: formattedEntries,
+        total_count: formattedEntries.length,
+        completed_count: formattedEntries.filter((e) => e.status === 'Completed').length,
+        in_progress_count: formattedEntries.filter((e) => e.status !== 'Completed').length,
+      };
+    });
+
+    return c.json({
+      start_date: startDate,
+      end_date: endDate,
+      reports: reportsByStaff,
+    });
+  } catch (err: any) {
+    console.error('Error generating weekly report:', err);
+    return c.json({ error: 'Failed to generate weekly report: ' + err.message }, 500);
+  }
+});
+
 // POST /api/job-requests/create-internal - Manager/Admin direct job creation
 jobRequestsRouter.post('/create-internal', async (c) => {
   const db = c.env.DB;
