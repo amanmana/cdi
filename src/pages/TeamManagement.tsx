@@ -168,16 +168,6 @@ export const TeamManagement: React.FC = () => {
             REAL-TIME CAPACITY VIEW
           </p>
         </div>
-
-        {/* Top Right Add New Staff Button */}
-        {user?.role === 'admin' && (
-          <button
-            onClick={() => handleOpenAddModal(null)}
-            className="btn btn-primary h-12 px-6 normal-case text-sm font-bold shadow-lg shadow-blue-500/25 rounded-2xl bg-blue-600 hover:bg-blue-700 border-blue-600 text-white gap-2"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" /> Add New Staff
-          </button>
-        )}
       </div>
 
       {/* Main Team Members Container Card */}
@@ -316,39 +306,6 @@ export const TeamManagement: React.FC = () => {
                           >
                             View Jobs
                           </button>
-
-                          {/* 3-Dots Dropdown Trigger matching Image 3 */}
-                          {user?.role === 'admin' && (
-                            <div className="relative inline-block text-left">
-                              <button
-                                type="button"
-                                onClick={() => setOpenDropdownId(isDropdownOpen ? null : member.id)}
-                                className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-
-                              {/* Dropdown Floating Menu matching Image 3 */}
-                              {isDropdownOpen && (
-                                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-2xl shadow-2xl bg-white border border-slate-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                                  <button
-                                    onClick={() => handleOpenAddModal(member)}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-                                  >
-                                    <Edit2 className="w-4 h-4 text-blue-600" />
-                                    <span>Edit Details</span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleArchiveMember(member.id)}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left"
-                                  >
-                                    <Trash2 className="w-4 h-4 text-rose-500" />
-                                    <span>Archive Member</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>
