@@ -390,28 +390,8 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
       unit: string;
     }>();
 
-    // 2. Query job_requests
-    let jobQuery = 'SELECT r.* FROM job_requests r WHERE 1=1';
-    const jobParams: any[] = [];
-
-    if (startDate && endDate) {
-      jobQuery += ` AND (
-        (date(r.execution_date) >= date(?) AND date(r.execution_date) <= date(?))
-        OR (date(r.start_date) >= date(?) AND date(r.start_date) <= date(?))
-        OR (date(r.created_at) >= date(?) AND date(r.created_at) <= date(?))
-        OR (date(r.updated_at) >= date(?) AND date(r.updated_at) <= date(?))
-      )`;
-      jobParams.push(startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate);
-    }
-
-    if (statusFilter && statusFilter !== 'all') {
-      jobQuery += ' AND r.status = ?';
-      jobParams.push(statusFilter);
-    }
-
-    jobQuery += ' ORDER BY r.created_at DESC';
-
-    const { results: allJobs } = await db.prepare(jobQuery).bind(...jobParams).all<{
+    // 2. Query all job_requests
+    const { results: allJobs } = await db.prepare('SELECT r.* FROM job_requests r ORDER BY r.created_at DESC').all<{
       id: number;
       ticket_no: string;
       title: string;
@@ -429,21 +409,69 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
       work_details: string;
     }>();
 
+    // Helper to format any date string into YYYY-MM-DD
+    const normalizeDateStr = (raw?: string): string | null => {
+      if (!raw || !raw.trim()) return null;
+      let str = raw.trim().substring(0, 10);
+      if (str.includes('-')) return str;
+      if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+          const yr = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+          return `${yr}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+      return null;
+    };
+
     // 3. Map entries per staff member
     const reportsByStaff = (staffList || []).map((staff) => {
       const staffIdStr = String(staff.id);
+      const staffEmailLower = (staff.email || '').toLowerCase().trim();
 
       const staffJobs = (allJobs || []).filter((job) => {
-        // Self-initiated / direct tasks logged by this staff member
-        if (job.ticket_no?.startsWith('SELF') && job.client_email === staff.email) {
-          return true;
-        }
-        // Assigned staff team includes this staff member ID
+        let belongsToStaff = false;
+
+        // Check if assigned_staff_ids includes staff.id
         if (job.assigned_staff_ids) {
           const ids = job.assigned_staff_ids.split(',').map((id) => id.trim());
-          return ids.includes(staffIdStr);
+          if (ids.includes(staffIdStr)) {
+            belongsToStaff = true;
+          }
         }
-        return false;
+
+        // Check if self-initiated or logged by staff member email
+        if (!belongsToStaff && job.client_email) {
+          if (job.client_email.toLowerCase().trim() === staffEmailLower) {
+            belongsToStaff = true;
+          }
+        }
+
+        if (!belongsToStaff) return false;
+
+        // Filter by Status if specified
+        if (statusFilter && statusFilter !== 'all') {
+          if (statusFilter === 'completed' && job.status !== 'completed') return false;
+          if (statusFilter === 'staff_processing' && job.status === 'completed') return false;
+        }
+
+        // Active ongoing jobs (staff_processing, manager_approval, on_hold) are ALWAYS included in weekly reports!
+        if (job.status !== 'completed' && job.status !== 'rejected' && job.status !== 'cancelled') {
+          return true;
+        }
+
+        // If Date Range is provided, check if any job date falls within the week
+        if (startDate && endDate) {
+          const datesToCheck = [job.execution_date, job.start_date, job.created_at, job.updated_at];
+          const isInWeek = datesToCheck.some((raw) => {
+            const normalized = normalizeDateStr(raw);
+            if (!normalized) return false;
+            return normalized >= startDate && normalized <= endDate;
+          });
+          return isInWeek;
+        }
+
+        return true;
       });
 
       const formattedEntries = staffJobs.map((job) => {
