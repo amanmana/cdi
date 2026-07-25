@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   FileText,
@@ -13,6 +14,7 @@ import {
   Building2,
   Clock,
   CheckCircle2,
+  ExternalLink,
 } from 'lucide-react';
 
 interface ReportEntry {
@@ -393,17 +395,26 @@ export const ReportsPage: React.FC = () => {
                   {group.entries.map((entry) => (
                     <div key={entry.id} className="pt-4 first:pt-0 space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                            #{entry.ticket_no}
-                          </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            to={`/portal/job-requests/${entry.id}`}
+                            className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-all inline-flex items-center gap-1 group"
+                            title="Click to view project details"
+                          >
+                            <span>#{entry.ticket_no}</span>
+                            <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
+                          </Link>
                           <span className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">
                             Client: <span className="text-slate-900">{entry.client}</span>
                           </span>
                           <span className="text-slate-300">•</span>
-                          <span className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">
-                            Project: <span className="text-purple-700">{entry.project}</span>
-                          </span>
+                          <Link
+                            to={`/portal/job-requests/${entry.id}`}
+                            className="font-extrabold text-xs text-slate-500 uppercase tracking-wider hover:underline"
+                            title="Click to view project details"
+                          >
+                            Project: <span className="text-purple-700 hover:text-purple-900">{entry.project}</span>
+                          </Link>
                         </div>
 
                         <span
@@ -427,7 +438,13 @@ export const ReportsPage: React.FC = () => {
                         <span>
                           Start Date: <strong className="text-slate-700">{entry.start_date}</strong>
                         </span>
-                        <span className="italic text-slate-400 text-[10px]">Auto-generated from task record</span>
+                        <Link
+                          to={`/portal/job-requests/${entry.id}`}
+                          className="text-blue-600 hover:text-blue-800 font-extrabold text-xs inline-flex items-center gap-1 hover:underline print:hidden"
+                        >
+                          <span>View Project</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
                       </div>
                     </div>
                   ))}
