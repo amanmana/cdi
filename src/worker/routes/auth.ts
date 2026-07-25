@@ -30,11 +30,11 @@ auth.post('/login', async (c) => {
     .first<{ id: number; name: string; email: string; password_hash: string; role: 'admin' | 'manager' | 'staff' | 'client'; unit_id?: number | null; unit: string }>();
 
   if (!user) {
-    return c.json({ error: 'E-mel atau kata laluan tidak sah.' }, 401);
+    return c.json({ error: 'Invalid email or password.' }, 401);
   }
 
   if ((user.role as string) === 'archived') {
-    return c.json({ error: 'Akaun anda telah dinyahaktifkan (Deactivated). Sila hubungi Pentadbir Sistem.' }, 403);
+    return c.json({ error: 'Your account has been deactivated. Please contact the System Administrator.' }, 403);
   }
 
   const isValid = await verifyPassword(password, user.password_hash);
@@ -62,7 +62,7 @@ auth.post('/login', async (c) => {
 auth.post('/register', async (c) => {
   const { name, email, password, role, unit, unit_id } = await c.req.json();
   if (!name || !email || !password) {
-    return c.json({ error: 'Sila lengkapkan nama, e-mel dan kata laluan.' }, 400);
+    return c.json({ error: 'Please fill in name, email, and password.' }, 400);
   }
 
   const existing = await c.env.DB
@@ -71,7 +71,7 @@ auth.post('/register', async (c) => {
     .first();
 
   if (existing) {
-    return c.json({ error: 'E-mel telah berdaftar dalam sistem.' }, 400);
+    return c.json({ error: 'This email is already registered in the system.' }, 400);
   }
 
   const pwdHash = await hashPassword(password);
@@ -153,17 +153,17 @@ auth.post('/change-password', async (c) => {
   const token = authHeader ? authHeader.replace('Bearer ', '') : null;
 
   if (!token) {
-    return c.json({ error: 'Tidak didaftarkan atau token tidak sah.' }, 401);
+    return c.json({ error: 'Unauthorized or invalid token.' }, 401);
   }
 
   const payload = await verifyToken(token);
   if (!payload) {
-    return c.json({ error: 'Tidak didaftarkan atau token tidak sah.' }, 401);
+    return c.json({ error: 'Unauthorized or invalid token.' }, 401);
   }
 
   const { currentPassword, newPassword } = await c.req.json();
   if (!currentPassword || !newPassword) {
-    return c.json({ error: 'Sila lengkapkan semua medan kata laluan.' }, 400);
+    return c.json({ error: 'Please fill in all password fields.' }, 400);
   }
 
   // Get current user password_hash
@@ -173,13 +173,13 @@ auth.post('/change-password', async (c) => {
     .first<{ id: number; password_hash: string }>();
 
   if (!user) {
-    return c.json({ error: 'Pengguna tidak ditemui.' }, 404);
+    return c.json({ error: 'User not found.' }, 404);
   }
 
   // Verify current password
   const isValid = await verifyPassword(currentPassword, user.password_hash);
   if (!isValid) {
-    return c.json({ error: 'Kata laluan semasa tidak betul.' }, 400);
+    return c.json({ error: 'Current password is incorrect.' }, 400);
   }
 
   // Hash new password
@@ -191,7 +191,7 @@ auth.post('/change-password', async (c) => {
     .bind(newHash, user.id)
     .run();
 
-  return c.json({ success: true, message: 'Kata laluan berjaya dikemas kini.' });
+  return c.json({ success: true, message: 'Password updated successfully.' });
 });
 
 export default auth;

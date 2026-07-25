@@ -288,7 +288,7 @@ admin.delete('/units/:id', async (c) => {
   const assignedJobs = await db.prepare('SELECT COUNT(*) as count FROM job_requests WHERE unit_id = ? OR unit = ?').bind(numId, unit.name).first<{ count: number }>();
   if (assignedJobs && assignedJobs.count > 0) {
     return c.json({
-      error: `Tidak boleh memadam unit '${unit.name}' kerana terdapat ${assignedJobs.count} borang permohonan kerja di dalamnya.`
+      error: `Cannot delete unit '${unit.name}' because it has ${assignedJobs.count} job request(s) assigned to it.`
     }, 400);
   }
 

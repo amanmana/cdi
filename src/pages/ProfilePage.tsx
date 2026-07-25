@@ -46,16 +46,16 @@ export const ProfilePage: React.FC = () => {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess('Kata laluan anda telah berjaya dikemas kini!');
+        setSuccess('Your password has been updated successfully!');
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        setError(data.error || 'Gagal mengemas kini kata laluan.');
+        setError(data.error || 'Failed to update password.');
       }
     } catch (err) {
       console.error(err);
-      setError('Ralat semasa menghubungi pelayan.');
+      setError('An error occurred while contacting the server.');
     } finally {
       setLoading(false);
     }

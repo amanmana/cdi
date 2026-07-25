@@ -908,16 +908,16 @@ jobRequestsRouter.post('/:id/change-status', async (c) => {
 
   const isManagerOrAdmin = user.role === 'admin' || user.role === 'manager' || user.is_acting_manager;
   if (!isManagerOrAdmin) {
-    return c.json({ error: 'Hanya Pentadbir dan Pengurus sahaja yang mempunyai kuasa untuk menukar status projek.' }, 403);
+    return c.json({ error: 'Only Admins and Managers are authorized to change the project status.' }, 403);
   }
 
   const allowed = ['staff_processing', 'on_hold', 'cancelled', 'completed'];
   if (!allowed.includes(new_status)) {
-    return c.json({ error: 'Status yang diminta tidak sah.' }, 400);
+    return c.json({ error: 'The requested status is invalid.' }, 400);
   }
 
   const request = await findJobRequest(db, idParam);
-  if (!request) return c.json({ error: 'Permohonan projek tidak ditemui.' }, 404);
+  if (!request) return c.json({ error: 'Project request not found.' }, 404);
 
   let stepName = request.current_step_name || 'Staff Processing';
   if (new_status === 'on_hold') stepName = 'Pending / On Hold';
@@ -934,9 +934,9 @@ jobRequestsRouter.post('/:id/change-status', async (c) => {
   await db.prepare(
     `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).bind(request.id, actionName, user.id, user.name, request.current_step_name || 'In Progress', stepName, reason || `Status ditukar kepada ${stepName}`).run();
+  ).bind(request.id, actionName, user.id, user.name, request.current_step_name || 'In Progress', stepName, reason || `Status changed to ${stepName}`).run();
 
-  return c.json({ success: true, message: `Status projek berjaya dikemaskini kepada ${stepName}.` });
+  return c.json({ success: true, message: `Project status successfully updated to ${stepName}.` });
 });
 
 // POST /api/job-requests/:id/update-team - Update assigned staff team
