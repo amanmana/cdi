@@ -12,6 +12,7 @@ export const UsersManagement: React.FC = () => {
   // Lightbox delete modal state
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
+  const [userHasJobLinks, setUserHasJobLinks] = useState<boolean | null>(null); // null = loading
 
   // Main section tab: 'staff' | 'clients'
   const [mainTab, setMainTab] = useState<'staff' | 'clients'>('staff');
@@ -127,16 +128,35 @@ export const UsersManagement: React.FC = () => {
     }
   };
 
-  const handlePromptDeleteUser = (u: any) => {
+  const handlePromptDeleteUser = async (u: any) => {
     setUserToDelete(u);
+    setUserHasJobLinks(null); // loading
+    try {
+      // Check job links on backend by calling a pre-check
+      const [jobRes, logRes, reportRes] = await Promise.all([
+        fetch(`/api/admin/users/${u.id}/job-links`, { headers: { Authorization: `Bearer ${token}` } }),
+        Promise.resolve(null), // placeholder
+        Promise.resolve(null),
+      ]);
+      if (jobRes.ok) {
+        const data = await jobRes.json() as { hasJobLinks: boolean };
+        setUserHasJobLinks(data.hasJobLinks);
+      } else {
+        setUserHasJobLinks(false);
+      }
+    } catch {
+      setUserHasJobLinks(false);
+    }
   };
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
     setDeletingUser(true);
     try {
-      await fetch(`/api/admin/users/${userToDelete.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`/api/admin/users/${userToDelete.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json() as { success?: boolean; type?: string };
       setUserToDelete(null);
+      setUserHasJobLinks(null);
       fetchUsers();
     } catch (err) {
       console.error(err);
@@ -454,17 +474,21 @@ export const UsersManagement: React.FC = () => {
             {/* Modal Header */}
             <div className="bg-slate-900 text-white p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-white/10 text-amber-400 flex items-center justify-center shrink-0 border border-white/10">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border border-white/10 ${userHasJobLinks === false ? 'bg-rose-500/20 text-rose-400' : 'bg-white/10 text-amber-400'}`}>
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base tracking-tight">Deactivate User Account</h3>
-                  <p className="text-xs text-slate-400 font-medium">Soft Delete Verification</p>
+                  <h3 className="font-extrabold text-base tracking-tight">
+                    {userHasJobLinks === false ? 'Permanently Delete User' : 'Deactivate User Account'}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium">
+                    {userHasJobLinks === false ? 'Hard Delete — No Records Found' : 'Soft Delete Verification'}
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setUserToDelete(null)}
+                onClick={() => { setUserToDelete(null); setUserHasJobLinks(null); }}
                 className="btn btn-sm btn-ghost btn-circle text-slate-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -473,24 +497,47 @@ export const UsersManagement: React.FC = () => {
 
             {/* Modal Content Body */}
             <div className="p-6 space-y-5">
-              <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 space-y-2">
-                <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Historical Data & Log Preservation</span>
+              {userHasJobLinks === null ? (
+                // Loading state
+                <div className="flex items-center justify-center py-8 gap-3">
+                  <span className="loading loading-spinner loading-md text-slate-400"></span>
+                  <span className="text-sm text-slate-500 font-medium">Checking job records...</span>
                 </div>
-                <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                  Are you sure you want to deactivate the user <strong className="font-extrabold text-slate-900">"{userToDelete.name}"</strong> ({userToDelete.email})?
-                </p>
-                <p className="text-[11px] text-slate-500 font-medium pt-1 border-t border-amber-200/60">
-                  ℹ️ This user will no longer be able to log in or be assigned to new jobs. However, <strong>all job history, audit logs, & past reports will be FULLY PRESERVED 100%</strong> in the database.
-                </p>
-              </div>
+              ) : userHasJobLinks === false ? (
+                // Hard delete — no job records
+                <div className="p-4 bg-rose-50/80 rounded-2xl border border-rose-200 space-y-2">
+                  <div className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>This action CANNOT be undone!</span>
+                  </div>
+                  <p className="text-xs text-rose-800 font-medium leading-relaxed">
+                    The user <strong className="font-extrabold text-slate-900">"{userToDelete.name}"</strong> ({userToDelete.email}) has <strong>no job records, reports, or audit logs</strong>. This user will be <strong>permanently removed</strong> from the database.
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-medium pt-1 border-t border-rose-200/60">
+                    🗑️ This is a hard delete — the user record will be erased completely and cannot be recovered.
+                  </p>
+                </div>
+              ) : (
+                // Soft delete — has job records
+                <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 space-y-2">
+                  <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Historical Data & Log Preservation</span>
+                  </div>
+                  <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                    Are you sure you want to deactivate the user <strong className="font-extrabold text-slate-900">"{userToDelete.name}"</strong> ({userToDelete.email})?
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-medium pt-1 border-t border-amber-200/60">
+                    ℹ️ This user has existing job records. They will be <strong>deactivated (not deleted)</strong> — all job history, audit logs, & past reports will be <strong>FULLY PRESERVED 100%</strong> in the database.
+                  </p>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setUserToDelete(null)}
+                  onClick={() => { setUserToDelete(null); setUserHasJobLinks(null); }}
                   className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
                 >
                   Cancel
@@ -498,18 +545,22 @@ export const UsersManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={confirmDeleteUser}
-                  disabled={deletingUser}
-                  className="btn bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md shadow-slate-900/20 transition-all gap-2"
+                  disabled={deletingUser || userHasJobLinks === null}
+                  className={`btn font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md transition-all gap-2 ${
+                    userHasJobLinks === false
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20'
+                      : 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20'
+                  }`}
                 >
                   {deletingUser ? (
                     <>
                       <span className="loading loading-spinner loading-xs"></span>
-                      <span>Deactivating...</span>
+                      <span>{userHasJobLinks === false ? 'Deleting...' : 'Deactivating...'}</span>
                     </>
                   ) : (
                     <>
-                      <ShieldAlert className="w-4 h-4 text-amber-400" />
-                      <span>Deactivate User</span>
+                      <ShieldAlert className={`w-4 h-4 ${userHasJobLinks === false ? 'text-white' : 'text-amber-400'}`} />
+                      <span>{userHasJobLinks === false ? 'Delete Permanently' : 'Deactivate User'}</span>
                     </>
                   )}
                 </button>
