@@ -354,21 +354,23 @@ export const JobRequestsList: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {/* Button for Staff, Manager & Admin to Add Tasks */}
-          <button
-            onClick={() => {
-              setSelfTitle('');
-              setSelfClient('');
-              setSelfProject('');
-              setSelfDescription('');
-              setSelfStatus('completed');
-              setShowSelfModal(true);
-            }}
-            className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md shadow-purple-500/25 flex items-center gap-2 shrink-0 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Task</span>
-          </button>
+          {/* Button for Staff only to Add Tasks (Hidden for Admin & Manager) */}
+          {user?.role === 'staff' && (
+            <button
+              onClick={() => {
+                setSelfTitle('');
+                setSelfClient('');
+                setSelfProject('');
+                setSelfDescription('');
+                setSelfStatus('completed');
+                setShowSelfModal(true);
+              }}
+              className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md shadow-purple-500/25 flex items-center gap-2 shrink-0 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Task</span>
+            </button>
+          )}
 
           {isManagerOrAdmin && (
             <button
