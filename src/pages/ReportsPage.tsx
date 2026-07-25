@@ -15,6 +15,9 @@ import {
   Clock,
   CheckCircle2,
   ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Layers,
 } from 'lucide-react';
 
 interface ReportEntry {
@@ -44,6 +47,9 @@ export const ReportsPage: React.FC = () => {
   const { token, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<StaffReportGroup[]>([]);
+
+  // Accordion Expand/Collapse State per Staff Member
+  const [expandedStaffIds, setExpandedStaffIds] = useState<Set<number>>(new Set());
 
   // Modal State for Previewing & Copying Plain-Text Report
   const [previewModalText, setPreviewModalText] = useState<string | null>(null);
@@ -95,10 +101,58 @@ export const ReportsPage: React.FC = () => {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (data.reports) setReports(data.reports);
+        if (data.reports) {
+          setReports(data.reports);
+          // By default, expand all staff groups that have tasks
+          const activeIds = data.reports.filter((g: any) => g.entries && g.entries.length > 0).map((g: any) => g.staff_id);
+          setExpandedStaffIds(new Set(activeIds));
+        }
       })
       .catch((err) => console.error('Error fetching reports:', err))
       .finally(() => setLoading(false));
+  };
+
+  const toggleStaffExpanded = (staffId: number) => {
+    setExpandedStaffIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(staffId)) {
+        next.delete(staffId);
+      } else {
+        next.add(staffId);
+      }
+      return next;
+    });
+  };
+
+  const handleExpandAll = () => {
+    const activeIds = reports.filter((g) => g.entries.length > 0).map((g) => g.staff_id);
+    setExpandedStaffIds(new Set(activeIds));
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedStaffIds(new Set());
+  };
+
+  // Copy Combined Plain-Text Report for ALL Staff Members
+  const handleCopyAllStaffReports = () => {
+    const activeGroups = reports.filter((g) => g.entries && g.entries.length > 0);
+    if (activeGroups.length === 0) return;
+
+    const dateRangeStr = formatHeaderDateRange(currentWeekStart, currentWeekEnd);
+
+    const allFormattedBlocks = activeGroups.map((group) => {
+      const headerLine = `*${group.staff_name} Weekly Reports ${dateRangeStr}*`;
+      const lines = group.entries.map((entry, idx) => {
+        const num = idx + 1;
+        return `${group.staff_name} > ${num} > Client: ${entry.client} > Project: ${entry.project} > ${entry.title} > ${entry.start_date} > ${entry.status}`;
+      });
+      return `${headerLine}\n\n${lines.join('\n')}`;
+    });
+
+    const fullText = allFormattedBlocks.join('\n\n==================================================\n\n');
+    setPreviewStaffName(user?.role === 'admin' ? 'All Units Combined' : `${user?.unit || 'All'} Department`);
+    setPreviewModalText(fullText);
+    setModalCopied(false);
   };
 
   // Fetch Staff Options for Filter Dropdown
@@ -214,12 +268,24 @@ export const ReportsPage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => window.print()}
-          className="btn bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md flex items-center gap-2 shrink-0 transition-all"
-        >
-          <Printer className="w-4 h-4" /> Print / Export PDF
-        </button>
+        <div className="flex items-center gap-3 shrink-0 print:hidden">
+          {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+            <button
+              onClick={handleCopyAllStaffReports}
+              className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-2xl px-4 h-11 border-none shadow-md flex items-center gap-2 transition-all"
+              title="Copy combined weekly report for all listed staff"
+            >
+              <Copy className="w-4 h-4" /> Copy All Reports
+            </button>
+          )}
+
+          <button
+            onClick={() => window.print()}
+            className="btn bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md flex items-center gap-2 transition-all"
+          >
+            <Printer className="w-4 h-4" /> Print / Export PDF
+          </button>
+        </div>
       </div>
 
       {/* Week Navigator & Filters Bar */}
@@ -359,128 +425,173 @@ export const ReportsPage: React.FC = () => {
           <p className="text-xs text-slate-400 mt-1">Try selecting a different date range or adjusting your filters.</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {reports
-            .filter((group) => group.entries.length > 0)
-            .map((group) => (
-              <div key={group.staff_id} className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
-                {/* Staff Group Header */}
-                <div className="bg-slate-900 text-white p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center font-black text-base shrink-0 border border-white/10">
-                      {group.staff_name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-black text-base text-white tracking-tight">{group.staff_name}</h3>
-                        {group.staff_unit && (
-                          <span className="bg-white/15 text-blue-200 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
-                            {group.staff_unit}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 font-medium mt-0.5">{group.staff_email}</p>
-                    </div>
-                  </div>
+        <div className="space-y-4">
+          {/* Controls Bar: Staff Count & Expand/Collapse All */}
+          <div className="flex items-center justify-between px-2 pt-1 pb-1 print:hidden">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <Layers className="w-4 h-4 text-blue-600" />
+              <span>Staff Reports ({reports.filter((g) => g.entries.length > 0).length})</span>
+            </div>
 
-                  <div className="flex items-center gap-3 self-end md:self-auto">
-                    <div className="text-xs text-slate-300 font-semibold bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
-                      <span className="text-emerald-400 font-bold">{group.completed_count} Done</span> • <span className="text-purple-300 font-bold">{group.in_progress_count} Processing</span>
-                    </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExpandAll}
+                className="btn btn-xs bg-white hover:bg-slate-100 text-slate-700 font-extrabold border border-slate-200 shadow-sm rounded-lg"
+              >
+                Expand All
+              </button>
+              <button
+                onClick={handleCollapseAll}
+                className="btn btn-xs bg-white hover:bg-slate-100 text-slate-700 font-extrabold border border-slate-200 shadow-sm rounded-lg"
+              >
+                Collapse All
+              </button>
+            </div>
+          </div>
 
-                    <button
-                      onClick={() => handleOpenPreviewModal(group)}
-                      className="btn btn-sm bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl border-none gap-1.5 shadow-md print:hidden"
-                      title="Preview and copy plain-text formatted report"
-                    >
-                      <Copy className="w-3.5 h-3.5" /> Copy Text
-                    </button>
-                  </div>
-                </div>
-
-                {/* Job Entries Cards Container */}
-                <div className="p-6 bg-slate-50/50 space-y-4">
-                  {group.entries.map((entry, idx) => (
+          {/* Grid / Stack of Staff Cards */}
+          <div className="space-y-5">
+            {reports
+              .filter((group) => group.entries.length > 0)
+              .map((group) => {
+                const isExpanded = expandedStaffIds.has(group.staff_id);
+                return (
+                  <div
+                    key={group.staff_id}
+                    className="bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/40 overflow-hidden transition-all"
+                  >
+                    {/* Staff Group Header (Clickable Accordion) */}
                     <div
-                      key={entry.id}
-                      className={`bg-white rounded-2xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-all space-y-3.5 relative overflow-hidden ${
-                        entry.status === 'Completed'
-                          ? 'border-l-4 border-l-emerald-500 border-slate-200/80'
-                          : 'border-l-4 border-l-purple-600 border-slate-200/80'
-                      }`}
+                      onClick={() => toggleStaffExpanded(group.staff_id)}
+                      className="bg-slate-900 hover:bg-slate-950 text-white p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer select-none transition-colors"
                     >
-                      {/* Top Header Row */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                        <div className="flex flex-wrap items-center gap-2 md:gap-2.5">
-                          {/* Number Badge */}
-                          <span className="w-6 h-6 rounded-lg bg-slate-900 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">
-                            #{idx + 1}
-                          </span>
-
-                          {/* Ticket Badge */}
-                          <Link
-                            to={`/portal/job-requests/${entry.id}`}
-                            className="text-xs font-mono font-extrabold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-all inline-flex items-center gap-1.5 group border border-blue-100"
-                            title="Click to view project details"
-                          >
-                            <span>#{entry.ticket_no}</span>
-                            <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
-                          </Link>
-
-                          {/* Client Tag */}
-                          <span className="bg-slate-100 text-slate-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-slate-200/60">
-                            CLIENT: <strong className="text-slate-900">{entry.client}</strong>
-                          </span>
-
-                          {/* Project Tag */}
-                          <Link
-                            to={`/portal/job-requests/${entry.id}`}
-                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-purple-100 transition-all"
-                            title="Click to view project details"
-                          >
-                            PROJECT: <span className="text-purple-900">{entry.project}</span>
-                          </Link>
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-white/10 text-white flex items-center justify-center font-black text-lg shrink-0 border border-white/10 shadow-inner">
+                          {group.staff_name.charAt(0).toUpperCase()}
                         </div>
-
-                        {/* Status Capsule */}
-                        <span
-                          className={`inline-flex items-center justify-center font-extrabold uppercase rounded-full px-3.5 py-1 text-[10px] tracking-wider shadow-sm shrink-0 ${
-                            entry.status === 'Completed'
-                              ? 'bg-emerald-500 text-white'
-                              : 'bg-purple-600 text-white'
-                          }`}
-                        >
-                          {entry.status}
-                        </span>
+                        <div>
+                          <div className="flex items-center gap-2.5">
+                            <h3 className="font-black text-base text-white tracking-tight">{group.staff_name}</h3>
+                            {group.staff_unit && (
+                              <span className="bg-white/15 text-blue-200 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
+                                {group.staff_unit}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400 font-medium mt-0.5">{group.staff_email}</p>
+                        </div>
                       </div>
 
-                      {/* Work Description Box */}
-                      <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-100">
-                        <p className="text-sm font-bold text-slate-800 leading-relaxed">
-                          {entry.title}
-                        </p>
-                      </div>
-
-                      {/* Card Footer */}
-                      <div className="flex items-center justify-between pt-1 text-xs font-semibold">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Start Date: <strong className="text-slate-800">{entry.start_date}</strong></span>
+                      <div className="flex items-center gap-3 self-end md:self-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="text-xs text-slate-300 font-semibold bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/10">
+                          <span className="text-emerald-400 font-bold">{group.completed_count} Done</span> • <span className="text-purple-300 font-bold">{group.in_progress_count} Processing</span>
                         </div>
 
-                        <Link
-                          to={`/portal/job-requests/${entry.id}`}
-                          className="btn btn-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold border-none rounded-xl px-3 gap-1 transition-all print:hidden"
+                        <button
+                          onClick={() => handleOpenPreviewModal(group)}
+                          className="btn btn-sm bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl border-none gap-1.5 shadow-md print:hidden"
+                          title="Preview and copy plain-text formatted report"
                         >
-                          <span>View Project</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
+                          <Copy className="w-3.5 h-3.5" /> Copy Text
+                        </button>
+
+                        <button
+                          onClick={() => toggleStaffExpanded(group.staff_id)}
+                          className="btn btn-sm btn-circle bg-white/10 hover:bg-white/20 text-white border-none shrink-0 print:hidden"
+                          title={isExpanded ? "Collapse" : "Expand"}
+                        >
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+
+                    {/* Job Entries Cards Container */}
+                    {isExpanded && (
+                      <div className="p-6 bg-slate-50/50 space-y-4 border-t border-slate-100 animate-in fade-in duration-150">
+                        {group.entries.map((entry, idx) => (
+                          <div
+                            key={entry.id}
+                            className={`bg-white rounded-2xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-all space-y-3.5 relative overflow-hidden ${
+                              entry.status === 'Completed'
+                                ? 'border-l-4 border-l-emerald-500 border-slate-200/80'
+                                : 'border-l-4 border-l-purple-600 border-slate-200/80'
+                            }`}
+                          >
+                            {/* Top Header Row */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                              <div className="flex flex-wrap items-center gap-2 md:gap-2.5">
+                                {/* Number Badge */}
+                                <span className="w-6 h-6 rounded-lg bg-slate-900 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                                  #{idx + 1}
+                                </span>
+
+                                {/* Ticket Badge */}
+                                <Link
+                                  to={`/portal/job-requests/${entry.id}`}
+                                  className="text-xs font-mono font-extrabold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-all inline-flex items-center gap-1.5 group border border-blue-100"
+                                  title="Click to view project details"
+                                >
+                                  <span>#{entry.ticket_no}</span>
+                                  <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                </Link>
+
+                                {/* Client Tag */}
+                                <span className="bg-slate-100 text-slate-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-slate-200/60">
+                                  CLIENT: <strong className="text-slate-900">{entry.client}</strong>
+                                </span>
+
+                                {/* Project Tag */}
+                                <Link
+                                  to={`/portal/job-requests/${entry.id}`}
+                                  className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-purple-100 transition-all"
+                                  title="Click to view project details"
+                                >
+                                  PROJECT: <span className="text-purple-900">{entry.project}</span>
+                                </Link>
+                              </div>
+
+                              {/* Status Capsule */}
+                              <span
+                                className={`inline-flex items-center justify-center font-extrabold uppercase rounded-full px-3.5 py-1 text-[10px] tracking-wider shadow-sm shrink-0 ${
+                                  entry.status === 'Completed'
+                                    ? 'bg-emerald-500 text-white'
+                                    : 'bg-purple-600 text-white'
+                                }`}
+                              >
+                                {entry.status}
+                              </span>
+                            </div>
+
+                            {/* Work Description Box */}
+                            <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-100">
+                              <p className="text-sm font-bold text-slate-800 leading-relaxed">
+                                {entry.title}
+                              </p>
+                            </div>
+
+                            {/* Card Footer */}
+                            <div className="flex items-center justify-between pt-1 text-xs font-semibold">
+                              <div className="flex items-center gap-1.5 text-slate-500">
+                                <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Start Date: <strong className="text-slate-800">{entry.start_date}</strong></span>
+                              </div>
+
+                              <Link
+                                to={`/portal/job-requests/${entry.id}`}
+                                className="btn btn-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold border-none rounded-xl px-3 gap-1 transition-all print:hidden"
+                              >
+                                <span>View Project</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
         </div>
       )}
 
