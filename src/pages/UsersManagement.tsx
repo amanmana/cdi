@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Shield, Plus, Edit2, Trash2, Users, Building2, UserCircle2, ExternalLink, ShieldAlert, AlertTriangle, X } from 'lucide-react';
 
 export const UsersManagement: React.FC = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
