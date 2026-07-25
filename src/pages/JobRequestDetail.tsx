@@ -1057,8 +1057,8 @@ export const JobRequestDetail: React.FC = () => {
 
                     <p className="text-xs text-slate-600 font-medium leading-relaxed bg-white/80 p-3.5 rounded-2xl border border-slate-100">
                       {request.status === 'on_hold'
-                        ? 'Projek ini dijeda sementara. Anda boleh menyambung semula pemprosesan pada bila-bila masa.'
-                        : 'Projek ini telah dibatalkan. Anda boleh menyambung semula jika perlu.'}
+                        ? 'This project is currently on hold. You can resume processing at any time.'
+                        : 'This project has been cancelled. You can resume processing if needed.'}
                     </p>
 
                     <div className="flex flex-col gap-2.5 pt-1">
@@ -1679,13 +1679,13 @@ export const JobRequestDetail: React.FC = () => {
             <div className="p-6 space-y-4">
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
                 {showStatusModal === 'on_hold'
-                  ? 'Sila nyatakan sebab permohonan/projek ini diletakkan di dalam status Pending / On Hold:'
-                  : 'Sila nyatakan sebab permohonan/projek ini dibatalkan:'}
+                  ? 'Please state the reason for placing this project on Pending / On Hold status:'
+                  : 'Please state the reason for cancelling this project:'}
               </p>
 
               <textarea
                 rows={3}
-                placeholder={showStatusModal === 'on_hold' ? 'Contoh: Menunggu maklum balas borang tambahan daripada client...' : 'Contoh: Dibatalkan atas arahan pihak atasan / client...'}
+                placeholder={showStatusModal === 'on_hold' ? 'Example: Waiting for additional feedback from client...' : 'Example: Cancelled per management / client request...'}
                 value={statusReason}
                 onChange={(e) => setStatusReason(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all resize-none shadow-inner"
