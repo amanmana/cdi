@@ -273,7 +273,9 @@ export const UsersManagement: React.FC = () => {
                         <td className="text-center">
                           <div className="flex justify-center gap-1">
                             <button onClick={() => handleOpenModal(u)} className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-xl"><Edit2 className="w-4 h-4" /></button>
-                             <button onClick={() => handlePromptDeleteUser(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete user"><Trash2 className="w-4 h-4" /></button>
+                             {u.id !== user?.id && (
+                               <button onClick={() => handlePromptDeleteUser(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete user"><Trash2 className="w-4 h-4" /></button>
+                             )}
                           </div>
                         </td>
                       </tr>
@@ -329,7 +331,9 @@ export const UsersManagement: React.FC = () => {
                       <td className="text-center">
                         <div className="flex justify-center gap-1">
                           <button onClick={() => handleOpenModal(u)} className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-xl"><Edit2 className="w-4 h-4" /></button>
-                          <button onClick={() => handlePromptDeleteUser(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete user"><Trash2 className="w-4 h-4" /></button>
+                          {u.id !== user?.id && (
+                            <button onClick={() => handlePromptDeleteUser(u)} className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-xl" title="Delete user"><Trash2 className="w-4 h-4" /></button>
+                          )}
                         </div>
                       </td>
                     </tr>
