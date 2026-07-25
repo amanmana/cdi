@@ -9,7 +9,7 @@ export const Sidebar: React.FC = () => {
   const links = [
     { to: '/portal/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'manager', 'client'] },
     { to: '/portal/job-requests', label: user?.role === 'client' ? 'My Requests' : 'Job Requests', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'client'] },
-    { to: '/portal/gantt', label: 'Gantt Chart', icon: <Calendar className="w-5 h-5" />, roles: ['admin', 'manager', 'staff'] },
+    { to: '/portal/reports', label: 'Weekly Reports', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff'] },
     { to: '/portal/team', label: 'Team Members', icon: <Users className="w-5 h-5" />, roles: ['admin', 'manager'] },
     { to: '/portal/units', label: user?.role === 'manager' ? 'Form' : 'Units & Forms', icon: <FolderGit2 className="w-5 h-5" />, roles: ['admin', 'manager'] },
     { to: '/portal/users', label: 'User Management', icon: <Shield className="w-5 h-5" />, roles: ['admin'] },

@@ -1,0 +1,421 @@
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import {
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  Printer,
+  Copy,
+  Check,
+  Filter,
+  Calendar as CalendarIcon,
+  UserCheck,
+  Building2,
+  Clock,
+  CheckCircle2,
+} from 'lucide-react';
+
+interface ReportEntry {
+  id: number;
+  ticket_no: string;
+  staff_name: string;
+  client: string;
+  project: string;
+  title: string;
+  start_date: string;
+  status: string;
+  raw_status: string;
+}
+
+interface StaffReportGroup {
+  staff_id: number;
+  staff_name: string;
+  staff_email: string;
+  staff_unit: string;
+  entries: ReportEntry[];
+  total_count: number;
+  completed_count: number;
+  in_progress_count: number;
+}
+
+export const ReportsPage: React.FC = () => {
+  const { token, user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState<StaffReportGroup[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Date State - Default to current week (Monday to Sunday)
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+    const monday = new Date(d.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  });
+
+  const [selectedUnit, setSelectedUnit] = useState<string>('all');
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [staffListOptions, setStaffListOptions] = useState<any[]>([]);
+
+  // Calculate Week End (Sunday)
+  const currentWeekEnd = new Date(currentWeekStart);
+  currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
+
+  const formatDateForApi = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const startDateStr = formatDateForApi(currentWeekStart);
+  const endDateStr = formatDateForApi(currentWeekEnd);
+
+  // Fetch Reports from API
+  const fetchReports = () => {
+    setLoading(true);
+    const query = new URLSearchParams({
+      start_date: startDateStr,
+      end_date: endDateStr,
+      unit: selectedUnit,
+      staff_id: selectedStaffId,
+      status: selectedStatus,
+    });
+
+    fetch(`/api/job-requests/reports/weekly?${query.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.reports) setReports(data.reports);
+      })
+      .catch((err) => console.error('Error fetching reports:', err))
+      .finally(() => setLoading(false));
+  };
+
+  // Fetch Staff Options for Filter Dropdown
+  useEffect(() => {
+    if (token && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) {
+      fetch('/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setStaffListOptions(data.filter((u) => u.role === 'staff' || u.role === 'manager'));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [token, user]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [startDateStr, endDateStr, selectedUnit, selectedStaffId, selectedStatus, token]);
+
+  const handlePrevWeek = () => {
+    const prev = new Date(currentWeekStart);
+    prev.setDate(prev.getDate() - 7);
+    setCurrentWeekStart(prev);
+  };
+
+  const handleNextWeek = () => {
+    const next = new Date(currentWeekStart);
+    next.setDate(next.getDate() + 7);
+    setCurrentWeekStart(next);
+  };
+
+  const handleCurrentWeek = () => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    setCurrentWeekStart(monday);
+  };
+
+  // Format Date for Display e.g., "21 Jul 2026"
+  const formatDisplayDate = (d: Date) => {
+    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  // Copy Plain Text Report matching user's exact specification format
+  const handleCopyStaffReport = (staffGroup: StaffReportGroup) => {
+    if (!staffGroup.entries || staffGroup.entries.length === 0) return;
+
+    const lines = staffGroup.entries.map(
+      (entry) =>
+        `staff name: ${entry.staff_name}, Client: ${entry.client}, Project: ${entry.project}, Title: ${entry.title} > START DATE: ${entry.start_date}, Status: ${entry.status}`
+    );
+
+    const formattedText = `WEEKLY REPORT (${formatDisplayDate(currentWeekStart)} - ${formatDisplayDate(currentWeekEnd)})\nSTAFF: ${staffGroup.staff_name} (${staffGroup.staff_unit || 'Staff'})\n--------------------------------------------------\n` + lines.join('\n\n');
+
+    navigator.clipboard.writeText(formattedText).then(() => {
+      setCopiedId(String(staffGroup.staff_id));
+      setTimeout(() => setCopiedId(null), 2500);
+    });
+  };
+
+  const totalTasksOverall = reports.reduce((acc, curr) => acc + curr.total_count, 0);
+  const totalCompletedOverall = reports.reduce((acc, curr) => acc + curr.completed_count, 0);
+  const totalInProgressOverall = reports.reduce((acc, curr) => acc + curr.in_progress_count, 0);
+
+  return (
+    <div className="space-y-6 pb-12">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner shrink-0">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Weekly Work Reports
+            </h1>
+            <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
+              Automated weekly job & activity logs per staff member.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => window.print()}
+          className="btn bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md flex items-center gap-2 shrink-0 transition-all"
+        >
+          <Printer className="w-4 h-4" /> Print / Export PDF
+        </button>
+      </div>
+
+      {/* Week Navigator & Filters Bar */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 print:hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          {/* Week Selector Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrevWeek}
+              className="btn btn-sm btn-ghost btn-circle text-slate-600 hover:bg-slate-100"
+              title="Previous Week"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            <div className="bg-slate-100 px-4 py-2 rounded-2xl flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4 text-blue-600 shrink-0" />
+              <span className="font-extrabold text-xs md:text-sm text-slate-800">
+                {formatDisplayDate(currentWeekStart)} — {formatDisplayDate(currentWeekEnd)}
+              </span>
+            </div>
+
+            <button
+              onClick={handleNextWeek}
+              className="btn btn-sm btn-ghost btn-circle text-slate-600 hover:bg-slate-100"
+              title="Next Week"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={handleCurrentWeek}
+              className="btn btn-xs bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold border-none rounded-xl ml-2"
+            >
+              Current Week
+            </button>
+          </div>
+
+          {/* Quick Filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+              <>
+                {/* Staff Filter */}
+                <div className="flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                  <select
+                    value={selectedStaffId}
+                    onChange={(e) => setSelectedStaffId(e.target.value)}
+                    className="select select-bordered select-xs bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
+                  >
+                    <option value="all">All Staff Members</option>
+                    {staffListOptions.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.unit || 'Staff'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Unit Filter */}
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                  <select
+                    value={selectedUnit}
+                    onChange={(e) => setSelectedUnit(e.target.value)}
+                    className="select select-bordered select-xs bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
+                  >
+                    <option value="all">All Units</option>
+                    <option value="Graphic">Graphic</option>
+                    <option value="Translation">Translation</option>
+                    <option value="Video">Video</option>
+                    <option value="Writer">Writer</option>
+                    <option value="Corporate Comm">Corporate Comm</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Status Filter */}
+            <div className="flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="select select-bordered select-xs bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
+              >
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed Only</option>
+                <option value="staff_processing">Staff Processing Only</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Overview Stats Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Total Weekly Tasks</span>
+              <span className="text-xl font-black text-slate-900">{totalTasksOverall}</span>
+            </div>
+            <FileText className="w-8 h-8 text-blue-500 opacity-60" />
+          </div>
+
+          <div className="bg-emerald-50/60 rounded-2xl p-4 border border-emerald-100 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider block">Completed</span>
+              <span className="text-xl font-black text-emerald-700">{totalCompletedOverall}</span>
+            </div>
+            <CheckCircle2 className="w-8 h-8 text-emerald-500 opacity-60" />
+          </div>
+
+          <div className="bg-purple-50/60 rounded-2xl p-4 border border-purple-100 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider block">Staff Processing</span>
+              <span className="text-xl font-black text-purple-700">{totalInProgressOverall}</span>
+            </div>
+            <Clock className="w-8 h-8 text-purple-500 opacity-60" />
+          </div>
+        </div>
+      </div>
+
+      {/* Main Reports Content */}
+      {loading ? (
+        <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-xl p-8">
+          <span className="loading loading-spinner loading-lg text-blue-600"></span>
+          <p className="mt-3 text-xs text-slate-400 font-medium">Generating weekly report data...</p>
+        </div>
+      ) : reports.length === 0 || totalTasksOverall === 0 ? (
+        <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-xl p-8">
+          <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-lg font-bold text-slate-700">No work records found for this week</h3>
+          <p className="text-xs text-slate-400 mt-1">Try selecting a different date range or adjusting your filters.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {reports
+            .filter((group) => group.entries.length > 0)
+            .map((group) => (
+              <div key={group.staff_id} className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                {/* Staff Group Header */}
+                <div className="bg-slate-900 text-white p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center font-black text-base shrink-0 border border-white/10">
+                      {group.staff_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-black text-base text-white tracking-tight">{group.staff_name}</h3>
+                        {group.staff_unit && (
+                          <span className="bg-white/15 text-blue-200 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
+                            {group.staff_unit}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 font-medium mt-0.5">{group.staff_email}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-end md:self-auto">
+                    <div className="text-xs text-slate-300 font-semibold bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
+                      <span className="text-emerald-400 font-bold">{group.completed_count} Done</span> • <span className="text-purple-300 font-bold">{group.in_progress_count} Processing</span>
+                    </div>
+
+                    <button
+                      onClick={() => handleCopyStaffReport(group)}
+                      className="btn btn-sm bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl border-none gap-1.5 shadow-md print:hidden"
+                      title="Copy plain-text formatted report"
+                    >
+                      {copiedId === String(group.staff_id) ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-300" /> Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" /> Copy Text
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Job Entries List */}
+                <div className="p-6 divide-y divide-slate-100 space-y-4">
+                  {group.entries.map((entry) => (
+                    <div key={entry.id} className="pt-4 first:pt-0 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                            #{entry.ticket_no}
+                          </span>
+                          <span className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">
+                            Client: <span className="text-slate-900">{entry.client}</span>
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">
+                            Project: <span className="text-purple-700">{entry.project}</span>
+                          </span>
+                        </div>
+
+                        <span
+                          className={`inline-flex items-center justify-center font-extrabold uppercase rounded-full px-3 py-1 text-[10px] tracking-wider shadow-sm ${
+                            entry.status === 'Completed'
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-purple-600 text-white'
+                          }`}
+                        >
+                          {entry.status}
+                        </span>
+                      </div>
+
+                      {/* Title & Details */}
+                      <p className="text-sm font-bold text-slate-800 leading-relaxed bg-slate-50/70 p-3.5 rounded-2xl border border-slate-100">
+                        {entry.title}
+                      </p>
+
+                      {/* Start Date Footer */}
+                      <div className="text-[11px] font-semibold text-slate-400 flex items-center justify-between pt-0.5">
+                        <span>
+                          Start Date: <strong className="text-slate-700">{entry.start_date}</strong>
+                        </span>
+                        <span className="italic text-slate-400 text-[10px]">Auto-generated from task record</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+};

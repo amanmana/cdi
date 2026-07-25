@@ -10,8 +10,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { JobRequestsList } from './pages/JobRequestsList';
-import { JobRequestDetail } from './pages/JobRequestDetail';
-import { GanttView } from './pages/GanttView';
+import { ReportsPage } from './pages/ReportsPage';
 import { TeamManagement } from './pages/TeamManagement';
 import { UsersManagement } from './pages/UsersManagement';
 import { UnitsManagement } from './pages/UnitsManagement';
@@ -75,7 +74,8 @@ export const App: React.FC = () => {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="job-requests" element={<JobRequestsList />} />
                 <Route path="job-requests/:id" element={<JobRequestDetail />} />
-                <Route path="gantt" element={<GanttView />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="gantt" element={<Navigate to="/portal/reports" replace />} />
                 <Route path="team" element={<TeamManagement />} />
                 <Route path="team-members" element={<TeamManagement />} />
                 <Route path="users" element={<UsersManagement />} />
