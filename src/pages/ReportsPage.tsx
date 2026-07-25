@@ -42,7 +42,11 @@ export const ReportsPage: React.FC = () => {
   const { token, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<StaffReportGroup[]>([]);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Modal State for Previewing & Copying Plain-Text Report
+  const [previewModalText, setPreviewModalText] = useState<string | null>(null);
+  const [previewStaffName, setPreviewStaffName] = useState<string>('');
+  const [modalCopied, setModalCopied] = useState<boolean>(false);
 
   // Date State - Default to current week (Monday to Sunday)
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
@@ -141,8 +145,8 @@ export const ReportsPage: React.FC = () => {
     return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  // Copy Plain Text Report matching user's exact specification format
-  const handleCopyStaffReport = (staffGroup: StaffReportGroup) => {
+  // Open Preview Lightbox Modal for Staff Report
+  const handleOpenPreviewModal = (staffGroup: StaffReportGroup) => {
     if (!staffGroup.entries || staffGroup.entries.length === 0) return;
 
     const lines = staffGroup.entries.map(
@@ -150,11 +154,17 @@ export const ReportsPage: React.FC = () => {
         `staff name: ${entry.staff_name}, Client: ${entry.client}, Project: ${entry.project}, Title: ${entry.title} > START DATE: ${entry.start_date}, Status: ${entry.status}`
     );
 
-    const formattedText = `WEEKLY REPORT (${formatDisplayDate(currentWeekStart)} - ${formatDisplayDate(currentWeekEnd)})\nSTAFF: ${staffGroup.staff_name} (${staffGroup.staff_unit || 'Staff'})\n--------------------------------------------------\n` + lines.join('\n\n');
+    const formattedText = lines.join('\n\n');
+    setPreviewStaffName(staffGroup.staff_name);
+    setPreviewModalText(formattedText);
+    setModalCopied(false);
+  };
 
-    navigator.clipboard.writeText(formattedText).then(() => {
-      setCopiedId(String(staffGroup.staff_id));
-      setTimeout(() => setCopiedId(null), 2500);
+  const handleCopyFromModal = () => {
+    if (!previewModalText) return;
+    navigator.clipboard.writeText(previewModalText).then(() => {
+      setModalCopied(true);
+      setTimeout(() => setModalCopied(false), 2500);
     });
   };
 
@@ -351,19 +361,11 @@ export const ReportsPage: React.FC = () => {
                     </div>
 
                     <button
-                      onClick={() => handleCopyStaffReport(group)}
+                      onClick={() => handleOpenPreviewModal(group)}
                       className="btn btn-sm bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl border-none gap-1.5 shadow-md print:hidden"
-                      title="Copy plain-text formatted report"
+                      title="Preview and copy plain-text formatted report"
                     >
-                      {copiedId === String(group.staff_id) ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-300" /> Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" /> Copy Text
-                        </>
-                      )}
+                      <Copy className="w-3.5 h-3.5" /> Copy Text
                     </button>
                   </div>
                 </div>
@@ -414,6 +416,76 @@ export const ReportsPage: React.FC = () => {
                 </div>
               </div>
             ))}
+        </div>
+      )}
+
+      {/* LIGHTBOX MODAL FOR PREVIEWING & COPYING REPORT TEXT */}
+      {previewModalText !== null && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full overflow-hidden my-auto">
+            {/* Header */}
+            <div className="bg-purple-600 p-6 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">Weekly Work Report Preview</h3>
+                  <p className="text-[11px] text-purple-100 font-medium">
+                    Staff: {previewStaffName} ({formatDisplayDate(currentWeekStart)} — {formatDisplayDate(currentWeekEnd)})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewModalText(null)}
+                className="btn btn-sm btn-ghost btn-circle text-purple-100 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body - Code/Text Box */}
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-500 font-medium">
+                Below is the plain-text preview of your weekly report entries. Click <strong className="text-slate-800">Copy Text</strong> to copy to your clipboard.
+              </p>
+              <div className="relative">
+                <textarea
+                  readOnly
+                  value={previewModalText}
+                  className="w-full h-64 bg-slate-900 text-slate-100 font-mono text-xs p-4 rounded-2xl border border-slate-800 focus:outline-none select-all leading-relaxed resize-none shadow-inner"
+                ></textarea>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalText(null)}
+                  className="btn btn-ghost hover:bg-slate-100 text-slate-600 font-extrabold text-xs rounded-xl px-5 h-11"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyFromModal}
+                  className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-2xl px-6 h-11 border-none shadow-md shadow-purple-500/25 flex items-center gap-2"
+                >
+                  {modalCopied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-300" /> Copied to Clipboard!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" /> Copy Text
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
