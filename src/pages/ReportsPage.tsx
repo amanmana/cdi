@@ -390,35 +390,53 @@ export const ReportsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Job Entries List */}
-                <div className="p-6 divide-y divide-slate-100 space-y-4">
-                  {group.entries.map((entry) => (
-                    <div key={entry.id} className="pt-4 first:pt-0 space-y-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
+                {/* Job Entries Cards Container */}
+                <div className="p-6 bg-slate-50/50 space-y-4">
+                  {group.entries.map((entry, idx) => (
+                    <div
+                      key={entry.id}
+                      className={`bg-white rounded-2xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-all space-y-3.5 relative overflow-hidden ${
+                        entry.status === 'Completed'
+                          ? 'border-l-4 border-l-emerald-500 border-slate-200/80'
+                          : 'border-l-4 border-l-purple-600 border-slate-200/80'
+                      }`}
+                    >
+                      {/* Top Header Row */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div className="flex flex-wrap items-center gap-2 md:gap-2.5">
+                          {/* Number Badge */}
+                          <span className="w-6 h-6 rounded-lg bg-slate-900 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                            #{idx + 1}
+                          </span>
+
+                          {/* Ticket Badge */}
                           <Link
                             to={`/portal/job-requests/${entry.id}`}
-                            className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-all inline-flex items-center gap-1 group"
+                            className="text-xs font-mono font-extrabold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-all inline-flex items-center gap-1.5 group border border-blue-100"
                             title="Click to view project details"
                           >
                             <span>#{entry.ticket_no}</span>
                             <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
                           </Link>
-                          <span className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">
-                            Client: <span className="text-slate-900">{entry.client}</span>
+
+                          {/* Client Tag */}
+                          <span className="bg-slate-100 text-slate-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-slate-200/60">
+                            CLIENT: <strong className="text-slate-900">{entry.client}</strong>
                           </span>
-                          <span className="text-slate-300">•</span>
+
+                          {/* Project Tag */}
                           <Link
                             to={`/portal/job-requests/${entry.id}`}
-                            className="font-extrabold text-xs text-slate-500 uppercase tracking-wider hover:underline"
+                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-purple-100 transition-all"
                             title="Click to view project details"
                           >
-                            Project: <span className="text-purple-700 hover:text-purple-900">{entry.project}</span>
+                            PROJECT: <span className="text-purple-900">{entry.project}</span>
                           </Link>
                         </div>
 
+                        {/* Status Capsule */}
                         <span
-                          className={`inline-flex items-center justify-center font-extrabold uppercase rounded-full px-3 py-1 text-[10px] tracking-wider shadow-sm ${
+                          className={`inline-flex items-center justify-center font-extrabold uppercase rounded-full px-3.5 py-1 text-[10px] tracking-wider shadow-sm shrink-0 ${
                             entry.status === 'Completed'
                               ? 'bg-emerald-500 text-white'
                               : 'bg-purple-600 text-white'
@@ -428,19 +446,23 @@ export const ReportsPage: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Title & Details */}
-                      <p className="text-sm font-bold text-slate-800 leading-relaxed bg-slate-50/70 p-3.5 rounded-2xl border border-slate-100">
-                        {entry.title}
-                      </p>
+                      {/* Work Description Box */}
+                      <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-100">
+                        <p className="text-sm font-bold text-slate-800 leading-relaxed">
+                          {entry.title}
+                        </p>
+                      </div>
 
-                      {/* Start Date Footer */}
-                      <div className="text-[11px] font-semibold text-slate-400 flex items-center justify-between pt-0.5">
-                        <span>
-                          Start Date: <strong className="text-slate-700">{entry.start_date}</strong>
-                        </span>
+                      {/* Card Footer */}
+                      <div className="flex items-center justify-between pt-1 text-xs font-semibold">
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Start Date: <strong className="text-slate-800">{entry.start_date}</strong></span>
+                        </div>
+
                         <Link
                           to={`/portal/job-requests/${entry.id}`}
-                          className="text-blue-600 hover:text-blue-800 font-extrabold text-xs inline-flex items-center gap-1 hover:underline print:hidden"
+                          className="btn btn-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold border-none rounded-xl px-3 gap-1 transition-all print:hidden"
                         >
                           <span>View Project</span>
                           <ExternalLink className="w-3 h-3" />
