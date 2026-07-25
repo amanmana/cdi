@@ -381,22 +381,37 @@ admin.get('/users/:id/job-links', async (c) => {
   }
 
   try {
+    // Fetch the user's role — admins & managers are always soft-deleted to preserve accountability
+    const userRecord = await db.prepare('SELECT role FROM users WHERE id = ?').bind(userId).first<{ role: string }>();
+    if (userRecord && (userRecord.role === 'admin' || userRecord.role === 'manager')) {
+      return c.json({ hasJobLinks: true, reason: 'role' });
+    }
+
+    // Check assigned_staff_ids in job_requests (comma-separated)
     const jobCheck = await db.prepare(
       `SELECT COUNT(*) as count FROM job_requests WHERE INSTR(',' || assigned_staff_ids || ',', ',' || ? || ',') > 0`
     ).bind(userId).first<{ count: number }>();
 
+    // Check workflow_logs as actor (captures any action: approve, assign, status change, etc.)
     const logCheck = await db.prepare(
       `SELECT COUNT(*) as count FROM workflow_logs WHERE actor_id = ?`
     ).bind(userId).first<{ count: number }>();
 
+    // Check staff_reports
     const reportCheck = await db.prepare(
       `SELECT COUNT(*) as count FROM staff_reports WHERE staff_id = ?`
     ).bind(userId).first<{ count: number }>();
 
+    // Check delegations (as manager or as delegate)
+    const delegationCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM delegations WHERE manager_id = ? OR delegate_id = ?`
+    ).bind(userId, userId).first<{ count: number }>();
+
     const hasJobLinks =
       (jobCheck?.count ?? 0) > 0 ||
       (logCheck?.count ?? 0) > 0 ||
-      (reportCheck?.count ?? 0) > 0;
+      (reportCheck?.count ?? 0) > 0 ||
+      (delegationCheck?.count ?? 0) > 0;
 
     return c.json({ hasJobLinks });
   } catch (err: any) {
@@ -417,25 +432,37 @@ admin.delete('/users/:id', async (c) => {
     let hasJobLinks = false;
 
     if (userId !== null) {
-      // Check assigned_staff_ids in job_requests (comma-separated)
-      const jobCheck = await db.prepare(
-        `SELECT COUNT(*) as count FROM job_requests WHERE INSTR(',' || assigned_staff_ids || ',', ',' || ? || ',') > 0`
-      ).bind(userId).first<{ count: number }>();
+      // Fetch role — admins & managers are always soft-deleted
+      const userRecord = await db.prepare('SELECT role FROM users WHERE id = ?').bind(userId).first<{ role: string }>();
+      if (userRecord && (userRecord.role === 'admin' || userRecord.role === 'manager')) {
+        hasJobLinks = true;
+      } else {
+        // Check assigned_staff_ids in job_requests (comma-separated)
+        const jobCheck = await db.prepare(
+          `SELECT COUNT(*) as count FROM job_requests WHERE INSTR(',' || assigned_staff_ids || ',', ',' || ? || ',') > 0`
+        ).bind(userId).first<{ count: number }>();
 
-      // Check workflow_logs as actor
-      const logCheck = await db.prepare(
-        `SELECT COUNT(*) as count FROM workflow_logs WHERE actor_id = ?`
-      ).bind(userId).first<{ count: number }>();
+        // Check workflow_logs as actor
+        const logCheck = await db.prepare(
+          `SELECT COUNT(*) as count FROM workflow_logs WHERE actor_id = ?`
+        ).bind(userId).first<{ count: number }>();
 
-      // Check staff_reports
-      const reportCheck = await db.prepare(
-        `SELECT COUNT(*) as count FROM staff_reports WHERE staff_id = ?`
-      ).bind(userId).first<{ count: number }>();
+        // Check staff_reports
+        const reportCheck = await db.prepare(
+          `SELECT COUNT(*) as count FROM staff_reports WHERE staff_id = ?`
+        ).bind(userId).first<{ count: number }>();
 
-      hasJobLinks =
-        (jobCheck?.count ?? 0) > 0 ||
-        (logCheck?.count ?? 0) > 0 ||
-        (reportCheck?.count ?? 0) > 0;
+        // Check delegations (as manager or as delegate)
+        const delegationCheck = await db.prepare(
+          `SELECT COUNT(*) as count FROM delegations WHERE manager_id = ? OR delegate_id = ?`
+        ).bind(userId, userId).first<{ count: number }>();
+
+        hasJobLinks =
+          (jobCheck?.count ?? 0) > 0 ||
+          (logCheck?.count ?? 0) > 0 ||
+          (reportCheck?.count ?? 0) > 0 ||
+          (delegationCheck?.count ?? 0) > 0;
+      }
     }
 
     if (hasJobLinks) {
