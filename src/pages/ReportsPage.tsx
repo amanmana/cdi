@@ -103,9 +103,8 @@ export const ReportsPage: React.FC = () => {
       .then((data) => {
         if (data.reports) {
           setReports(data.reports);
-          // By default, expand all staff groups that have tasks
-          const activeIds = data.reports.filter((g: any) => g.entries && g.entries.length > 0).map((g: any) => g.staff_id);
-          setExpandedStaffIds(new Set(activeIds));
+          // Default to collapsed for all staff
+          setExpandedStaffIds(new Set());
         }
       })
       .catch((err) => console.error('Error fetching reports:', err))
@@ -449,8 +448,8 @@ export const ReportsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Grid / Stack of Staff Cards */}
-          <div className="space-y-5">
+          {/* 2-Column Grid of Staff Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
             {reports
               .filter((group) => group.entries.length > 0)
               .map((group) => {
@@ -458,19 +457,21 @@ export const ReportsPage: React.FC = () => {
                 return (
                   <div
                     key={group.staff_id}
-                    className="bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/40 overflow-hidden transition-all"
+                    className={`bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/40 overflow-hidden transition-all ${
+                      isExpanded ? 'col-span-1 lg:col-span-2' : 'col-span-1'
+                    }`}
                   >
                     {/* Staff Group Header (Clickable Accordion) */}
                     <div
                       onClick={() => toggleStaffExpanded(group.staff_id)}
-                      className="bg-slate-900 hover:bg-slate-950 text-white p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer select-none transition-colors"
+                      className="bg-slate-900 hover:bg-slate-950 text-white p-4 md:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 cursor-pointer select-none transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-white/10 text-white flex items-center justify-center font-black text-lg shrink-0 border border-white/10 shadow-inner">
+                        <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center font-black text-base shrink-0 border border-white/10 shadow-inner">
                           {group.staff_name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-black text-base text-white tracking-tight">{group.staff_name}</h3>
                             {group.staff_unit && (
                               <span className="bg-white/15 text-blue-200 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
@@ -478,12 +479,12 @@ export const ReportsPage: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-400 font-medium mt-0.5">{group.staff_email}</p>
+                          <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate">{group.staff_email}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 self-end md:self-auto" onClick={(e) => e.stopPropagation()}>
-                        <div className="text-xs text-slate-300 font-semibold bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/10">
+                      <div className="flex items-center gap-2.5 self-end xl:self-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="text-[11px] text-slate-300 font-semibold bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
                           <span className="text-emerald-400 font-bold">{group.completed_count} Done</span> • <span className="text-purple-300 font-bold">{group.in_progress_count} Processing</span>
                         </div>
 
