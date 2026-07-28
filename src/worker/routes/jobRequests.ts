@@ -494,18 +494,23 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
       const formattedEntries = staffJobs.map((job) => {
         let extraProject = '';
         let extraWorkDetails = '';
+        let staffTask = '';
 
         if (job.additional_data) {
           try {
             const extra = JSON.parse(job.additional_data);
             if (extra.project) extraProject = extra.project;
             if (extra.work_details) extraWorkDetails = extra.work_details;
+            if (extra.staff_tasks && extra.staff_tasks[staff.id]) {
+              staffTask = extra.staff_tasks[staff.id];
+            }
           } catch (e) {}
         }
         if (!extraWorkDetails && job.work_details) extraWorkDetails = job.work_details;
 
         const projectName = extraProject || job.title;
-        const workTitle = extraWorkDetails ? `${job.title} — ${extraWorkDetails}` : job.title;
+        // Priority for task text: individual staff task > extra work details > job title
+        const taskText = staffTask || extraWorkDetails || job.title;
 
         // Start Date formatting (e.g. 21/07/26 or YYYY-MM-DD)
         const rawDate = job.execution_date || job.start_date || (job.created_at ? job.created_at.substring(0, 10) : '');
@@ -523,7 +528,8 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
           staff_name: staff.name,
           client: job.client_name || 'Corporate Comm',
           project: projectName,
-          title: workTitle,
+          task: taskText,
+          title: taskText,
           start_date: formattedStartDate,
           status: job.status === 'completed' ? 'Completed' : 'Staff Processing',
           raw_status: job.status,
@@ -944,14 +950,29 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const idParam = c.req.param('id');
-  const { staff_ids } = await c.req.json();
+  const { staff_ids, staff_tasks } = await c.req.json();
 
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
 
   const assignedStr = Array.isArray(staff_ids) ? staff_ids.join(',') : '';
 
-  // Option B: Automatically set status to staff_processing when staff is assigned
+  // Merge staff_tasks into additional_data
+  let additionalDataObj: any = {};
+  if (request.additional_data) {
+    try {
+      additionalDataObj = JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+  if (staff_tasks && typeof staff_tasks === 'object') {
+    additionalDataObj.staff_tasks = {
+      ...(additionalDataObj.staff_tasks || {}),
+      ...staff_tasks,
+    };
+  }
+  const additionalDataStr = JSON.stringify(additionalDataObj);
+
+  // Automatically set status to staff_processing when staff is assigned
   let newStatus = request.status;
   let newStepName = request.current_step_name;
   if ((request.status === 'manager_approval' || request.status === 'pending') && Array.isArray(staff_ids) && staff_ids.length > 0) {
@@ -960,8 +981,30 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   }
 
   await db.prepare(`
-    UPDATE job_requests SET assigned_staff_ids = ?, status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `).bind(assignedStr, newStatus, newStepName, request.id).run();
+    UPDATE job_requests SET assigned_staff_ids = ?, status = ?, current_step_name = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+  `).bind(assignedStr, newStatus, newStepName, additionalDataStr, request.id).run();
+
+  // Upsert task rows into job_tasks table for individual assigned staff
+  if (staff_tasks && typeof staff_tasks === 'object') {
+    for (const [sIdStr, taskText] of Object.entries(staff_tasks)) {
+      const sId = Number(sIdStr);
+      if (!isNaN(sId) && typeof taskText === 'string' && taskText.trim()) {
+        const existingTask = await db.prepare(
+          `SELECT id FROM job_tasks WHERE job_request_id = ? AND assigned_to_user_id = ? LIMIT 1`
+        ).bind(request.id, sId).first<{ id: number }>();
+
+        if (existingTask) {
+          await db.prepare(
+            `UPDATE job_tasks SET title = ? WHERE id = ?`
+          ).bind(taskText.trim(), existingTask.id).run();
+        } else {
+          await db.prepare(
+            `INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status) VALUES (?, ?, ?, ?, 'pending')`
+          ).bind(request.id, taskText.trim(), sId, user.id).run();
+        }
+      }
+    }
+  }
 
   let staffNamesStr = 'None';
   if (Array.isArray(staff_ids) && staff_ids.length > 0) {

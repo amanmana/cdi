@@ -70,6 +70,9 @@ export const JobRequestDetail: React.FC = () => {
   const [taskAssignee, setTaskAssignee] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
 
+  // Per-staff assigned task map state
+  const [staffTasks, setStaffTasks] = useState<{ [staffId: number]: string }>({});
+
   const fetchDetail = () => {
     fetch(`/api/job-requests/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -83,6 +86,19 @@ export const JobRequestDetail: React.FC = () => {
           if (resData.request.assigned_staff_ids) {
             setSelectedStaff(resData.request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
           }
+          // Extract existing staff tasks
+          const tMap: { [staffId: number]: string } = {};
+          if (resData.request.additional_data?.staff_tasks) {
+            Object.assign(tMap, resData.request.additional_data.staff_tasks);
+          }
+          if (resData.tasks && Array.isArray(resData.tasks)) {
+            resData.tasks.forEach((t: any) => {
+              if (t.assigned_to_user_id && t.title) {
+                tMap[t.assigned_to_user_id] = t.title;
+              }
+            });
+          }
+          setStaffTasks(tMap);
         }
       })
       .catch((err) => console.error(err))
@@ -296,7 +312,10 @@ export const JobRequestDetail: React.FC = () => {
       const res = await fetch(`/api/job-requests/${id}/update-team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ staff_ids: selectedStaff }),
+        body: JSON.stringify({
+          staff_ids: selectedStaff,
+          staff_tasks: staffTasks,
+        }),
       });
       const resData = await res.json();
       if (resData.success) {
@@ -636,7 +655,7 @@ export const JobRequestDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* EDIT Button */}
+                {/* EDIT / INVITE Button */}
                 {(request.status === 'staff_processing') && (user?.role === 'admin' ||
                   user?.role === 'manager' ||
                   user?.is_acting_manager ||
@@ -651,7 +670,15 @@ export const JobRequestDetail: React.FC = () => {
                     }}
                     className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-extrabold uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
                   >
-                    <Edit2 className="w-3.5 h-3.5" /> EDIT TEAM
+                    {user?.role === 'staff' && !user?.is_acting_manager ? (
+                      <>
+                        <UserPlus className="w-3.5 h-3.5" /> INVITE TEAM
+                      </>
+                    ) : (
+                      <>
+                        <Edit2 className="w-3.5 h-3.5" /> EDIT TEAM
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -664,9 +691,10 @@ export const JobRequestDetail: React.FC = () => {
                         <div className="w-9 h-9 rounded-xl bg-white text-slate-800 font-black text-xs flex items-center justify-center border border-slate-200 shrink-0 shadow-inner">
                           {s.name.charAt(0).toUpperCase()}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="text-xs font-black text-slate-900 truncate">{s.name}</div>
                           <div className="text-[10px] font-semibold text-slate-400 truncate">{s.email}</div>
+
                         </div>
                       </div>
                       {s.is_done ? (
@@ -680,6 +708,79 @@ export const JobRequestDetail: React.FC = () => {
                       )}
                     </div>
                   ))}
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-center text-xs text-slate-400 font-semibold italic">
+                  ● No staff assigned yet
+                </div>
+              )}
+            </div>
+
+            {/* Dedicated STAFF TASKS Card */}
+            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/80 shadow-md shadow-slate-100 space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 shadow-inner">
+                  <ListTodo className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    STAFF TASKS
+                  </h3>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Individual task assignments for team members
+                  </span>
+                </div>
+              </div>
+
+              {data.staffDetails && data.staffDetails.length > 0 ? (
+                <div className="space-y-2.5 pt-1">
+                  {data.staffDetails.map((s: any) => {
+                    const tText = staffTasks[s.id];
+                    const isSelf = Number(s.id) === Number(user?.id);
+                    return (
+                      <div
+                        key={s.id}
+                        className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-all ${
+                          isSelf
+                            ? 'bg-blue-50/90 border-blue-300 ring-2 ring-blue-500/15 shadow-sm'
+                            : 'bg-slate-50/80 border-slate-200/70 shadow-xs'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 ${
+                              isSelf ? 'bg-blue-600 text-white shadow-sm' : 'bg-indigo-100 text-indigo-700'
+                            }`}
+                          >
+                            {s.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-slate-900 flex items-center gap-1.5 truncate">
+                              <span>{s.name}</span>
+                              {isSelf && (
+                                <span className="bg-blue-600 text-white font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-md tracking-wider">
+                                  YOU
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] font-semibold text-slate-400 truncate">{s.email}</div>
+                          </div>
+                        </div>
+
+                        <div className="sm:text-right">
+                          {tText ? (
+                            <span className={`text-xs font-bold ${isSelf ? 'text-blue-950 font-extrabold' : 'text-slate-800'}`}>
+                              {tText}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-slate-400 italic">
+                              No specific task assigned
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-center text-xs text-slate-400 font-semibold italic">
@@ -719,16 +820,18 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Additional Form Data Fields */}
+                {/* Additional Form Data Fields (Filter out objects like staff_tasks) */}
                 {request.additional_data &&
-                  Object.entries(request.additional_data).map(([k, v]) => (
-                    <div key={k} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        {k.replace('_', ' ')}
-                      </span>
-                      <span className="text-sm font-extrabold text-slate-900">{String(v)}</span>
-                    </div>
-                  ))}
+                  Object.entries(request.additional_data)
+                    .filter(([k, v]) => k !== 'staff_tasks' && typeof v !== 'object')
+                    .map(([k, v]) => (
+                      <div key={k} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                          {k.replace('_', ' ')}
+                        </span>
+                        <span className="text-sm font-extrabold text-slate-900">{String(v)}</span>
+                      </div>
+                    ))}
 
                 {/* Detailed Description Field */}
                 <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm sm:col-span-2">
@@ -851,8 +954,7 @@ export const JobRequestDetail: React.FC = () => {
           {/* Workflow Actions Card (Hidden for Client and when Staff has completed their part) */}
           {user?.role !== 'client' &&
             !(user?.role === 'staff' && (
-              data?.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
-              history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE') ||
+              data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ||
               request.status === 'completed'
             )) && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4">
@@ -968,9 +1070,8 @@ export const JobRequestDetail: React.FC = () => {
 
                 {request.status === 'staff_processing' && (
                   <>
-                    {selectedStaff.includes(user?.id) && (
-                      (data.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
-                        history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE')) ? (
+                    {selectedStaff.map(Number).includes(Number(user?.id)) && (
+                      data.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ? (
                         /* PART COMPLETED Box matching Reference Image 1 & 2 */
                         <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-3xl p-6 text-center space-y-2 my-2">
                           <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
@@ -1141,11 +1242,8 @@ export const JobRequestDetail: React.FC = () => {
           </div>
 
           {/* PART COMPLETED CARD WITH VIEW NOTE BUTTON (For completed Staff) */}
-          {user?.role === 'staff' && !user?.is_acting_manager && (
-            data?.staffDetails?.some((s: any) => s.id === user?.id && s.is_done) ||
-            history?.some((h: any) => h.actor_id === user?.id && h.action === 'STAFF_DONE') ||
-            request.status === 'completed'
-          ) && (
+          {user?.role === 'staff' && !user?.is_acting_manager &&
+            data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 text-center">
               <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
                 <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
@@ -1492,71 +1590,93 @@ export const JobRequestDetail: React.FC = () => {
         </div>
       )}
 
-      {/* MANAGE TEAM ASSIGNMENT MODAL matching Reference Image 3 */}
+      {/* MANAGE / INVITE TEAM ASSIGNMENT MODAL */}
       {showManageTeamModal && (
         <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-8 space-y-6">
-            {/* Title & Subtitle matching Reference Image 3 */}
+            {/* Title & Subtitle */}
             <div>
               <h3 className="text-xl font-bold text-slate-800 tracking-tight">
-                Manage Team Assignment
+                {user?.role === 'staff' && !user?.is_acting_manager ? 'Invite Team Members' : 'Manage Team Assignment'}
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Add or remove staff assigned to this project.
+                {user?.role === 'staff' && !user?.is_acting_manager
+                  ? 'Invite staff members and specify tasks for this project.'
+                  : 'Add or remove staff assigned to this project and set tasks.'}
               </p>
             </div>
 
-            {/* Staff List with Checkboxes matching Reference Image 3 */}
-            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/80 max-h-64 overflow-y-auto space-y-2.5">
+            {/* Staff List with Checkboxes & Task Field */}
+            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/80 max-h-80 overflow-y-auto space-y-3">
               {teamMembers && teamMembers
                 .filter((m: any) => (user?.role !== 'manager' && user?.role !== 'staff') || !user?.unit || m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim())
                 .map((m: any) => {
                   const isSelected = selectedStaff.includes(m.id);
-                const isSelfStaff = user?.role === 'staff' && m.id === user?.id;
-                const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === m.id);
-                const isAlreadyDone = projectStaffDetail?.is_done || false;
-                const isLocked = isSelfStaff || isAlreadyDone;
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => !isLocked && toggleStaffSelection(m.id)}
-                    className={`p-3 rounded-2xl border transition-all flex items-center gap-3 ${
-                      isLocked ? 'opacity-65 cursor-not-allowed bg-slate-100/50 border-slate-200' : 'cursor-pointer'
-                    } ${
-                      !isLocked && isSelected
-                        ? 'bg-white border-blue-500/80 shadow-sm'
-                        : !isLocked
-                        ? 'bg-white/60 border-slate-100 hover:bg-white hover:border-slate-200'
-                        : ''
-                    }`}
-                  >
-                    {/* Custom Checkbox matching Image 3 */}
+                  const isSelfStaff = user?.role === 'staff' && m.id === user?.id;
+                  const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === m.id);
+                  const isAlreadyDone = projectStaffDetail?.is_done || false;
+                  const isLocked = isSelfStaff || isAlreadyDone;
+                  return (
                     <div
-                      className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                        isSelected 
-                          ? isLocked 
-                            ? 'bg-slate-400 text-white' 
-                            : 'bg-blue-600 text-white' 
-                          : 'border-2 border-slate-300 bg-white'
+                      key={m.id}
+                      className={`p-3.5 rounded-2xl border transition-all space-y-2.5 ${
+                        isLocked ? 'opacity-75 bg-slate-100/50 border-slate-200' : 'cursor-pointer'
+                      } ${
+                        !isLocked && isSelected
+                          ? 'bg-white border-blue-500/80 shadow-sm'
+                          : !isLocked
+                          ? 'bg-white/60 border-slate-100 hover:bg-white hover:border-slate-200'
+                          : ''
                       }`}
                     >
-                      {isSelected && <span className="text-xs font-black">✓</span>}
-                    </div>
+                      <div
+                        onClick={() => !isLocked && toggleStaffSelection(m.id)}
+                        className="flex items-center gap-3 select-none"
+                      >
+                        {/* Custom Checkbox */}
+                        <div
+                          className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                            isSelected 
+                              ? isLocked 
+                                ? 'bg-slate-400 text-white' 
+                                : 'bg-blue-600 text-white' 
+                              : 'border-2 border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isSelected && <span className="text-xs font-black">✓</span>}
+                        </div>
 
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">
-                        {m.name} 
-                        {isSelfStaff && <span className="text-[10px] text-slate-400 font-semibold italic ml-1">(You)</span>}
-                        {isAlreadyDone && <span className="text-[10px] text-emerald-600 font-semibold italic ml-1">(Done)</span>}
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-slate-900">
+                            {m.name} 
+                            {isSelfStaff && <span className="text-[10px] text-slate-400 font-semibold italic ml-1">(You)</span>}
+                            {isAlreadyDone && <span className="text-[10px] text-emerald-600 font-semibold italic ml-1">(Done)</span>}
+                          </div>
+                          <div className="text-[10px] font-semibold text-slate-400">{m.email}</div>
+                        </div>
                       </div>
-                      <div className="text-[10px] font-semibold text-slate-400">{m.email}</div>
+
+                      {/* Task Input for Selected Staff */}
+                      {isSelected && (
+                        <div className="pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                          <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
+                            Task / Role Description
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={`Enter task for ${m.name}...`}
+                            value={staffTasks[m.id] || ''}
+                            onChange={(e) => setStaffTasks({ ...staffTasks, [m.id]: e.target.value })}
+                            className="w-full text-xs font-semibold px-3 py-2 bg-slate-50/80 rounded-xl border border-slate-200 focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
 
-            {/* Modal Bottom Buttons matching Reference Image 3 */}
+            {/* Modal Bottom Buttons */}
             <div className="flex items-center justify-end gap-4 pt-2">
               <button
                 type="button"
@@ -1571,7 +1691,13 @@ export const JobRequestDetail: React.FC = () => {
                 disabled={actionLoading}
                 className="btn bg-blue-600 hover:bg-blue-700 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-12 shadow-lg shadow-blue-500/25"
               >
-                {actionLoading ? <span className="loading loading-spinner"></span> : 'Update Assignments'}
+                {actionLoading ? (
+                  <span className="loading loading-spinner"></span>
+                ) : user?.role === 'staff' && !user?.is_acting_manager ? (
+                  'Invite Team'
+                ) : (
+                  'Update Assignments'
+                )}
               </button>
             </div>
           </div>

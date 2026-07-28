@@ -26,6 +26,7 @@ interface ReportEntry {
   staff_name: string;
   client: string;
   project: string;
+  task?: string;
   title: string;
   start_date: string;
   status: string;
@@ -143,7 +144,8 @@ export const ReportsPage: React.FC = () => {
       const headerLine = `*${group.staff_name} Weekly Reports ${dateRangeStr}*`;
       const lines = group.entries.map((entry, idx) => {
         const num = idx + 1;
-        return `${group.staff_name} > ${num} > Client: ${entry.client} > Project: ${entry.project} > ${entry.title} > ${entry.start_date} > ${entry.status}`;
+        const taskPart = entry.task || entry.title;
+        return `${group.staff_name} > ${num} > Client: ${entry.client} > Project: ${entry.project} > ${taskPart} > ${entry.start_date} > ${entry.status}`;
       });
       return `${headerLine}\n\n${lines.join('\n')}`;
     });
@@ -228,7 +230,8 @@ export const ReportsPage: React.FC = () => {
 
     const lines = staffGroup.entries.map((entry, idx) => {
       const num = idx + 1;
-      return `${staffGroup.staff_name} > ${num} > Client: ${entry.client} > Project: ${entry.project} > ${entry.title} > ${entry.start_date} > ${entry.status}`;
+      const taskPart = entry.task || entry.title;
+      return `${staffGroup.staff_name} > ${num} > Client: ${entry.client} > Project: ${entry.project} > ${taskPart} > ${entry.start_date} > ${entry.status}`;
     });
 
     const formattedText = `${headerLine}\n\n${lines.join('\n')}`;
