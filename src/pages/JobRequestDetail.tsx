@@ -963,13 +963,15 @@ export const JobRequestDetail: React.FC = () => {
                 <span>Workflow Actions</span>
               </div>
 
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-slate-100"></div>
-              <span className="flex-shrink mx-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
-                JOB STATUS SUBMISSION
-              </span>
-              <div className="flex-grow border-t border-slate-100"></div>
-            </div>
+            {!(request.status === 'staff_processing' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) && (
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-slate-100"></div>
+                <span className="flex-shrink mx-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  JOB STATUS SUBMISSION
+                </span>
+                <div className="flex-grow border-t border-slate-100"></div>
+              </div>
+            )}
 
             {/* Action Buttons based on Role & Status */}
             {canAct && (
