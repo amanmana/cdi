@@ -963,81 +963,6 @@ export const JobRequestDetail: React.FC = () => {
                 <span>Workflow Actions</span>
               </div>
 
-            {/* Note / Report Section (Staff Page Only) */}
-            {user?.role === 'staff' && !user?.is_acting_manager && (
-              <div className="space-y-3 pt-2">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">
-                  NOTE / REPORT
-                </span>
-
-                {reports && reports.filter((r: any) => user?.role !== 'staff' || user?.is_acting_manager || r.staff_id === user?.id).length > 0 && (
-                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                    {reports
-                      .filter((r: any) => user?.role !== 'staff' || user?.is_acting_manager || r.staff_id === user?.id)
-                      .map((r: any) => (
-                        <div key={r.id} className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100/90 space-y-1.5 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div className="text-[10px] font-bold text-slate-400">
-                            {r.created_at ? formatDateDisplay(r.created_at) : 'Recent'}
-                          </div>
-
-                          {/* Edit & Delete Action Icons matching Reference Image */}
-                          {(user?.role === 'admin' || user?.role === 'manager' || user?.id === r.staff_id) && (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingReportId(r.id);
-                                  setEditingReportText(r.report_text);
-                                }}
-                                className="text-blue-500 hover:text-blue-700 transition-colors p-0.5"
-                                title="Edit Note"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteReport(r.id)}
-                                className="text-rose-500 hover:text-rose-700 transition-colors p-0.5"
-                                title="Delete Note"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="text-xs font-bold text-slate-800 leading-snug">
-                          {r.report_text}
-                        </div>
-
-                        <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider pt-0.5">
-                          — {r.staff_name || 'STAFF'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <textarea
-                  rows={3}
-                  placeholder="Type your report or progress update here..."
-                  value={reportText}
-                  onChange={(e) => setReportText(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all resize-none shadow-inner"
-                ></textarea>
-
-                <button
-                  type="button"
-                  onClick={handleAddReport}
-                  disabled={actionLoading}
-                  className="btn w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs rounded-xl h-11 uppercase tracking-wider shadow-sm"
-                >
-                  {actionLoading ? <span className="loading loading-spinner"></span> : 'ADD NOTE / REPORT'}
-                </button>
-              </div>
-            )}
-
             <div className="relative flex py-2 items-center">
               <div className="flex-grow border-t border-slate-100"></div>
               <span className="flex-shrink mx-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
@@ -1198,8 +1123,86 @@ export const JobRequestDetail: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* Note / Report Section (Staff Page Only) */}
+            {user?.role === 'staff' && !user?.is_acting_manager && (
+              <div className="space-y-3 pt-2">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">
+                  NOTE / REPORT
+                </span>
+
+                {reports && reports.filter((r: any) => user?.role !== 'staff' || user?.is_acting_manager || r.staff_id === user?.id).length > 0 && (
+                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                    {reports
+                      .filter((r: any) => user?.role !== 'staff' || user?.is_acting_manager || r.staff_id === user?.id)
+                      .map((r: any) => (
+                        <div key={r.id} className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100/90 space-y-1.5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-bold text-slate-400">
+                            {r.created_at ? formatDateDisplay(r.created_at) : 'Recent'}
+                          </div>
+
+                          {/* Edit & Delete Action Icons matching Reference Image */}
+                          {(user?.role === 'admin' || user?.role === 'manager' || user?.id === r.staff_id) && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingReportId(r.id);
+                                  setEditingReportText(r.report_text);
+                                }}
+                                className="text-blue-500 hover:text-blue-700 transition-colors p-0.5"
+                                title="Edit Note"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteReport(r.id)}
+                                className="text-rose-500 hover:text-rose-700 transition-colors p-0.5"
+                                title="Delete Note"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-xs font-bold text-slate-800 leading-snug">
+                          {r.report_text}
+                        </div>
+
+                        <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider pt-0.5">
+                          — {r.staff_name || 'STAFF'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <textarea
+                  rows={3}
+                  placeholder="Type your report or progress update here..."
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all resize-none shadow-inner"
+                ></textarea>
+
+                <button
+                  type="button"
+                  onClick={handleAddReport}
+                  disabled={actionLoading}
+                  className="btn w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs rounded-xl h-11 uppercase tracking-wider shadow-sm"
+                >
+                  {actionLoading ? <span className="loading loading-spinner"></span> : 'ADD NOTE / REPORT'}
+                </button>
+              </div>
+            )}
+
           </div>
         )}
+
+
 
           {/* PROJECT TIMELINE Card */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-5">
