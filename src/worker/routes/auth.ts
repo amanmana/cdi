@@ -304,25 +304,39 @@ auth.post('/forgot-password', async (c) => {
   const fullResetUrl = `${origin}/reset-password?token=${resetToken}`;
 
   const emailHtml = `
-    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
-      <div style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); padding: 28px; text-align: center; border-radius: 16px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.5px;">CDI PORTAL</h1>
-        <p style="color: #93c5fd; margin: 4px 0 0 0; font-size: 12px; font-weight: 600;">Corporate Communication & Identity Management</p>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Penetapan Semula Kata Laluan CDI Portal</title>
+    </head>
+    <body style="margin:0; padding:0; background-color:#f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+      <!-- Hidden Preheader -->
+      <div style="display:none; max-height:0px; overflow:hidden;">
+        Pengesahan keselamatan penetapan semula kata laluan akaun CDI Portal anda.
       </div>
-      <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
-        <h2 style="font-size: 18px; font-weight: 800; margin-bottom: 12px;">Penetapan Semula Kata Laluan</h2>
-        <p style="font-size: 14px; color: #475569; line-height: 1.6;">Salam <strong>${user.name || user.email}</strong>,</p>
-        <p style="font-size: 14px; color: #475569; line-height: 1.6;">Kami telah menerima permohonan penetapan semula kata laluan bagi akaun CDI Portal anda (<strong>${user.email}</strong>).</p>
-        <div style="text-align: center; margin: 32px 0;">
-          <a href="${fullResetUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
-            Tetapkan Kata Laluan Baharu &rarr;
-          </a>
+      <div style="max-width: 580px; margin: 20px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); padding: 28px; text-align: center; border-radius: 16px;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.5px;">CDI PORTAL</h1>
+          <p style="color: #93c5fd; margin: 4px 0 0 0; font-size: 12px; font-weight: 600;">Corporate Communication & Identity Management System</p>
         </div>
-        <p style="font-size: 12px; color: #64748b; line-height: 1.5;">Pautan keselamatan ini sah selama <strong>15 minit</strong> sahaja. Sekiranya anda tidak membuat permohonan ini, sila abaikan e-mel ini.</p>
-        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
-        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Secured by Cloudflare D1 & Turnstile Anti-Bot Security</p>
+        <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
+          <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Penetapan Semula Kata Laluan Akaun</h2>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Salam <strong>${user.name || user.email}</strong>,</p>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Sistem telah menerima permohonan penetapan semula kata laluan bagi akaun CDI Portal anda (<strong>${user.email}</strong>).</p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${fullResetUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
+              Tetapkan Kata Laluan Baharu &rarr;
+            </a>
+          </div>
+          <p style="font-size: 12px; color: #64748b; line-height: 1.5;">Atau salin pautan berikut ke pelayan web anda:<br/><a href="${fullResetUrl}" style="color:#2563eb; word-break:break-all;">${fullResetUrl}</a></p>
+          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">Pautan keselamatan ini sah selama <strong>15 minit</strong> sahaja. Sekiranya anda tidak membuat permohonan ini, sila abaikan e-mel ini.</p>
+          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Resmi daripada Jabatan Komunikasi Korporat & Identiti (CDI Portal) | Secured by Cloudflare & Turnstile Security</p>
+        </div>
       </div>
-    </div>
+    </body>
+    </html>
   `;
 
   // Dispatch Email via Gmail SMTP (creativeuxdmim@gmail.com)
