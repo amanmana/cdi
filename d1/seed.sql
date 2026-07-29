@@ -13,7 +13,8 @@ INSERT OR IGNORE INTO users (id, name, email, password_hash, role, unit_id, unit
 (3, 'Staff Member', 'staff@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'staff', 2, 'Graphic'),
 (4, 'Lead Designer', 'designer@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'staff', 2, 'Graphic'),
 (5, 'Client User', 'client@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'client', NULL, 'Business Unit'),
-(6, 'Pat', 'writermanager@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'manager', 4, 'Writer');
+(6, 'Pat', 'writermanager@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'manager', 4, 'Writer'),
+(10, 'Executive Director', 'director@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'director', NULL, 'Executive Management');
 
 -- Seed Sample Job Request
 INSERT OR IGNORE INTO job_requests (id, ticket_no, client_name, client_email, title, description, unit_id, unit, status, current_step_name, assigned_staff_ids, start_date, deadline, additional_data) VALUES

@@ -6,8 +6,9 @@ export interface AuthUser {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'staff' | 'client';
+  role: 'admin' | 'manager' | 'staff' | 'client' | 'director';
   unit?: string | null;
+  phone?: string | null;
 }
 
 export async function createToken(user: AuthUser): Promise<string> {

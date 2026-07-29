@@ -4,8 +4,9 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'staff' | 'client';
+  role: 'admin' | 'manager' | 'staff' | 'client' | 'director';
   unit?: string | null;
+  phone?: string | null;
   is_acting_manager?: boolean;
   acting_manager_unit?: string | null;
 }

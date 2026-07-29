@@ -18,9 +18,15 @@ import { UnitsManagement } from './pages/UnitsManagement';
 import { SettingsPage } from './pages/SettingsPage';
 import { BackupPage } from './pages/BackupPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { DirectorDashboard } from './pages/DirectorDashboard';
+import { TermsPrivacyPage } from './pages/TermsPrivacyPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 const AdminIndexRedirect: React.FC = () => {
   const { user } = useAuth();
+  if (user?.role === 'director') {
+    return <Navigate to="/portal/director-dashboard" replace />;
+  }
   if (user?.role === 'staff' && !user?.is_acting_manager) {
     return <Navigate to="/portal/job-requests" replace />;
   }
@@ -68,10 +74,14 @@ export const App: React.FC = () => {
               <Route path="/track/:ticket" element={<TrackTicket />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/terms" element={<TermsPrivacyPage />} />
+              <Route path="/privacy" element={<TermsPrivacyPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* Protected Admin Routes */}
               <Route path="/portal" element={<ProtectedLayout />}>
                 <Route index element={<AdminIndexRedirect />} />
+                <Route path="director-dashboard" element={<DirectorDashboard />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="job-requests" element={<JobRequestsList />} />
                 <Route path="job-requests/:id" element={<JobRequestDetail />} />

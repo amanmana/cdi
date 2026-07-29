@@ -234,27 +234,9 @@ jobRequestsRouter.get('/presets', async (c) => {
     const customClients = parseArray(customClientsRow?.value);
     const customProjects = parseArray(customProjectsRow?.value);
 
-    // Query DB for client names and titles from jobs assigned to or logged by this user
-    const { results: dbClients } = await db.prepare(
-      "SELECT DISTINCT client_name FROM job_requests WHERE client_name IS NOT NULL AND client_name != '' AND (assigned_staff_ids LIKE ? OR client_email = ?)"
-    ).bind(`%${userId}%`, user.email || '').all<{ client_name: string }>();
-
-    const { results: dbProjects } = await db.prepare(
-      "SELECT DISTINCT title FROM job_requests WHERE title IS NOT NULL AND title != '' AND (assigned_staff_ids LIKE ? OR client_email = ?)"
-    ).bind(`%${userId}%`, user.email || '').all<{ title: string }>();
-
-    const rawClients = [
-      ...customClients,
-      ...(dbClients || []).map((r) => r.client_name),
-    ];
-
-    const rawProjects = [
-      ...customProjects,
-      ...(dbProjects || []).map((r) => r.title),
-    ];
-
-    const clients = Array.from(new Set(rawClients)).filter((c) => !hiddenClients.includes(c));
-    const projects = Array.from(new Set(rawProjects)).filter((p) => !hiddenProjects.includes(p));
+    // Only return user's own custom items (do NOT auto-populate system/job_requests data)
+    const clients = Array.from(new Set(customClients)).filter((c) => !hiddenClients.includes(c));
+    const projects = Array.from(new Set(customProjects)).filter((p) => !hiddenProjects.includes(p));
 
     return c.json({ clients, projects });
   } catch (err: any) {
@@ -425,10 +407,18 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
     // Helper to format any date string into YYYY-MM-DD
     const normalizeDateStr = (raw?: string): string | null => {
       if (!raw || !raw.trim()) return null;
-      let str = raw.trim().substring(0, 10);
-      if (str.includes('-')) return str;
-      if (str.includes('/')) {
-        const parts = str.split('/');
+      const str = raw.trim();
+      try {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+          return d.toISOString().split('T')[0];
+        }
+      } catch (e) {}
+
+      const sub = str.substring(0, 10);
+      if (sub.includes('-')) return sub;
+      if (sub.includes('/')) {
+        const parts = sub.split('/');
         if (parts.length === 3) {
           const yr = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
           return `${yr}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
@@ -439,7 +429,7 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
 
     // 3. Map entries per staff member
     const reportsByStaff = (staffList || []).map((staff) => {
-      const staffIdStr = String(staff.id);
+      const staffIdNum = Number(staff.id);
       const staffEmailLower = (staff.email || '').toLowerCase().trim();
 
       const staffJobs = (allJobs || []).filter((job) => {
@@ -447,8 +437,8 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
 
         // Check if assigned_staff_ids includes staff.id
         if (job.assigned_staff_ids) {
-          const ids = job.assigned_staff_ids.split(',').map((id) => id.trim());
-          if (ids.includes(staffIdStr)) {
+          const ids = job.assigned_staff_ids.split(',').map((id) => Number(id.trim())).filter((n) => !isNaN(n));
+          if (ids.includes(staffIdNum)) {
             belongsToStaff = true;
           }
         }
@@ -460,6 +450,16 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
           }
         }
 
+        // Check if staff has a specific task in additional_data.staff_tasks
+        if (!belongsToStaff && job.additional_data) {
+          try {
+            const extra = JSON.parse(job.additional_data);
+            if (extra.staff_tasks && (extra.staff_tasks[staffIdNum] || extra.staff_tasks[String(staffIdNum)])) {
+              belongsToStaff = true;
+            }
+          } catch (e) {}
+        }
+
         if (!belongsToStaff) return false;
 
         // Filter by Status if specified
@@ -468,24 +468,28 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
           if (statusFilter === 'staff_processing' && job.status === 'completed') return false;
         }
 
-        // Strict Weekly Date Range Overlap Filter [startDate, endDate]
+        // Weekly Date Range Overlap Filter [startDate, endDate]
         if (startDate && endDate) {
           const rawStart = job.execution_date || job.start_date || job.created_at;
           const rawEnd = job.deadline || (job.status === 'completed' ? job.updated_at : null) || rawStart;
 
-          const jobStartDate = normalizeDateStr(rawStart);
-          const jobEndDate = normalizeDateStr(rawEnd) || jobStartDate;
+          const jobStart = normalizeDateStr(rawStart);
+          const jobEnd = normalizeDateStr(rawEnd);
 
-          if (jobStartDate && jobEndDate) {
-            // Check if [jobStartDate, jobEndDate] overlaps with [startDate, endDate]
-            return jobStartDate <= endDate && jobEndDate >= startDate;
+          const minDate = jobStart && jobEnd ? (jobStart < jobEnd ? jobStart : jobEnd) : (jobStart || jobEnd);
+          const maxDate = jobStart && jobEnd ? (jobStart > jobEnd ? jobStart : jobEnd) : (jobStart || jobEnd);
+
+          if (minDate && maxDate) {
+            // Check if [minDate, maxDate] overlaps with [startDate, endDate]
+            return minDate <= endDate && maxDate >= startDate;
           }
 
-          if (jobStartDate) {
-            return jobStartDate >= startDate && jobStartDate <= endDate;
+          if (jobStart) {
+            return jobStart >= startDate && jobStart <= endDate;
           }
 
-          return false;
+          // Default fallback to true if date parsing fails so job is not silently lost
+          return true;
         }
 
         return true;
@@ -661,6 +665,39 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
 
   const clientNameVal = client_name?.trim() || `Self-Initiated (${user.name})`;
   const fullDescription = `${description || ''}${project_name ? `\n\n[PROJECT: ${project_name}]` : ''}`.trim();
+
+  // Save typed client_name & project_name to user's custom presets if provided
+  if (client_name && client_name.trim()) {
+    const cVal = client_name.trim();
+    const customClientsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_custom_clients_${user.id}`).first<{ value: string }>();
+    let list: string[] = [];
+    if (customClientsRow?.value) {
+      try { list = JSON.parse(customClientsRow.value); } catch (e) {}
+    }
+    if (!list.includes(cVal)) {
+      list.push(cVal);
+      await db.prepare(`
+        INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+      `).bind(`preset_custom_clients_${user.id}`, JSON.stringify(list)).run();
+    }
+  }
+
+  if (project_name && project_name.trim()) {
+    const pVal = project_name.trim();
+    const customProjectsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_custom_projects_${user.id}`).first<{ value: string }>();
+    let list: string[] = [];
+    if (customProjectsRow?.value) {
+      try { list = JSON.parse(customProjectsRow.value); } catch (e) {}
+    }
+    if (!list.includes(pVal)) {
+      list.push(pVal);
+      await db.prepare(`
+        INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+      `).bind(`preset_custom_projects_${user.id}`, JSON.stringify(list)).run();
+    }
+  }
 
   const res = await db
     .prepare(
@@ -1006,21 +1043,28 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     }
   }
 
-  let staffNamesStr = 'None';
+  let staffDetailsParts: string[] = [];
   if (Array.isArray(staff_ids) && staff_ids.length > 0) {
     const placeholders = staff_ids.map(() => '?').join(',');
     const { results: staffUsers } = await db.prepare(`
-      SELECT name FROM users WHERE id IN (${placeholders})
-    `).bind(...staff_ids).all();
+      SELECT id, name FROM users WHERE id IN (${placeholders})
+    `).bind(...staff_ids).all<{ id: number; name: string }>();
     if (staffUsers && staffUsers.length > 0) {
-      staffNamesStr = staffUsers.map((u: any) => u.name).join(', ');
+      staffDetailsParts = staffUsers.map((u: any) => {
+        const taskText = staff_tasks && staff_tasks[u.id] ? String(staff_tasks[u.id]).trim() : (additionalDataObj.staff_tasks?.[u.id] || '');
+        return taskText ? `${u.name} (Task: "${taskText}")` : u.name;
+      });
     }
   }
 
+  const logComment = staffDetailsParts.length > 0
+    ? `Updated team assignment to: ${staffDetailsParts.join(', ')}`
+    : 'Updated team assignment: None';
+
   await db.prepare(`
-    INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment)
-    VALUES (?, 'UPDATE_TEAM', ?, ?, ?)
-  `).bind(request.id, user.id, user.name, `Updated team assignment to: ${staffNamesStr}`).run();
+    INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment, created_at)
+    VALUES (?, 'UPDATE_TEAM', ?, ?, ?, datetime('now', '+8 hours'))
+  `).bind(request.id, user.id, user.name, logComment).run();
 
   return c.json({ success: true, message: 'Assigned staff updated.' });
 });
@@ -1030,7 +1074,7 @@ jobRequestsRouter.post('/:id/update-timeline', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const idParam = c.req.param('id');
-  const { start_date, deadline } = await c.req.json();
+  const { start_date, deadline, reason } = await c.req.json();
 
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
@@ -1039,10 +1083,14 @@ jobRequestsRouter.post('/:id/update-timeline', async (c) => {
     UPDATE job_requests SET start_date = ?, deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
   `).bind(start_date || null, deadline || null, request.id).run();
 
+  const logComment = reason && reason.trim()
+    ? `Updated project timeline: ${start_date} to ${deadline} — Reason: ${reason.trim()}`
+    : `Updated project timeline: ${start_date} to ${deadline}`;
+
   await db.prepare(`
     INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment)
     VALUES (?, 'UPDATE_TIMELINE', ?, ?, ?)
-  `).bind(request.id, user.id, user.name, `Updated project timeline: ${start_date} to ${deadline}`).run();
+  `).bind(request.id, user.id, user.name, logComment).run();
 
   return c.json({ success: true, message: 'Timeline updated.' });
 });
@@ -1166,6 +1214,39 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
   }
 
   return c.json({ success: true, message: 'Part marked as done.' });
+});
+
+// POST /api/job-requests/:id/reset-dev - Dev reset request to Pending Approval
+jobRequestsRouter.post('/:id/reset-dev', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const idParam = c.req.param('id');
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) return c.json({ error: 'Job request not found' }, 404);
+
+  // Reset status to manager_approval and step to Manager Review
+  await db.prepare(`
+    UPDATE job_requests 
+    SET status = 'manager_approval', 
+        current_step_name = 'Manager Review', 
+        updated_at = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `).bind(request.id).run();
+
+  // Clear workflow_logs for STAFF_DONE if any
+  await db.prepare(`
+    DELETE FROM workflow_logs 
+    WHERE job_request_id = ? AND action = 'STAFF_DONE'
+  `).bind(request.id).run();
+
+  // Log DEV_RESET action
+  await db.prepare(`
+    INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+    VALUES (?, 'DEV_RESET', ?, ?, ?, 'Manager Review', 'Developer reset project status back to Pending Manager Approval')
+  `).bind(request.id, user.id, user.name, request.current_step_name || 'In Progress').run();
+
+  return c.json({ success: true, message: 'Request status reset to Pending Approval.' });
 });
 
 export default jobRequestsRouter;

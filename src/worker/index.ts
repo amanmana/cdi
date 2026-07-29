@@ -8,6 +8,7 @@ import publicRoutes from './routes/public';
 import jobRequestsRoutes from './routes/jobRequests';
 import staffReportsRoutes from './routes/staffReports';
 import adminRoutes from './routes/admin';
+import directorRoutes from './routes/director';
 
 type Env = {
   Bindings: {
@@ -37,6 +38,7 @@ app.route('/api/public', publicRoutes);
 app.route('/api/job-requests', jobRequestsRoutes);
 app.route('/api/reports', staffReportsRoutes);
 app.route('/api/admin', adminRoutes);
+app.route('/api/director', directorRoutes);
 
 // Health check
 app.get('/api/health', (c) => {

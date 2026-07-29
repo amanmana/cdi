@@ -60,6 +60,10 @@ export const JobRequestDetail: React.FC = () => {
   // View Notes Modal State for Completed Staff
   const [showViewNotesModal, setShowViewNotesModal] = useState(false);
 
+  // Edit Timeline Modal State
+  const [showEditTimelineModal, setShowEditTimelineModal] = useState(false);
+  const [timelineReason, setTimelineReason] = useState('');
+
   // Status Change Modal State (Pending / Cancel)
   const [showStatusModal, setShowStatusModal] = useState<'on_hold' | 'cancelled' | null>(null);
   const [statusReason, setStatusReason] = useState('');
@@ -155,8 +159,16 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   const handleConfirmApprove = async () => {
+    if (!selectedStaff || selectedStaff.length === 0) {
+      alert("Please select at least one staff member before approving this request.");
+      return;
+    }
     if (!deadline) {
       alert("Please set a deadline date before approving this request.");
+      return;
+    }
+    if (startDate && deadline && deadline < startDate) {
+      alert("Deadline date cannot be earlier than Start Date.");
       return;
     }
     setActionLoading(true);
@@ -254,13 +266,19 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   const handleSaveTimeline = async () => {
+    if (startDate && deadline && deadline < startDate) {
+      alert("Deadline date cannot be earlier than Start Date.");
+      return;
+    }
     setActionLoading(true);
     try {
       await fetch(`/api/job-requests/${id}/update-timeline`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ start_date: startDate, deadline }),
+        body: JSON.stringify({ start_date: startDate, deadline, reason: timelineReason }),
       });
+      setShowEditTimelineModal(false);
+      setTimelineReason('');
       fetchDetail();
     } finally {
       setActionLoading(false);
@@ -328,9 +346,12 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   const toggleStaffSelection = (staffId: number) => {
-    // If the logged-in user is staff, prevent them from removing themselves
-    if (user?.role === 'staff' && staffId === user?.id) {
-      return;
+    // If the logged-in user is staff, prevent them from removing existing assigned team members
+    if (user?.role === 'staff' && !user?.is_acting_manager) {
+      const isAlreadyAssigned = Boolean(request.assigned_staff_ids?.split(',').map(Number).includes(staffId));
+      if (isAlreadyAssigned) {
+        return;
+      }
     }
     // Prevent removing any staff who has already completed their part
     const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === staffId);
@@ -465,12 +486,36 @@ export const JobRequestDetail: React.FC = () => {
   };
 
 
+  const formatDateTimeMY = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      let str = dateStr.trim();
+      if (!str.endsWith('Z') && !str.includes('+') && !str.includes('GMT')) {
+        str = str.replace(' ', 'T') + 'Z';
+      }
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString('en-GB', {
+        timeZone: 'Asia/Kuala_Lumpur',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).replace(',', '');
+    } catch {
+      return dateStr;
+    }
+  };
+
   const handleCopyHistory = () => {
     if (!history || history.length === 0) return;
     const historyText = history
       .map(
         (h: any) =>
-          `[${h.created_at}] ${h.action} by ${h.actor_name || 'System'}${
+          `[${formatDateTimeMY(h.created_at)}] ${h.action} by ${h.actor_name || 'System'}${
             h.comment ? `: "${h.comment}"` : ''
           }`
       )
@@ -716,8 +761,9 @@ export const JobRequestDetail: React.FC = () => {
               )}
             </div>
 
-            {/* Dedicated STAFF TASKS Card */}
-            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/80 shadow-md shadow-slate-100 space-y-4">
+            {/* Dedicated STAFF TASKS Card (Hidden for Client role) */}
+            {user?.role !== 'client' && (
+              <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/80 shadow-md shadow-slate-100 space-y-4">
               <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3.5">
                 <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 shadow-inner">
                   <ListTodo className="w-4.5 h-4.5" />
@@ -788,6 +834,7 @@ export const JobRequestDetail: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
 
             {/* Client Info Soft Box */}
             <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
@@ -951,8 +998,9 @@ export const JobRequestDetail: React.FC = () => {
 
         {/* RIGHT COLUMN (1 Column Wide) matching Reference Image 2 */}
         <div className="space-y-6">
-          {/* Workflow Actions Card (Hidden for Client and when Staff has completed their part) */}
+          {/* Workflow Actions Card (Hidden for Client, Director, and when Staff has completed their part) */}
           {user?.role !== 'client' &&
+            user?.role !== 'director' &&
             !(user?.role === 'staff' && (
               data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ||
               request.status === 'completed'
@@ -1183,22 +1231,26 @@ export const JobRequestDetail: React.FC = () => {
                   </div>
                 )}
 
-                <textarea
-                  rows={3}
-                  placeholder="Type your report or progress update here..."
-                  value={reportText}
-                  onChange={(e) => setReportText(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all resize-none shadow-inner"
-                ></textarea>
+                {user?.role !== 'director' && (
+                  <>
+                    <textarea
+                      rows={3}
+                      placeholder="Type your report or progress update here..."
+                      value={reportText}
+                      onChange={(e) => setReportText(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all resize-none shadow-inner"
+                    ></textarea>
 
-                <button
-                  type="button"
-                  onClick={handleAddReport}
-                  disabled={actionLoading}
-                  className="btn w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs rounded-xl h-11 uppercase tracking-wider shadow-sm"
-                >
-                  {actionLoading ? <span className="loading loading-spinner"></span> : 'ADD NOTE / REPORT'}
-                </button>
+                    <button
+                      type="button"
+                      onClick={handleAddReport}
+                      disabled={actionLoading}
+                      className="btn w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs rounded-xl h-11 uppercase tracking-wider shadow-sm"
+                    >
+                      {actionLoading ? <span className="loading loading-spinner"></span> : 'ADD NOTE / REPORT'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -1207,11 +1259,59 @@ export const JobRequestDetail: React.FC = () => {
 
 
 
+          {/* PART COMPLETED CARD WITH VIEW NOTE BUTTON (For completed Staff) */}
+          {user?.role === 'staff' && !user?.is_acting_manager &&
+            data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) && (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 text-center">
+              <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
+                <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-extrabold text-emerald-800 tracking-wider uppercase">
+                  PART COMPLETED
+                </h3>
+                <p className="text-xs font-semibold text-emerald-600 leading-relaxed max-w-xs mx-auto">
+                  You have finalized your work for this project.
+                </p>
+              </div>
+
+              {/* View Note Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowViewNotesModal(true)}
+                  className="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md gap-2 flex items-center justify-center"
+                >
+                  <FileText className="w-4 h-4 text-emerald-400" /> View Note
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* PROJECT TIMELINE Card */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-5">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase tracking-wider">
-              <Calendar className="w-4 h-4 text-blue-600" />
-              <span>PROJECT TIMELINE</span>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase tracking-wider">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                <span>PROJECT TIMELINE</span>
+              </div>
+
+              {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) &&
+                request.status !== 'completed' &&
+                request.status !== 'rejected' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStartDate(request.start_date || new Date().toISOString().split('T')[0]);
+                      setDeadline(request.deadline || '');
+                      setShowEditTimelineModal(true);
+                    }}
+                    className="btn btn-xs btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-extrabold text-[10px] uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
+                  >
+                    <Edit2 className="w-3 h-3" /> EDIT TIMELINE
+                  </button>
+                )}
             </div>
 
             <div className="space-y-4">
@@ -1247,39 +1347,9 @@ export const JobRequestDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* PART COMPLETED CARD WITH VIEW NOTE BUTTON (For completed Staff) */}
-          {user?.role === 'staff' && !user?.is_acting_manager &&
-            data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) && (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 text-center">
-              <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
-                <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="text-base font-extrabold text-emerald-800 tracking-wider uppercase">
-                  PART COMPLETED
-                </h3>
-                <p className="text-xs font-semibold text-emerald-600 leading-relaxed max-w-xs mx-auto">
-                  You have finalized your work for this project.
-                </p>
-              </div>
-
-              {/* View Note Button */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowViewNotesModal(true)}
-                  className="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md gap-2 flex items-center justify-center"
-                >
-                  <FileText className="w-4 h-4 text-emerald-400" /> View Note
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Activity History Card matching Reference Image 2 */}
           {user?.role !== 'client' && (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 h-[300px] flex flex-col">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 h-[480px] md:h-[520px] flex flex-col">
               <div className="flex items-center justify-between shrink-0 mb-3">
                 <h3 className="text-sm font-extrabold text-slate-900">Activity History</h3>
                 <button
@@ -1296,7 +1366,7 @@ export const JobRequestDetail: React.FC = () => {
                     <div key={h.id} className="relative space-y-1">
                       <div className="absolute -left-[1.35rem] top-1 w-2.5 h-2.5 rounded-full border-2 border-indigo-600 bg-white"></div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        {h.created_at}
+                        {formatDateTimeMY(h.created_at)}
                       </div>
                       <div className="text-xs font-extrabold text-slate-900 uppercase">{h.action}</div>
                       <div className="text-xs text-slate-500 font-semibold">
@@ -1350,9 +1420,13 @@ export const JobRequestDetail: React.FC = () => {
             {/* Assign to Staff Member Container matching Reference Image 1 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-extrabold text-slate-800">
-                Assign to Staff Member
+                Assign to Staff Member <span className="text-rose-500 font-bold">*</span>
               </label>
-              <div className="border border-blue-600 rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 bg-white">
+              <div
+                className={`border rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 bg-white transition-all ${
+                  selectedStaff.length === 0 ? 'border-rose-400 bg-rose-50/20' : 'border-blue-600'
+                }`}
+              >
                 {teamMembers
                   .filter((m: any) => (user?.role !== 'manager' && user?.role !== 'staff') || !user?.unit || m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim())
                   .map((m) => {
@@ -1381,9 +1455,17 @@ export const JobRequestDetail: React.FC = () => {
                   );
                 })}
               </div>
-              <p className="text-[11px] text-slate-400 font-semibold italic">
-                Select one or more staff members to handle this project
-              </p>
+
+              {selectedStaff.length === 0 ? (
+                <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-200 text-[11px] font-bold text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
+                  <span>At least one staff member must be selected.</span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400 font-semibold italic">
+                  Select one or more staff members to handle this project
+                </p>
+              )}
             </div>
 
             {/* Start Date & Deadline 2-Column Inputs matching Reference Image 1 */}
@@ -1407,12 +1489,25 @@ export const JobRequestDetail: React.FC = () => {
                 <input
                   type="date"
                   value={deadline}
+                  min={startDate}
                   onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl h-11 px-3 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+                  className={`w-full bg-white border rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none ${
+                    startDate && deadline && deadline < startDate
+                      ? 'border-rose-500 text-rose-600 focus:border-rose-600'
+                      : 'border-slate-300 focus:border-blue-600'
+                  }`}
                   required
                 />
               </div>
             </div>
+
+            {/* Validation Warning Alert if Deadline < StartDate */}
+            {startDate && deadline && deadline < startDate && (
+              <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 text-xs font-bold text-rose-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>Deadline date cannot be earlier than Start Date ({startDate}).</span>
+              </div>
+            )}
 
             {/* Add a comment (optional) matching Reference Image 1 */}
             <div className="space-y-1.5">
@@ -1440,8 +1535,8 @@ export const JobRequestDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmApprove}
-                disabled={actionLoading}
-                className="btn bg-emerald-500 hover:bg-emerald-600 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-12 uppercase tracking-wider shadow-lg shadow-emerald-500/25"
+                disabled={actionLoading || selectedStaff.length === 0 || Boolean(startDate && deadline && deadline < startDate)}
+                className="btn bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-12 uppercase tracking-wider shadow-lg shadow-emerald-500/25"
               >
                 {actionLoading ? <span className="loading loading-spinner"></span> : 'CONFIRM & ASSIGN'}
               </button>
@@ -1621,7 +1716,13 @@ export const JobRequestDetail: React.FC = () => {
                   const isSelfStaff = user?.role === 'staff' && m.id === user?.id;
                   const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === m.id);
                   const isAlreadyDone = projectStaffDetail?.is_done || false;
-                  const isLocked = isSelfStaff || isAlreadyDone;
+                  const isAlreadyAssigned = Boolean(request.assigned_staff_ids?.split(',').map(Number).includes(m.id));
+
+                  // For Staff role, lock staff who are already in the team from being removed
+                  const isLocked = (user?.role === 'staff' && !user?.is_acting_manager)
+                    ? (isSelfStaff || isAlreadyDone || isAlreadyAssigned)
+                    : (isSelfStaff || isAlreadyDone);
+
                   return (
                     <div
                       key={m.id}
@@ -1657,6 +1758,9 @@ export const JobRequestDetail: React.FC = () => {
                             {m.name} 
                             {isSelfStaff && <span className="text-[10px] text-slate-400 font-semibold italic ml-1">(You)</span>}
                             {isAlreadyDone && <span className="text-[10px] text-emerald-600 font-semibold italic ml-1">(Done)</span>}
+                            {!isSelfStaff && !isAlreadyDone && isAlreadyAssigned && (
+                              <span className="text-[10px] text-blue-600 font-semibold italic ml-1">(In Team)</span>
+                            )}
                           </div>
                           <div className="text-[10px] font-semibold text-slate-400">{m.email}</div>
                         </div>
@@ -1870,6 +1974,92 @@ export const JobRequestDetail: React.FC = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROJECT TIMELINE MODAL */}
+      {showEditTimelineModal && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-8 space-y-6">
+            <div>
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight">
+                Edit Project Timeline
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Update the Start Date and Deadline for this project.
+              </p>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl h-11 px-3 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
+                  Deadline <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={deadline}
+                  min={startDate}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className={`w-full bg-white border rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none ${
+                    startDate && deadline && deadline < startDate
+                      ? 'border-rose-500 text-rose-600 focus:border-rose-600'
+                      : 'border-slate-300 focus:border-blue-600'
+                  }`}
+                  required
+                />
+              </div>
+
+              {startDate && deadline && deadline < startDate && (
+                <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>Deadline date cannot be earlier than Start Date ({startDate}).</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-extrabold text-slate-800 mb-1.5">
+                  Reason for Timeline Change (optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="E.g., Extension requested by client, scope changes..."
+                  value={timelineReason}
+                  onChange={(e) => setTimelineReason(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-300 bg-white p-3 text-xs font-medium text-slate-800 focus:border-blue-600 focus:outline-none resize-none"
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-4 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowEditTimelineModal(false)}
+                className="text-xs font-black text-slate-600 hover:text-slate-900 uppercase tracking-wider px-4 py-2"
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTimeline}
+                disabled={actionLoading || Boolean(startDate && deadline && deadline < startDate)}
+                className="btn bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-12 shadow-lg shadow-blue-500/25"
+              >
+                {actionLoading ? <span className="loading loading-spinner"></span> : 'SAVE TIMELINE'}
+              </button>
             </div>
           </div>
         </div>
