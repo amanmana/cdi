@@ -368,20 +368,15 @@ export const Login: React.FC = () => {
                   </p>
                 </div>
 
-                {forgotSuccess.reset_url && (
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                      SIMULASI UJIAN (DEV PREVIEW LINK)
-                    </span>
-                    <a
-                      href={forgotSuccess.reset_url}
-                      className="btn bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl w-full h-11 flex items-center justify-center gap-2 shadow-md"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Buka Pautan Reset Kata Laluan
-                    </a>
-                  </div>
-                )}
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setForgotModalOpen(false)}
+                    className="btn bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 rounded-xl border-none h-10 min-h-0"
+                  >
+                    Faham & Tutup
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSendResetLink} className="space-y-4">
