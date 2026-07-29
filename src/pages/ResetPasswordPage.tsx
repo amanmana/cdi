@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export const ResetPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -22,7 +22,7 @@ export const ResetPasswordPage: React.FC = () => {
       if (!token) {
         setVerifying(false);
         setValid(false);
-        setError('Pautan penetapan semula kata laluan tidak sah atau hilang.');
+        setError('Password reset token is missing or invalid.');
         return;
       }
 
@@ -38,11 +38,11 @@ export const ResetPasswordPage: React.FC = () => {
           setEmail(data.email || '');
         } else {
           setValid(false);
-          setError(data.error || 'Pautan ini telah tamat tempoh atau telah digunakan.');
+          setError(data.error || 'This reset link has expired or has already been used.');
         }
       } catch (err) {
         setValid(false);
-        setError('Gagal mengesahkan token penetapan semula kata laluan.');
+        setError('Failed to verify password reset token.');
       } finally {
         setVerifying(false);
       }
@@ -54,11 +54,11 @@ export const ResetPasswordPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
-      setError('Kata laluan baharu mestilah sekurang-kurangnya 6 aksara.');
+      setError('New password must be at least 6 characters long.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Pengesahan kata laluan tidak sepadan.');
+      setError('Password confirmation does not match.');
       return;
     }
 
@@ -78,10 +78,10 @@ export const ResetPasswordPage: React.FC = () => {
           navigate('/login');
         }, 2500);
       } else {
-        setError(data.error || 'Gagal mengemas kini kata laluan.');
+        setError(data.error || 'Failed to update password.');
       }
     } catch (err) {
-      setError('Ralat berlaku semasa mengemas kini kata laluan.');
+      setError('An error occurred while updating password.');
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ export const ResetPasswordPage: React.FC = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 antialiased">
         <div className="text-center space-y-3">
           <span className="loading loading-spinner loading-lg text-blue-600"></span>
-          <p className="text-xs font-bold text-slate-500">Mengesahkan pautan keselamatan...</p>
+          <p className="text-xs font-bold text-slate-500">Verifying security token...</p>
         </div>
       </div>
     );
@@ -123,16 +123,16 @@ export const ResetPasswordPage: React.FC = () => {
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <div>
-                <h2 className="text-xl font-black text-slate-900">Kata Laluan Berjaya Dikemas Kini!</h2>
+                <h2 className="text-xl font-black text-slate-900">Password Updated Successfully!</h2>
                 <p className="text-xs text-slate-500 mt-1 font-medium">
-                  Anda akan dipindahkan ke halaman Log Masuk dalam beberapa saat...
+                  Redirecting to Sign In page in a few seconds...
                 </p>
               </div>
               <Link
                 to="/login"
                 className="btn bg-blue-600 hover:bg-blue-700 text-white border-none rounded-xl text-xs font-bold w-full h-11"
               >
-                Log Masuk Sekarang
+                Sign In Now
               </Link>
             </div>
           ) : !valid ? (
@@ -141,24 +141,24 @@ export const ResetPasswordPage: React.FC = () => {
                 <AlertCircle className="w-7 h-7" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-900">Pautan Tidak Sah atau Tamat Tempoh</h2>
+                <h2 className="text-lg font-black text-slate-900">Link Invalid or Expired</h2>
                 <p className="text-xs text-slate-500 mt-1 font-medium">
-                  {error || 'Sila pohon pautan penetapan semula kata laluan baharu di borang Log Masuk.'}
+                  {error || 'Please request a new password reset link from the Sign In page.'}
                 </p>
               </div>
               <Link
                 to="/login"
                 className="btn bg-slate-900 hover:bg-slate-800 text-white border-none rounded-xl text-xs font-bold w-full h-11"
               >
-                Kembali ke Log Masuk
+                Back to Sign In
               </Link>
             </div>
           ) : (
             <>
               <div>
-                <h1 className="text-xl font-black text-slate-900">Tetapkan Kata Laluan Baharu</h1>
+                <h1 className="text-xl font-black text-slate-900">Set New Password</h1>
                 <p className="text-xs text-slate-500 mt-1 font-medium">
-                  Menetapkan kata laluan baharu untuk akaun: <span className="font-bold text-slate-800">{email}</span>
+                  Set a new password for account: <span className="font-bold text-slate-800">{email}</span>
                 </p>
               </div>
 
@@ -172,13 +172,13 @@ export const ResetPasswordPage: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="form-control">
                   <label className="label pt-0 pb-1">
-                    <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">Kata Laluan Baharu *</span>
+                    <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">New Password *</span>
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
-                      placeholder="Sekurang-kurangnya 6 aksara"
+                      placeholder="Minimum 6 characters"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800 pr-11"
@@ -195,12 +195,12 @@ export const ResetPasswordPage: React.FC = () => {
 
                 <div className="form-control">
                   <label className="label pt-0 pb-1">
-                    <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">Sahkan Kata Laluan Baharu *</span>
+                    <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">Confirm New Password *</span>
                   </label>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="Taip semula kata laluan baharu"
+                    placeholder="Re-type new password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
@@ -212,7 +212,7 @@ export const ResetPasswordPage: React.FC = () => {
                   disabled={loading}
                   className="btn bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl w-full h-12 shadow-lg shadow-blue-500/25 border-none mt-2"
                 >
-                  {loading ? <span className="loading loading-spinner"></span> : 'Kemas Kini Kata Laluan'}
+                  {loading ? <span className="loading loading-spinner"></span> : 'Update Password'}
                 </button>
               </form>
             </>
@@ -227,7 +227,7 @@ export const ResetPasswordPage: React.FC = () => {
             className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-blue-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Kembali ke Log Masuk
+            Back to Sign In
           </Link>
         </div>
 

@@ -111,12 +111,12 @@ export const Login: React.FC = () => {
   const handleSendResetLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail || !forgotEmail.trim()) {
-      setForgotError('Sila masukkan alamat e-mel anda.');
+      setForgotError('Please enter your email address.');
       return;
     }
 
     if (!forgotTurnstile) {
-      setForgotError('Sila lengkapkan pengesahan Turnstile keselamatan.');
+      setForgotError('Please complete the security verification (Turnstile).');
       return;
     }
 
@@ -134,10 +134,10 @@ export const Login: React.FC = () => {
       if (res.ok && data.success) {
         setForgotSuccess(data);
       } else {
-        setForgotError(data.error || 'Gagal menghantar pautan reset kata laluan.');
+        setForgotError(data.error || 'Failed to send password reset link.');
       }
     } catch (err) {
-      setForgotError('Ralat berlaku semasa menghubungi pelayan.');
+      setForgotError('An error occurred while contacting the server.');
     } finally {
       setForgotLoading(false);
     }
@@ -344,8 +344,8 @@ export const Login: React.FC = () => {
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Reset Kata Laluan</h3>
-                  <p className="text-xs text-slate-400 font-medium">Hantar pautan penetapan semula ke e-mel</p>
+                  <h3 className="text-base font-black text-slate-900">Reset Password</h3>
+                  <p className="text-xs text-slate-400 font-medium">Send reset link to your email</p>
                 </div>
               </div>
               <button
@@ -361,10 +361,10 @@ export const Login: React.FC = () => {
                 <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 space-y-2">
                   <div className="flex items-center gap-2 font-black text-xs text-emerald-900">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Pautan Reset Kata Laluan Berjaya Dijana!</span>
+                    <span>Password Reset Link Sent!</span>
                   </div>
                   <p className="text-xs font-medium text-emerald-700">
-                    Pautan keselamatan berkunci telah dihantar ke e-mel <strong className="text-emerald-900">{forgotSuccess.email}</strong> (sah selama 15 minit).
+                    A secure password reset link has been sent to <strong className="text-emerald-900">{forgotSuccess.email}</strong> (valid for 15 minutes).
                   </p>
                 </div>
 
@@ -374,7 +374,7 @@ export const Login: React.FC = () => {
                     onClick={() => setForgotModalOpen(false)}
                     className="btn bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 rounded-xl border-none h-10 min-h-0"
                   >
-                    Faham & Tutup
+                    Got It & Close
                   </button>
                 </div>
               </div>
@@ -389,7 +389,7 @@ export const Login: React.FC = () => {
 
                 <div>
                   <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1.5">
-                    ALAMAT E-MEL BERDAFTAR *
+                    REGISTERED EMAIL ADDRESS *
                   </label>
                   <input
                     type="email"
@@ -423,7 +423,7 @@ export const Login: React.FC = () => {
                   disabled={forgotLoading}
                   className="btn bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl w-full h-12 border-none shadow-lg shadow-blue-500/25 mt-2"
                 >
-                  {forgotLoading ? <span className="loading loading-spinner"></span> : 'Hantar Pautan Reset Kata Laluan'}
+                  {forgotLoading ? <span className="loading loading-spinner"></span> : 'Send Password Reset Link'}
                 </button>
               </form>
             )}
