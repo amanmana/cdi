@@ -10,12 +10,13 @@ export async function sendGmail({ to, subject, html }: SendEmailParams): Promise
   try {
     const res = await fetch(GOOGLE_WEBHOOK_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ to, subject, html }),
       redirect: 'follow',
     });
-    console.log('Google Webhook Email Dispatch Status:', res.status);
-    return res.ok || res.status === 200 || res.status === 302;
+    const resText = await res.text();
+    console.log('Google Webhook Email Dispatch Status:', res.status, 'Response:', resText);
+    return res.ok || res.status === 200 || res.status === 302 || resText.includes('success');
   } catch (err) {
     console.error('Google Webhook Exception:', err);
     return false;
