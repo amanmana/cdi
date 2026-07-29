@@ -16,6 +16,9 @@ interface Stats {
 export const Dashboard: React.FC = () => {
   const { user, token } = useAuth();
 
+  if (user && user.role === 'director') {
+    return <Navigate to="/portal/director-dashboard" replace />;
+  }
   if (user && user.role === 'staff' && !user.is_acting_manager) {
     return <Navigate to="/portal/job-requests" replace />;
   }

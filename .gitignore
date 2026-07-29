@@ -10,5 +10,6 @@ dist/
 # OS & Environment
 .DS_Store
 *.env
+.dev.vars
 *.log
 storage/logs/*.log

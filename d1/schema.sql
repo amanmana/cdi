@@ -1,5 +1,15 @@
 -- CDI System Cloudflare D1 Database Schema
 
+-- Password Reset Tokens Table
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  used INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Users Table
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8,7 +18,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'client', -- admin, manager, staff, client
   unit_id INTEGER,                     -- Foreign Key to units(id)
-  unit TEXT,                           -- Associated unit name
+  unit TEXT,                           -- Associated unit/company name
+  phone TEXT,                          -- Contact Phone number
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (unit_id) REFERENCES units(id)
 );
