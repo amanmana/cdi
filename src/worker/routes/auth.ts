@@ -249,7 +249,7 @@ auth.post('/change-password', async (c) => {
 auth.post('/forgot-password', async (c) => {
   const { email, turnstileToken } = await c.req.json();
   if (!email || !email.trim()) {
-    return c.json({ error: 'Sila masukkan alamat e-mel anda.' }, 400);
+    return c.json({ error: 'Please enter your email address.' }, 400);
   }
 
   const cleanEmail = email.trim().toLowerCase();
@@ -269,7 +269,7 @@ auth.post('/forgot-password', async (c) => {
     });
     const verifyData: any = await verifyRes.json();
     if (!verifyData.success && turnstileToken !== 'demo_turnstile_pass_token') {
-      return c.json({ error: 'Pengesahan keselamatan (Turnstile) gagal. Sila cuba lagi.' }, 403);
+      return c.json({ error: 'Security verification (Turnstile) failed. Please try again.' }, 403);
     }
   }
 
@@ -282,7 +282,7 @@ auth.post('/forgot-password', async (c) => {
   if (!user) {
     return c.json({
       success: true,
-      message: 'Jika e-mel ini berdaftar, pautan penetapan semula kata laluan telah dihantar.',
+      message: 'If this email is registered, a password reset link has been sent.',
     });
   }
 
@@ -308,12 +308,12 @@ auth.post('/forgot-password', async (c) => {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Penetapan Semula Kata Laluan CDI Portal</title>
+      <title>CDI Portal Password Reset</title>
     </head>
     <body style="margin:0; padding:0; background-color:#f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
       <!-- Hidden Preheader -->
       <div style="display:none; max-height:0px; overflow:hidden;">
-        Pengesahan keselamatan penetapan semula kata laluan akaun CDI Portal anda.
+        Security verification for your CDI Portal account password reset.
       </div>
       <div style="max-width: 580px; margin: 20px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); padding: 28px; text-align: center; border-radius: 16px;">
@@ -321,18 +321,18 @@ auth.post('/forgot-password', async (c) => {
           <p style="color: #93c5fd; margin: 4px 0 0 0; font-size: 12px; font-weight: 600;">Corporate Communication & Identity Management System</p>
         </div>
         <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
-          <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Penetapan Semula Kata Laluan Akaun</h2>
-          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Salam <strong>${user.name || user.email}</strong>,</p>
-          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Sistem telah menerima permohonan penetapan semula kata laluan bagi akaun CDI Portal anda (<strong>${user.email}</strong>).</p>
+          <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Reset Your Account Password</h2>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Hello <strong>${user.name || user.email}</strong>,</p>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">We received a request to reset the password for your CDI Portal account (<strong>${user.email}</strong>).</p>
           <div style="text-align: center; margin: 32px 0;">
             <a href="${fullResetUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
-              Tetapkan Kata Laluan Baharu &rarr;
+              Set New Password &rarr;
             </a>
           </div>
-          <p style="font-size: 12px; color: #64748b; line-height: 1.5;">Atau salin pautan berikut ke pelayan web anda:<br/><a href="${fullResetUrl}" style="color:#2563eb; word-break:break-all;">${fullResetUrl}</a></p>
-          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">Pautan keselamatan ini sah selama <strong>15 minit</strong> sahaja. Sekiranya anda tidak membuat permohonan ini, sila abaikan e-mel ini.</p>
+          <p style="font-size: 12px; color: #64748b; line-height: 1.5;">Or copy the following link into your web browser:<br/><a href="${fullResetUrl}" style="color:#2563eb; word-break:break-all;">${fullResetUrl}</a></p>
+          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">This security link is valid for <strong>15 minutes</strong> only. If you did not request this, please ignore this email.</p>
           <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
-          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Resmi daripada Jabatan Komunikasi Korporat & Identiti (CDI Portal) | Secured by Cloudflare & Turnstile Security</p>
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Official Notification from Corporate Communication & Identity Portal | Secured by Cloudflare & Turnstile Security</p>
         </div>
       </div>
     </body>
@@ -342,15 +342,15 @@ auth.post('/forgot-password', async (c) => {
   // Dispatch Email via Gmail SMTP (creativeuxdmim@gmail.com)
   const emailSent = await sendGmail({
     to: user.email,
-    subject: 'Reset Kata Laluan — Corporate Communication & Identity Portal',
+    subject: 'Password Reset Request — Corporate Communication & Identity Portal',
     html: emailHtml,
   });
 
   return c.json({
     success: true,
     message: emailSent
-      ? 'Pautan penetapan semula kata laluan telah dihantar ke e-mel anda.'
-      : 'Pautan penetapan semula kata laluan telah berjaya dijana.',
+      ? 'Password reset link has been sent to your email.'
+      : 'Password reset link successfully generated.',
     token: resetToken,
     reset_url: fullResetUrl,
     email: user.email,
@@ -361,7 +361,7 @@ auth.post('/forgot-password', async (c) => {
 auth.post('/verify-reset-token', async (c) => {
   const { token } = await c.req.json();
   if (!token) {
-    return c.json({ error: 'Token penetapan semula tidak sah.' }, 400);
+    return c.json({ error: 'Invalid password reset token.' }, 400);
   }
 
   const row = await c.env.DB
@@ -373,7 +373,7 @@ auth.post('/verify-reset-token', async (c) => {
     .first<{ email: string }>();
 
   if (!row) {
-    return c.json({ error: 'Pautan penetapan semula kata laluan ini telah tamat tempoh atau tidak sah.' }, 400);
+    return c.json({ error: 'This password reset link has expired or is invalid.' }, 400);
   }
 
   return c.json({ success: true, email: row.email });
@@ -382,7 +382,7 @@ auth.post('/verify-reset-token', async (c) => {
 auth.post('/reset-password', async (c) => {
   const { token, newPassword } = await c.req.json();
   if (!token || !newPassword || newPassword.length < 6) {
-    return c.json({ error: 'Kata laluan baharu mestilah sekurang-kurangnya 6 aksara.' }, 400);
+    return c.json({ error: 'New password must be at least 6 characters long.' }, 400);
   }
 
   const row = await c.env.DB
@@ -394,7 +394,7 @@ auth.post('/reset-password', async (c) => {
     .first<{ id: number; email: string }>();
 
   if (!row) {
-    return c.json({ error: 'Pautan penetapan semula kata laluan ini telah tamat tempoh atau tidak sah.' }, 400);
+    return c.json({ error: 'This password reset link has expired or is invalid.' }, 400);
   }
 
   // Hash new password
@@ -412,7 +412,7 @@ auth.post('/reset-password', async (c) => {
     .bind(row.id)
     .run();
 
-  return c.json({ success: true, message: 'Kata laluan anda telah berjaya dikemas kini.' });
+  return c.json({ success: true, message: 'Password updated successfully.' });
 });
 
 export default auth;
