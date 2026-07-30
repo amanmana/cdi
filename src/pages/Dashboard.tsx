@@ -171,47 +171,59 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Stats Cards Grid */}
+      {/* Stats Cards Grid (Clickable to Drill Deep into Job Requests) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between">
+        <Link
+          to="/portal/job-requests?tab=current"
+          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
+        >
           <div>
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Requests</span>
             <div className="text-3xl font-black text-slate-900 mt-1">{stats.totalRequests}</div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <FileText className="w-6 h-6" />
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between">
+        <Link
+          to="/portal/job-requests?status=manager_approval"
+          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
+        >
           <div>
             <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider block">Pending Review</span>
             <div className="text-3xl font-black text-amber-600 mt-1">{stats.pendingApprovals}</div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <Clock className="w-6 h-6" />
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between">
+        <Link
+          to="/portal/job-requests?status=staff_processing"
+          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
+        >
           <div>
             <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider block">Staff Processing</span>
             <div className="text-3xl font-black text-indigo-600 mt-1">{stats.processing}</div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <Wrench className="w-6 h-6" />
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between">
+        <Link
+          to="/portal/job-requests?tab=history&status=completed"
+          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
+        >
           <div>
             <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block">Completed Requests</span>
             <div className="text-3xl font-black text-emerald-600 mt-1">{stats.completed}</div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <CheckCircle2 className="w-6 h-6" />
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Recent Activity Table Card */}
