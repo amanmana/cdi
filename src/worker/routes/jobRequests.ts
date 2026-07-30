@@ -1172,6 +1172,10 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
 
+  const previousStaffIds = request.assigned_staff_ids
+    ? request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n))
+    : [];
+
   const assignedStr = Array.isArray(staff_ids) ? staff_ids.join(',') : '';
 
   // Merge staff_tasks into additional_data
@@ -1237,20 +1241,23 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
 
       const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
       for (const sUser of staffUsers) {
-        const sTask = staff_tasks && staff_tasks[sUser.id] ? String(staff_tasks[sUser.id]).trim() : (additionalDataObj.staff_tasks?.[sUser.id] || '');
-        await notifyStaffAssignment({
-          staffEmail: sUser.email,
-          staffName: sUser.name,
-          ticketNo: request.ticket_no,
-          title: request.title,
-          unit: request.unit,
-          clientName: request.client_name,
-          managerName: user.name,
-          startDate: request.start_date,
-          deadline: request.deadline,
-          comment: sTask || 'You have been assigned to handle this project.',
-          origin,
-        });
+        // Send email ONLY to newly assigned staff members (skip staff members who were already assigned previously)
+        if (!previousStaffIds.includes(sUser.id)) {
+          const sTask = staff_tasks && staff_tasks[sUser.id] ? String(staff_tasks[sUser.id]).trim() : (additionalDataObj.staff_tasks?.[sUser.id] || '');
+          await notifyStaffAssignment({
+            staffEmail: sUser.email,
+            staffName: sUser.name,
+            ticketNo: request.ticket_no,
+            title: request.title,
+            unit: request.unit,
+            clientName: request.client_name,
+            managerName: user.name,
+            startDate: request.start_date,
+            deadline: request.deadline,
+            comment: sTask || 'You have been assigned to handle this project.',
+            origin,
+          });
+        }
       }
     }
   }
