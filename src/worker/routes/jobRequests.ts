@@ -82,7 +82,8 @@ async function notifyStaffAssignment({
   title,
   unit,
   clientName,
-  managerName,
+  actorName,
+  actorRole,
   startDate,
   deadline,
   comment,
@@ -94,13 +95,21 @@ async function notifyStaffAssignment({
   title: string;
   unit: string;
   clientName: string;
-  managerName: string;
+  actorName: string;
+  actorRole?: string;
   startDate?: string;
   deadline?: string;
   comment?: string;
   origin: string;
 }) {
   if (!staffEmail) return;
+
+  const isManager = actorRole === 'manager' || actorRole === 'admin';
+  const assignText = isManager
+    ? `You have been assigned to handle a new job request by Manager <strong>${actorName}</strong>.`
+    : `You have been assigned to handle a new job invited by <strong>${actorName}</strong>.`;
+
+  const instructionLabel = isManager ? 'Manager Instructions:' : 'Instructions / Notes:';
 
   const detailUrl = `${origin}/portal/job-requests`;
 
@@ -120,7 +129,7 @@ async function notifyStaffAssignment({
         </div>
         <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
           <p style="font-size: 14px; color: #475569;">Hello <strong>${staffName}</strong>,</p>
-          <p style="font-size: 14px; color: #475569; line-height: 1.6;">You have been assigned to handle a new job request by Manager <strong>${managerName}</strong>.</p>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">${assignText}</p>
           
           <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 12px; margin: 20px 0;">
             <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #059669; font-weight: 800;">#${ticketNo}</span></p>
@@ -128,7 +137,7 @@ async function notifyStaffAssignment({
             <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Client:</strong> ${clientName}</p>
             ${startDate ? `<p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Start Date:</strong> ${startDate}</p>` : ''}
             ${deadline ? `<p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Deadline:</strong> <span style="color: #dc2626; font-weight: 700;">${deadline}</span></p>` : ''}
-            ${comment ? `<p style="margin: 6px 0 0 0; font-size: 13px; color: #047857;"><strong>Manager Instructions:</strong> ${comment}</p>` : ''}
+            ${comment ? `<p style="margin: 6px 0 0 0; font-size: 13px; color: #047857;"><strong>${instructionLabel}</strong> ${comment}</p>` : ''}
           </div>
 
           <div style="text-align: center; margin: 28px 0;">
@@ -1251,7 +1260,8 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
             title: request.title,
             unit: request.unit,
             clientName: request.client_name,
-            managerName: user.name,
+            actorName: user.name,
+            actorRole: user.role,
             startDate: request.start_date,
             deadline: request.deadline,
             comment: sTask || 'You have been assigned to handle this project.',
