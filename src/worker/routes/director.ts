@@ -48,7 +48,8 @@ directorRouter.get('/stats', async (c) => {
   const completed = await countQuery(`AND status = 'completed'`);
   const processing = await countQuery(`AND status = 'staff_processing'`);
   const pending = await countQuery(`AND status IN ('manager_approval', 'pending')`);
-  const onHold = await countQuery(`AND status IN ('on_hold', 'cancelled', 'rejected')`);
+  const onHoldProjects = await countQuery(`AND status = 'on_hold'`);
+  const cancelledProjects = await countQuery(`AND status IN ('cancelled', 'rejected')`);
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   // 2. Units list & breakdown
@@ -140,7 +141,9 @@ directorRouter.get('/stats', async (c) => {
       completed_projects: completed,
       active_projects: processing,
       pending_approval: pending,
-      on_hold_cancelled: onHold,
+      on_hold_projects: onHoldProjects,
+      cancelled_projects: cancelledProjects,
+      on_hold_cancelled: onHoldProjects + cancelledProjects,
       completion_rate: completionRate,
     },
     unit_breakdown: unitBreakdown,
@@ -184,6 +187,10 @@ directorRouter.get('/projects', async (c) => {
       query += ` AND j.status = 'staff_processing'`;
     } else if (status === 'pending') {
       query += ` AND j.status IN ('manager_approval', 'pending')`;
+    } else if (status === 'on_hold') {
+      query += ` AND j.status = 'on_hold'`;
+    } else if (status === 'cancelled') {
+      query += ` AND j.status IN ('cancelled', 'rejected')`;
     } else {
       query += ` AND j.status = ?`;
       params.push(status);
