@@ -217,10 +217,10 @@ export const Dashboard: React.FC = () => {
           className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
         >
           <div>
-            <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block">Completed Requests</span>
-            <div className="text-3xl font-black text-emerald-600 mt-1">{stats.completed}</div>
+            <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider block">Completed Requests</span>
+            <div className="text-3xl font-black text-emerald-500 mt-1">{stats.completed}</div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <CheckCircle2 className="w-6 h-6" />
           </div>
         </Link>
