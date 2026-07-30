@@ -336,13 +336,14 @@ jobRequestsRouter.get('/', async (c) => {
       j.ticket_no LIKE ? 
       OR j.title LIKE ? 
       OR j.client_name LIKE ? 
+      OR j.client_email LIKE ?
       OR EXISTS (
         SELECT 1 FROM users u 
         WHERE u.name LIKE ? 
           AND INSTR(',' || j.assigned_staff_ids || ',', ',' || u.id || ',') > 0
       )
     )`;
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
 
   query += ` ORDER BY j.created_at DESC`;

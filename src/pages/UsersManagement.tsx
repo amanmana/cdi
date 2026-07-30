@@ -352,7 +352,7 @@ export const UsersManagement: React.FC = () => {
                       <td>{getRoleBadge(u.role)}</td>
                       <td className="text-center">
                         <Link
-                          to={`/portal/job-requests?search=${encodeURIComponent(u.email || u.name)}`}
+                          to={`/portal/job-requests?tab=all&search=${encodeURIComponent(u.email || u.name)}`}
                           className="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs px-3 py-1 rounded-xl border border-indigo-200 shadow-2xs transition-all hover:scale-105 cursor-pointer"
                           title="Click to view client projects"
                         >
