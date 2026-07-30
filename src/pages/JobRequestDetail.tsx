@@ -998,9 +998,10 @@ export const JobRequestDetail: React.FC = () => {
 
         {/* RIGHT COLUMN (1 Column Wide) matching Reference Image 2 */}
         <div className="space-y-6">
-          {/* Workflow Actions Card (Hidden for Client, Director, and when Staff has completed their part) */}
+          {/* Workflow Actions Card (Hidden for Client, Director, Rejected requests, and when completed) */}
           {user?.role !== 'client' &&
             user?.role !== 'director' &&
+            request.status !== 'rejected' &&
             !(user?.role === 'staff' && (
               data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ||
               request.status === 'completed'
