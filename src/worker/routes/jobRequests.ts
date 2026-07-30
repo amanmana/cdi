@@ -1033,35 +1033,6 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
      VALUES (?, 'APPROVE', ?, ?, ?, ?, ?)`
   ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || 'Approved by Manager').run();
 
-  // Notify assigned staff members upon approval
-  if (request.assigned_staff_ids) {
-    const sIds = request.assigned_staff_ids.split(',').map((s: string) => s.trim()).filter(Boolean);
-    if (sIds.length > 0) {
-      const placeholders = sIds.map(() => '?').join(',');
-      const { results: sList } = await db
-        .prepare(`SELECT id, name, email FROM users WHERE id IN (${placeholders})`)
-        .bind(...sIds)
-        .all<{ id: number; name: string; email: string }>();
-
-      const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
-      for (const sUser of sList || []) {
-        await notifyStaffAssignment({
-          staffEmail: sUser.email,
-          staffName: sUser.name,
-          ticketNo: request.ticket_no,
-          title: request.title,
-          unit: request.unit,
-          clientName: request.client_name,
-          managerName: user.name,
-          startDate: request.start_date,
-          deadline: request.deadline,
-          comment: comment || 'Request approved by Manager. Proceed with implementation.',
-          origin,
-        });
-      }
-    }
-  }
-
   return c.json({ success: true, message: 'Request approved and moved to Staff Processing & Design.' });
 });
 
