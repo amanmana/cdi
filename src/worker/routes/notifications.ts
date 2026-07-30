@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { D1Database } from '@cloudflare/workers-types';
-import { AuthUser } from '../auth';
+import { AuthUser, verifyToken } from '../auth';
 
 type Env = {
   Bindings: {
@@ -12,6 +12,51 @@ type Env = {
 };
 
 export const notificationsRouter = new Hono<Env>();
+
+// Auth middleware — same pattern as jobRequestsRouter
+notificationsRouter.use('*', async (c, next) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+  if (!token) return c.json({ error: 'Unauthorized' }, 401);
+
+  const payload = await verifyToken(token);
+  if (!payload) return c.json({ error: 'Session expired' }, 401);
+
+  const freshUser = await c.env.DB
+    .prepare(`
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, COALESCE(un.name, u.unit) as unit
+      FROM users u
+      LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name)
+      WHERE u.id = ?
+    `)
+    .bind(payload.id)
+    .first<any>();
+
+  if (freshUser) {
+    const today = new Date().toISOString().split('T')[0];
+    const delegation = await c.env.DB
+      .prepare(
+        `SELECT d.*, COALESCE(un.name, m.unit) as manager_unit
+         FROM delegations d
+         JOIN users m ON d.manager_id = m.id
+         LEFT JOIN units un ON (m.unit_id = un.id OR m.unit = un.name)
+         WHERE d.delegate_id = ? AND d.status = 'active' AND d.start_date <= ? AND d.end_date >= ?
+         LIMIT 1`
+      )
+      .bind(freshUser.id, today, today)
+      .first<any>();
+
+    c.set('user', {
+      ...freshUser,
+      is_acting_manager: !!delegation,
+      acting_manager_unit: delegation ? delegation.manager_unit : null,
+    });
+  } else {
+    c.set('user', payload);
+  }
+
+  await next();
+});
 
 // GET /api/notifications — Fetch user notification alerts (new job assignments, status changes)
 notificationsRouter.get('/', async (c) => {
