@@ -1327,7 +1327,7 @@ export const JobRequestDetail: React.FC = () => {
                     {isHold ? (
                       <>
                         <Clock className="w-4.5 h-4.5 text-amber-600" />
-                        <span className="text-amber-900">HOLD REASON / SEBAB ON HOLD</span>
+                        <span className="text-amber-900">HOLD REASON</span>
                       </>
                     ) : (
                       <>
