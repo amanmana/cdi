@@ -15,84 +15,85 @@ const directorRouter = new Hono<Env>();
 
 // GET /api/director/stats — Executive Dashboard aggregated KPIs & breakdowns with Year & Month filtering
 directorRouter.get('/stats', async (c) => {
-  const db = c.env.DB;
-  const year = c.req.query('year') || 'all';
-  const month = c.req.query('month') || 'all';
+  try {
+    const db = c.env.DB;
+    const year = c.req.query('year') || '2026';
+    const month = c.req.query('month') || 'all';
 
-  let dateFilter = '';
-  const dateParams: any[] = [];
+    let dateFilter = '';
+    const dateParams: any[] = [];
 
-  if (year !== 'all') {
-    dateFilter += ` AND (created_at LIKE ? OR start_date LIKE ? OR substr(created_at, 1, 4) = ? OR substr(start_date, 1, 4) = ?)`;
-    dateParams.push(`${year}-%`, `${year}-%`, year, year);
-  }
-
-  if (month !== 'all') {
-    const formattedMonth = month.padStart(2, '0');
-    dateFilter += ` AND (created_at LIKE ? OR start_date LIKE ? OR substr(created_at, 6, 2) = ? OR substr(start_date, 6, 2) = ?)`;
-    dateParams.push(`%-${formattedMonth}-%`, `%-${formattedMonth}-%`, formattedMonth, formattedMonth);
-  }
-
-  // Helper query runner
-  const countQuery = async (whereClause: string, extraBinds: any[] = []) => {
-    const sql = `SELECT COUNT(*) as count FROM job_requests WHERE 1=1 ${whereClause} ${dateFilter}`;
-    const binds = [...extraBinds, ...dateParams];
-    const res = binds.length > 0
-      ? await db.prepare(sql).bind(...binds).first<{ count: number }>()
-      : await db.prepare(sql).first<{ count: number }>();
-    return res?.count || 0;
-  };
-
-  // 1. Overall KPIs
-  const total = await countQuery('');
-  const completed = await countQuery(`AND status = 'completed'`);
-  const processing = await countQuery(`AND status = 'staff_processing'`);
-  const pending = await countQuery(`AND status IN ('manager_approval', 'pending')`);
-  const onHoldProjects = await countQuery(`AND status = 'on_hold'`);
-  const cancelledProjects = await countQuery(`AND status IN ('cancelled', 'rejected')`);
-  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-  // 2. Units list & breakdown
-  const { results: units } = await db.prepare(`SELECT id, name FROM units ORDER BY name ASC`).all<{ id: number; name: string }>();
-  let unitList = (units || []).filter(u => !['administrator', 'admin', 'it support', 'executive management'].includes(u.name.toLowerCase().trim()));
-
-  // Also include units present in job_requests but not in units table
-  const { results: extraUnits } = await db.prepare(`SELECT DISTINCT unit FROM job_requests WHERE unit IS NOT NULL AND unit != ''`).all<{ unit: string }>();
-  const existingNames = unitList.map(u => u.name);
-  (extraUnits || []).forEach(e => {
-    if (e.unit && !existingNames.includes(e.unit) && !['administrator', 'admin', 'it support', 'executive management'].includes(e.unit.toLowerCase().trim())) {
-      unitList.push({ id: 999, name: e.unit });
+    if (year !== 'all') {
+      dateFilter += ` AND (created_at LIKE ? OR start_date LIKE ? OR substr(created_at, 1, 4) = ? OR substr(start_date, 1, 4) = ?)`;
+      dateParams.push(`${year}-%`, `${year}-%`, year, year);
     }
-  });
 
-  const unitBreakdown = await Promise.all(
-    unitList.map(async (u) => {
-      const tot = await countQuery(`AND (unit_id = ? OR unit = ?)`, [u.id, u.name]);
-      const dn = await countQuery(`AND (unit_id = ? OR unit = ?) AND status = 'completed'`, [u.id, u.name]);
-      const active = await countQuery(`AND (unit_id = ? OR unit = ?) AND status = 'staff_processing'`, [u.id, u.name]);
-      const pend = await countQuery(`AND (unit_id = ? OR unit = ?) AND status IN ('manager_approval', 'pending')`, [u.id, u.name]);
-      const uStaff = await db.prepare(`SELECT COUNT(*) as count FROM users WHERE (unit_id = ? OR unit = ?) AND role = 'staff'`).bind(u.id, u.name).first<{ count: number }>();
+    if (month !== 'all') {
+      const formattedMonth = month.padStart(2, '0');
+      dateFilter += ` AND (created_at LIKE ? OR start_date LIKE ? OR substr(created_at, 6, 2) = ? OR substr(start_date, 6, 2) = ?)`;
+      dateParams.push(`%-${formattedMonth}-%`, `%-${formattedMonth}-%`, formattedMonth, formattedMonth);
+    }
 
-      return {
-        unit_id: u.id,
-        unit_name: u.name,
-        total_projects: tot,
-        completed_projects: dn,
-        active_projects: active,
-        pending_projects: pend,
-        staff_count: uStaff?.count || 0,
-        completion_rate: tot > 0 ? Math.round((dn / tot) * 100) : 0,
-      };
-    })
-  );
+    // Helper query runner
+    const countQuery = async (whereClause: string, extraBinds: any[] = []) => {
+      const sql = `SELECT COUNT(*) as count FROM job_requests WHERE 1=1 ${whereClause} ${dateFilter}`;
+      const binds = [...extraBinds, ...dateParams];
+      const res = binds.length > 0
+        ? await db.prepare(sql).bind(...binds).first<{ count: number }>()
+        : await db.prepare(sql).first<{ count: number }>();
+      return res?.count || 0;
+    };
 
-  // 3. Status Distribution for Donut Chart
-  const statusDistribution = [
-    { label: 'Completed', value: completed, color: '#10b981' },
-    { label: 'Staff Processing', value: processing, color: '#3b82f6' },
-    { label: 'Pending Approval', value: pending, color: '#f59e0b' },
-    { label: 'On Hold / Cancelled', value: onHold, color: '#ef4444' },
-  ];
+    // 1. Overall KPIs
+    const total = await countQuery('');
+    const completed = await countQuery(`AND status = 'completed'`);
+    const processing = await countQuery(`AND status = 'staff_processing'`);
+    const pending = await countQuery(`AND status IN ('manager_approval', 'pending')`);
+    const onHoldProjects = await countQuery(`AND status = 'on_hold'`);
+    const cancelledProjects = await countQuery(`AND status IN ('cancelled', 'rejected')`);
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // 2. Units list & breakdown
+    const { results: units } = await db.prepare(`SELECT id, name FROM units ORDER BY name ASC`).all<{ id: number; name: string }>();
+    let unitList = (units || []).filter(u => !['administrator', 'admin', 'it support', 'executive management'].includes(u.name.toLowerCase().trim()));
+
+    // Also include units present in job_requests but not in units table
+    const { results: extraUnits } = await db.prepare(`SELECT DISTINCT unit FROM job_requests WHERE unit IS NOT NULL AND unit != ''`).all<{ unit: string }>();
+    const existingNames = unitList.map(u => u.name);
+    (extraUnits || []).forEach(e => {
+      if (e.unit && !existingNames.includes(e.unit) && !['administrator', 'admin', 'it support', 'executive management'].includes(e.unit.toLowerCase().trim())) {
+        unitList.push({ id: 999, name: e.unit });
+      }
+    });
+
+    const unitBreakdown = await Promise.all(
+      unitList.map(async (u) => {
+        const tot = await countQuery(`AND (unit_id = ? OR unit = ?)`, [u.id, u.name]);
+        const dn = await countQuery(`AND (unit_id = ? OR unit = ?) AND status = 'completed'`, [u.id, u.name]);
+        const active = await countQuery(`AND (unit_id = ? OR unit = ?) AND status = 'staff_processing'`, [u.id, u.name]);
+        const pend = await countQuery(`AND (unit_id = ? OR unit = ?) AND status IN ('manager_approval', 'pending')`, [u.id, u.name]);
+        const uStaff = await db.prepare(`SELECT COUNT(*) as count FROM users WHERE (unit_id = ? OR unit = ?) AND role = 'staff'`).bind(u.id, u.name).first<{ count: number }>();
+
+        return {
+          unit_id: u.id,
+          unit_name: u.name,
+          total_projects: tot,
+          completed_projects: dn,
+          active_projects: active,
+          pending_projects: pend,
+          staff_count: uStaff?.count || 0,
+          completion_rate: tot > 0 ? Math.round((dn / tot) * 100) : 0,
+        };
+      })
+    );
+
+    // 3. Status Distribution for Donut Chart
+    const statusDistribution = [
+      { label: 'Completed', value: completed, color: '#10b981' },
+      { label: 'Staff Processing', value: processing, color: '#3b82f6' },
+      { label: 'Pending Approval', value: pending, color: '#f59e0b' },
+      { label: 'On Hold / Cancelled', value: onHoldProjects + cancelledProjects, color: '#ef4444' },
+    ];
 
   // 4. Executive SLA Health
   const today = new Date().toISOString().split('T')[0];
@@ -133,24 +134,28 @@ directorRouter.get('/stats', async (c) => {
     percentage_share: total > 0 ? Math.round((c.project_count / total) * 100) : 0,
   }));
 
-  return c.json({
-    selected_year: year,
-    selected_month: month,
-    kpis: {
-      total_projects: total,
-      completed_projects: completed,
-      active_projects: processing,
-      pending_approval: pending,
-      on_hold_projects: onHoldProjects,
-      cancelled_projects: cancelledProjects,
-      on_hold_cancelled: onHoldProjects + cancelledProjects,
-      completion_rate: completionRate,
-    },
-    unit_breakdown: unitBreakdown,
-    status_distribution: statusDistribution,
-    sla_health: slaHealth,
-    client_demand: clientDemand,
-  });
+    return c.json({
+      selected_year: year,
+      selected_month: month,
+      kpis: {
+        total_projects: total,
+        completed_projects: completed,
+        active_projects: processing,
+        pending_approval: pending,
+        on_hold_projects: onHoldProjects,
+        cancelled_projects: cancelledProjects,
+        on_hold_cancelled: onHoldProjects + cancelledProjects,
+        completion_rate: completionRate,
+      },
+      unit_breakdown: unitBreakdown,
+      status_distribution: statusDistribution,
+      sla_health: slaHealth,
+      client_demand: clientDemand,
+    });
+  } catch (err: any) {
+    console.error('Error computing director stats:', err);
+    return c.json({ error: err?.message || 'Failed to compute director statistics' }, 500);
+  }
 });
 
 // GET /api/director/projects — Drill-deep detailed project listing with Year & Month filtering
