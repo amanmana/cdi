@@ -16,21 +16,21 @@ const directorRouter = new Hono<Env>();
 // GET /api/director/stats — Executive Dashboard aggregated KPIs & breakdowns with Year & Month filtering
 directorRouter.get('/stats', async (c) => {
   const db = c.env.DB;
-  const year = c.req.query('year') || '2026';
+  const year = c.req.query('year') || 'all';
   const month = c.req.query('month') || 'all';
 
   let dateFilter = '';
   const dateParams: any[] = [];
 
   if (year !== 'all') {
-    dateFilter += ` AND (strftime('%Y', created_at) = ? OR strftime('%Y', start_date) = ?)`;
-    dateParams.push(year, year);
+    dateFilter += ` AND (created_at LIKE ? OR start_date LIKE ? OR substr(created_at, 1, 4) = ? OR substr(start_date, 1, 4) = ?)`;
+    dateParams.push(`${year}-%`, `${year}-%`, year, year);
   }
 
   if (month !== 'all') {
     const formattedMonth = month.padStart(2, '0');
-    dateFilter += ` AND (strftime('%m', created_at) = ? OR strftime('%m', start_date) = ?)`;
-    dateParams.push(formattedMonth, formattedMonth);
+    dateFilter += ` AND (created_at LIKE ? OR start_date LIKE ? OR substr(created_at, 6, 2) = ? OR substr(start_date, 6, 2) = ?)`;
+    dateParams.push(`%-${formattedMonth}-%`, `%-${formattedMonth}-%`, formattedMonth, formattedMonth);
   }
 
   // Helper query runner
@@ -198,14 +198,14 @@ directorRouter.get('/projects', async (c) => {
   }
 
   if (year && year !== 'all') {
-    query += ` AND (strftime('%Y', j.created_at) = ? OR strftime('%Y', j.start_date) = ?)`;
-    params.push(year, year);
+    query += ` AND (j.created_at LIKE ? OR j.start_date LIKE ? OR substr(j.created_at, 1, 4) = ? OR substr(j.start_date, 1, 4) = ?)`;
+    params.push(`${year}-%`, `${year}-%`, year, year);
   }
 
   if (month && month !== 'all') {
     const formattedMonth = month.padStart(2, '0');
-    query += ` AND (strftime('%m', j.created_at) = ? OR strftime('%m', j.start_date) = ?)`;
-    params.push(formattedMonth, formattedMonth);
+    query += ` AND (j.created_at LIKE ? OR j.start_date LIKE ? OR substr(j.created_at, 6, 2) = ? OR substr(j.start_date, 6, 2) = ?)`;
+    params.push(`%-${formattedMonth}-%`, `%-${formattedMonth}-%`, formattedMonth, formattedMonth);
   }
 
   if (search && search.trim()) {

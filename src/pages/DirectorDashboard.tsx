@@ -117,8 +117,8 @@ export const DirectorDashboard: React.FC = () => {
   });
   const [clientDemand, setClientDemand] = useState<ClientDemandItem[]>([]);
 
-  // Timeframe Filter State (Default: 2026 / All Months)
-  const [selectedYear, setSelectedYear] = useState('2026');
+  // Timeframe Filter State (Default: All Time / All Months)
+  const [selectedYear, setSelectedYear] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
 
   // Drill Deep Modal State
