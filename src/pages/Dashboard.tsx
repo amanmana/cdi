@@ -77,7 +77,7 @@ export const Dashboard: React.FC = () => {
   const pendingMyTasks = myTasks.filter((t) => t.status !== 'completed');
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-8">
       {/* Welcome Hero Banner */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>

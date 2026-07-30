@@ -230,7 +230,7 @@ export const DirectorDashboard: React.FC = () => {
   let accumulatedAngle = 0;
 
   return (
-    <div className="space-y-8 pb-16 animate-in fade-in duration-300">
+    <div className="flex flex-col gap-8 pb-16 animate-in fade-in duration-300">
       {/* EXECUTIVE HERO HEADER */}
       <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-2xl border border-slate-800">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-purple-600/20 blur-3xl pointer-events-none"></div>
