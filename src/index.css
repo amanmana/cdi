@@ -9,6 +9,10 @@
     color: #1e293b;
     -webkit-font-smoothing: antialiased;
   }
+
+  nav, header {
+    margin-top: 0 !important;
+  }
 }
 
 /* Custom UI Shadows & Glass Effects */
