@@ -150,7 +150,7 @@ export const PublicHome: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 antialiased">
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="max-w-2xl mx-auto flex flex-col gap-8">
         {/* Header Hero Banner */}
         <div className="text-center">
           <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
@@ -166,7 +166,7 @@ export const PublicHome: React.FC = () => {
           {/* Top 8px Blue Accent Line */}
           <div className="h-2 bg-blue-600"></div>
 
-          <div className="p-8 md:p-10 space-y-6">
+          <div className="p-8 md:p-10 flex flex-col gap-6">
             {error && (
               <div className="alert alert-error text-sm py-3 rounded-xl shadow-sm bg-rose-500 text-white border-none flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
@@ -174,7 +174,7 @@ export const PublicHome: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               {/* 2-Column Inputs: Full Name & Email */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="form-control">
