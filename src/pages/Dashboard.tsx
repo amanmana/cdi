@@ -204,10 +204,10 @@ export const Dashboard: React.FC = () => {
           className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
         >
           <div>
-            <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider block">Staff Processing</span>
-            <div className="text-3xl font-black text-indigo-600 mt-1">{stats.processing}</div>
+            <span className="text-[11px] font-bold text-purple-600 uppercase tracking-wider block">Staff Processing</span>
+            <div className="text-3xl font-black text-purple-600 mt-1">{stats.processing}</div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <Wrench className="w-6 h-6" />
           </div>
         </Link>
