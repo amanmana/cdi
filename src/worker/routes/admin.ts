@@ -299,7 +299,12 @@ admin.delete('/units/:id', async (c) => {
 // Users CRUD
 admin.get('/users', async (c) => {
   const db = c.env.DB;
-  const { results } = await db.prepare('SELECT id, name, email, role, unit, created_at FROM users ORDER BY id ASC').all();
+  const { results } = await db.prepare(`
+    SELECT u.id, u.name, u.email, u.role, u.unit, u.created_at,
+           (SELECT COUNT(*) FROM job_requests j WHERE j.client_email = u.email OR LOWER(TRIM(j.client_name)) = LOWER(TRIM(u.name))) as project_count
+    FROM users u
+    ORDER BY u.id ASC
+  `).all();
   return c.json(results || []);
 });
 

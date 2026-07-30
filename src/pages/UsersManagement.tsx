@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Plus, Edit2, Trash2, Users, Building2, UserCircle2, ExternalLink, ShieldAlert, AlertTriangle, X } from 'lucide-react';
 
@@ -338,6 +339,7 @@ export const UsersManagement: React.FC = () => {
                     <th className="py-3">Full Name</th>
                     <th className="py-3">Email Address</th>
                     <th className="py-3">Role</th>
+                    <th className="py-3 text-center">Total Projects</th>
                     <th className="rounded-r-xl py-3 text-center">Actions</th>
                   </tr>
                 </thead>
@@ -348,6 +350,15 @@ export const UsersManagement: React.FC = () => {
                       <td className="font-bold text-sm text-slate-900">{u.name}</td>
                       <td className="text-xs text-slate-600 font-medium">{u.email}</td>
                       <td>{getRoleBadge(u.role)}</td>
+                      <td className="text-center">
+                        <Link
+                          to={`/portal/job-requests?search=${encodeURIComponent(u.email || u.name)}`}
+                          className="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs px-3 py-1 rounded-xl border border-indigo-200 shadow-2xs transition-all hover:scale-105 cursor-pointer"
+                          title="Click to view client projects"
+                        >
+                          <span>{u.project_count || 0} project{(u.project_count || 0) !== 1 ? 's' : ''}</span>
+                        </Link>
+                      </td>
                       <td className="text-center">
                         <div className="flex justify-center gap-1">
                           <button onClick={() => handleOpenModal(u)} className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-xl"><Edit2 className="w-4 h-4" /></button>
