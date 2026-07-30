@@ -367,15 +367,14 @@ export const DirectorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* TOP KPI CARDS - 2 ROWS LAYOUT */}
-      <div className="flex flex-col gap-5">
-        {/* 1st ROW: 2 COLUMNS (Total Projects & Completed Projects) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {/* Card 1: Total Projects */}
-          <div
-            onClick={() => openDrillModal('All System Projects', 'all', 'all')}
-            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group"
-          >
+      {/* TOP KPI CARDS - 2 ROWS, 3 COLUMNS PER ROW */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* ROW 1 — CARD 1: Total Projects */}
+        <div
+          onClick={() => openDrillModal('All System Projects', 'all', 'all')}
+          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 TOTAL PROJECTS
@@ -392,48 +391,18 @@ export const DirectorDashboard: React.FC = () => {
                 100% Total
               </span>
             </div>
-            <p className="mt-2 text-[11px] font-semibold text-slate-400">
-              Across all service departments
-            </p>
           </div>
-
-          {/* Card 2: Completed Projects */}
-          <div
-            onClick={() => openDrillModal('Completed Projects', 'all', 'completed')}
-            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                COMPLETED PROJECTS
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <FolderCheck className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-baseline justify-between">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">
-                {kpis.completed_projects}
-              </span>
-              <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" /> {kpis.completion_rate}%
-              </span>
-            </div>
-            <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                style={{ width: `${kpis.completion_rate}%` }}
-              ></div>
-            </div>
-          </div>
+          <p className="mt-2 text-[11px] font-semibold text-slate-400">
+            Across all service departments
+          </p>
         </div>
 
-        {/* 2nd ROW: 4 COLUMNS (Staff In-Processing, Pending Approval, Pending/On Hold Projects, Cancel Projects) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Staff In-Processing */}
-          <div
-            onClick={() => openDrillModal('Active In-Processing Projects', 'all', 'active')}
-            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group"
-          >
+        {/* ROW 1 — CARD 2: Staff In-Processing */}
+        <div
+          onClick={() => openDrillModal('Active In-Processing Projects', 'all', 'active')}
+          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 STAFF IN-PROCESSING
@@ -450,16 +419,18 @@ export const DirectorDashboard: React.FC = () => {
                 Active Load
               </span>
             </div>
-            <p className="mt-2 text-[11px] font-semibold text-slate-400">
-              Currently worked on by staff
-            </p>
           </div>
+          <p className="mt-2 text-[11px] font-semibold text-slate-400">
+            Currently worked on by staff
+          </p>
+        </div>
 
-          {/* Card 2: Pending Approval */}
-          <div
-            onClick={() => openDrillModal('Pending Approval Projects', 'all', 'pending')}
-            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group"
-          >
+        {/* ROW 1 — CARD 3: Pending Approval */}
+        <div
+          onClick={() => openDrillModal('Pending Approval Projects', 'all', 'pending')}
+          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 PENDING APPROVAL
@@ -476,16 +447,18 @@ export const DirectorDashboard: React.FC = () => {
                 Awaiting Action
               </span>
             </div>
-            <p className="mt-2 text-[11px] font-semibold text-slate-400">
-              Requests awaiting manager review
-            </p>
           </div>
+          <p className="mt-2 text-[11px] font-semibold text-slate-400">
+            Requests awaiting manager review
+          </p>
+        </div>
 
-          {/* Card 3: On Hold Projects */}
-          <div
-            onClick={() => openDrillModal('On Hold Projects', 'all', 'on_hold')}
-            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group"
-          >
+        {/* ROW 2 — CARD 4: On Hold Projects */}
+        <div
+          onClick={() => openDrillModal('On Hold Projects', 'all', 'on_hold')}
+          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 ON HOLD PROJECTS
@@ -502,16 +475,18 @@ export const DirectorDashboard: React.FC = () => {
                 On Hold
               </span>
             </div>
-            <p className="mt-2 text-[11px] font-semibold text-slate-400">
-              Projects on temporary hold
-            </p>
           </div>
+          <p className="mt-2 text-[11px] font-semibold text-slate-400">
+            Projects on temporary hold
+          </p>
+        </div>
 
-          {/* Card 4: Cancel Projects */}
-          <div
-            onClick={() => openDrillModal('Cancelled / Rejected Projects', 'all', 'cancelled')}
-            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group"
-          >
+        {/* ROW 2 — CARD 5: Cancel Projects */}
+        <div
+          onClick={() => openDrillModal('Cancelled / Rejected Projects', 'all', 'cancelled')}
+          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 CANCEL PROJECTS
@@ -528,9 +503,40 @@ export const DirectorDashboard: React.FC = () => {
                 Cancelled
               </span>
             </div>
-            <p className="mt-2 text-[11px] font-semibold text-slate-400">
-              Requests cancelled or rejected
-            </p>
+          </div>
+          <p className="mt-2 text-[11px] font-semibold text-slate-400">
+            Requests cancelled or rejected
+          </p>
+        </div>
+
+        {/* ROW 2 — CARD 6: Completed Projects */}
+        <div
+          onClick={() => openDrillModal('Completed Projects', 'all', 'completed')}
+          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                COMPLETED PROJECTS
+              </span>
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FolderCheck className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-baseline justify-between">
+              <span className="text-3xl font-black text-slate-900 tracking-tight">
+                {kpis.completed_projects}
+              </span>
+              <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> {kpis.completion_rate}%
+              </span>
+            </div>
+          </div>
+          <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div
+              className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+              style={{ width: `${kpis.completion_rate}%` }}
+            ></div>
           </div>
         </div>
       </div>
