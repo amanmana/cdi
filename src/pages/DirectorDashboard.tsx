@@ -481,14 +481,14 @@ export const DirectorDashboard: React.FC = () => {
             </p>
           </div>
 
-          {/* Card 3: Pending/On Hold Projects */}
+          {/* Card 3: On Hold Projects */}
           <div
-            onClick={() => openDrillModal('Pending / On Hold Projects', 'all', 'on_hold')}
+            onClick={() => openDrillModal('On Hold Projects', 'all', 'on_hold')}
             className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                PENDING / ON HOLD PROJECTS
+                ON HOLD PROJECTS
               </span>
               <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <PauseCircle className="w-5 h-5" />
