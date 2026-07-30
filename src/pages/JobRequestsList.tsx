@@ -270,6 +270,19 @@ export const JobRequestsList: React.FC = () => {
 
   let displayedRequests = activeTab === 'current' ? currentJobs : historyJobs;
 
+  const urlStatus = searchParams.get('status');
+  if (urlStatus && urlStatus !== 'all') {
+    if (urlStatus === 'pending' || urlStatus === 'manager_approval') {
+      displayedRequests = displayedRequests.filter((r) => r.status === 'manager_approval' || r.status === 'pending');
+    } else if (urlStatus === 'processing' || urlStatus === 'staff_processing') {
+      displayedRequests = displayedRequests.filter((r) => r.status === 'staff_processing');
+    } else if (urlStatus === 'completed') {
+      displayedRequests = displayedRequests.filter((r) => r.status === 'completed');
+    } else {
+      displayedRequests = displayedRequests.filter((r) => r.status === urlStatus);
+    }
+  }
+
   if (selectedUnitFilter !== 'All') {
     displayedRequests = displayedRequests.filter((r) => {
       const unitObj = finalUnitsList.find(u => u.name === selectedUnitFilter);
@@ -394,6 +407,23 @@ export const JobRequestsList: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {urlStatus && (
+        <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-2xl px-4 py-2.5 flex items-center justify-between text-xs font-bold">
+          <span className="flex items-center gap-2">
+            <span>Filtered by Status:</span>
+            <span className="bg-indigo-600 text-white font-extrabold px-2.5 py-0.5 rounded-lg uppercase tracking-wider text-[10px]">
+              {urlStatus.replace('_', ' ')}
+            </span>
+          </span>
+          <Link
+            to="/portal/job-requests"
+            className="text-indigo-600 hover:text-indigo-800 font-extrabold flex items-center gap-1 hover:underline"
+          >
+            ✕ Clear Status Filter
+          </Link>
+        </div>
+      )}
 
       {user?.role === 'admin' && (
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
