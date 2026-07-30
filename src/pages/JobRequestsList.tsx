@@ -64,6 +64,16 @@ export const JobRequestsList: React.FC = () => {
     fetchPresets();
   }, [token]);
 
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const status = searchParams.get('status');
+    if (tab === 'history' || status === 'completed' || status === 'rejected') {
+      setActiveTab('history');
+    } else if (tab === 'current' || status === 'manager_approval' || status === 'staff_processing' || status === 'on_hold') {
+      setActiveTab('current');
+    }
+  }, [searchParams]);
+
   const handleDeletePreset = async (type: 'client' | 'project', value: string) => {
     try {
       const res = await fetch('/api/job-requests/presets/delete', {
