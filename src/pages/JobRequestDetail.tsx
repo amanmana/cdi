@@ -132,7 +132,7 @@ export const JobRequestDetail: React.FC = () => {
         if (tData.staffMembers) setTeamMembers(tData.staffMembers);
       })
       .catch((err) => console.error(err));
-  }, [id, token]);
+  }, [id, token, user?.id]);
 
   if (loading) {
     return (

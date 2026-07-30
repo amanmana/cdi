@@ -14,25 +14,31 @@ export const JobRequestsList: React.FC = () => {
   const [selectedUnitFilter, setSelectedUnitFilter] = useState('All');
 
   // Track opened job IDs per user to remove NEW badge once viewed
-  const [openedJobIds, setOpenedJobIds] = useState<number[]>(() => {
-    try {
-      const stored = localStorage.getItem(`opened_jobs_${user?.id}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
+  const [openedJobIds, setOpenedJobIds] = useState<number[]>([]);
+
+  // Re-load opened jobs from localStorage when user.id becomes available
+  useEffect(() => {
+    if (user?.id) {
+      try {
+        const stored = localStorage.getItem(`opened_jobs_${user.id}`);
+        setOpenedJobIds(stored ? JSON.parse(stored) : []);
+      } catch {
+        setOpenedJobIds([]);
+      }
     }
-  });
+  }, [user?.id]);
 
   const markJobAsOpened = (id: number) => {
-    if (!openedJobIds.includes(id)) {
-      const updated = [...openedJobIds, id];
-      setOpenedJobIds(updated);
+    setOpenedJobIds((prev) => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
       try {
         localStorage.setItem(`opened_jobs_${user?.id}`, JSON.stringify(updated));
       } catch (e) {
         console.error(e);
       }
-    }
+      return updated;
+    });
   };
 
   // Create Internal Job state
