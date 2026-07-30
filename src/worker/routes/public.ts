@@ -155,7 +155,7 @@ publicApi.post('/job-requests', async (c) => {
     }
 
     // 2. Dispatch Confirmation Email to Client (in English)
-    const clientTrackUrl = `${origin}/public/track?ticket=${ticketNo}`;
+    const clientTrackUrl = `${origin}/track/${ticketNo}`;
     const clientEmailHtml = `
       <!DOCTYPE html>
       <html>
