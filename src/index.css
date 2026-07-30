@@ -10,7 +10,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  nav, header {
+  nav, header, .fixed, [class*="fixed"] {
     margin-top: 0 !important;
   }
 }
