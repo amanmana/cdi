@@ -512,12 +512,18 @@ export const JobRequestsList: React.FC = () => {
                   const totalTasks = req.total_staff || 0;
                   const completedTasks = req.completed_staff || 0;
                   const percent = req.status === 'completed' ? 100 : totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+                  const isAssignedToMe = user?.role === 'staff' && req.status === 'staff_processing' && req.assigned_staff_ids?.split(',').map((id: string) => Number(id.trim())).includes(Number(user?.id));
 
                   return (
-                    <tr key={req.id} className="hover:bg-slate-50/80 transition-colors border-b border-slate-100">
+                    <tr key={req.id} className={`transition-colors border-b border-slate-100 ${isAssignedToMe ? 'bg-purple-50/40 hover:bg-purple-50/80' : 'hover:bg-slate-50/80'}`}>
                       <td className="py-4 px-4 align-top">
                         <div className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
                           <span>#{req.id}</span>
+                          {isAssignedToMe && (
+                            <span className="badge bg-purple-600 border-none text-white font-black text-[9px] uppercase tracking-widest px-2 py-0.5 animate-pulse shadow-sm shadow-purple-500/30">
+                              NEW
+                            </span>
+                          )}
                           {req.ticket_no?.startsWith('SELF') && (
                             <span
                               title="Direct Staff Task Entry"
