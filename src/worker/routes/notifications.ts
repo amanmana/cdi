@@ -28,12 +28,12 @@ notificationsRouter.get('/', async (c) => {
         SELECT j.id, j.ticket_no, j.title, j.client_name, j.status, j.unit, j.created_at, j.updated_at,
                (SELECT comment FROM workflow_logs WHERE job_request_id = j.id ORDER BY id DESC LIMIT 1) as latest_comment
         FROM job_requests j
-        WHERE (j.assigned_staff_ids LIKE ? OR j.assigned_staff_ids LIKE ? OR j.assigned_staff_ids = ?)
+        WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0
           AND j.status = 'staff_processing'
         ORDER BY j.updated_at DESC
         LIMIT 10
       `;
-      params.push(`%,${user.id},%`, `${user.id},%`, `${user.id}`);
+      params.push(user.id.toString());
     } else if (user.role === 'manager' || user.is_acting_manager) {
       // Manager notifications for pending approvals & staff updates
       const managerUnit = user.acting_manager_unit || user.unit;
