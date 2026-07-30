@@ -45,7 +45,7 @@ export const Navbar: React.FC = () => {
   };
 
   useEffect(() => {
-    if (user && token) {
+    if (user && token && user.role === 'staff' && !user.is_acting_manager) {
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 30000); // Polling every 30s
       return () => clearInterval(interval);
@@ -135,7 +135,8 @@ export const Navbar: React.FC = () => {
 
           {user ? (
             <>
-              {/* NOTIFICATION BELL DROPDOWN */}
+              {/* NOTIFICATION BELL — Staff only */}
+              {user.role === 'staff' && !user.is_acting_manager && (
               <div className="dropdown dropdown-end">
                 <div
                   tabIndex={0}
@@ -226,6 +227,7 @@ export const Navbar: React.FC = () => {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* USER PROFILE DROPDOWN */}
               <div className="dropdown dropdown-end">
