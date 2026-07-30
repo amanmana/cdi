@@ -65,7 +65,12 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  const closeDropdown = () => {
+    (document.activeElement as HTMLElement)?.blur();
+  };
+
   const handleNotifClick = (id: number, ticketNo: string) => {
+    closeDropdown();
     if (!readIds.includes(id)) {
       const updated = [...readIds, id];
       setReadIds(updated);
@@ -212,12 +217,12 @@ export const Navbar: React.FC = () => {
                   </div>
 
                   <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                    <Link
-                      to="/portal/job-requests"
+                    <button
+                      onClick={() => { closeDropdown(); navigate('/portal/job-requests'); }}
                       className="text-xs font-black text-blue-600 hover:text-blue-800 uppercase tracking-wider"
                     >
                       View All Job Requests &rarr;
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
