@@ -111,6 +111,18 @@ export const JobRequestDetail: React.FC = () => {
 
   useEffect(() => {
     fetchDetail();
+    if (id && user?.id) {
+      try {
+        const stored = localStorage.getItem(`opened_jobs_${user.id}`);
+        const openedList: number[] = stored ? JSON.parse(stored) : [];
+        if (!openedList.includes(Number(id))) {
+          openedList.push(Number(id));
+          localStorage.setItem(`opened_jobs_${user.id}`, JSON.stringify(openedList));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
 
     fetch('/api/admin/team', {
       headers: { Authorization: `Bearer ${token}` },

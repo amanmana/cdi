@@ -13,6 +13,28 @@ export const JobRequestsList: React.FC = () => {
   const [unitsList, setUnitsList] = useState<any[]>([]);
   const [selectedUnitFilter, setSelectedUnitFilter] = useState('All');
 
+  // Track opened job IDs per user to remove NEW badge once viewed
+  const [openedJobIds, setOpenedJobIds] = useState<number[]>(() => {
+    try {
+      const stored = localStorage.getItem(`opened_jobs_${user?.id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const markJobAsOpened = (id: number) => {
+    if (!openedJobIds.includes(id)) {
+      const updated = [...openedJobIds, id];
+      setOpenedJobIds(updated);
+      try {
+        localStorage.setItem(`opened_jobs_${user?.id}`, JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   // Create Internal Job state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -512,14 +534,14 @@ export const JobRequestsList: React.FC = () => {
                   const totalTasks = req.total_staff || 0;
                   const completedTasks = req.completed_staff || 0;
                   const percent = req.status === 'completed' ? 100 : totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-                  const isAssignedToMe = user?.role === 'staff' && req.status === 'staff_processing' && req.assigned_staff_ids?.split(',').map((id: string) => Number(id.trim())).includes(Number(user?.id));
+                  const isUnopenedAssignedToMe = user?.role === 'staff' && req.status === 'staff_processing' && req.assigned_staff_ids?.split(',').map((id: string) => Number(id.trim())).includes(Number(user?.id)) && !openedJobIds.includes(req.id);
 
                   return (
-                    <tr key={req.id} className={`transition-colors border-b border-slate-100 ${isAssignedToMe ? 'bg-purple-50/40 hover:bg-purple-50/80' : 'hover:bg-slate-50/80'}`}>
+                    <tr key={req.id} className={`transition-colors border-b border-slate-100 ${isUnopenedAssignedToMe ? 'bg-purple-50/50 hover:bg-purple-50/80 border-l-4 border-l-purple-600' : 'hover:bg-slate-50/80'}`}>
                       <td className="py-4 px-4 align-top">
                         <div className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
                           <span>#{req.id}</span>
-                          {isAssignedToMe && (
+                          {isUnopenedAssignedToMe && (
                             <span className="badge bg-purple-600 border-none text-white font-black text-[9px] uppercase tracking-widest px-2 py-0.5 animate-pulse shadow-sm shadow-purple-500/30">
                               NEW
                             </span>
@@ -533,9 +555,13 @@ export const JobRequestsList: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div className="text-xs font-bold text-blue-600 hover:underline cursor-pointer">
+                        <Link
+                          to={`/portal/job-requests/${req.id}`}
+                          onClick={() => markJobAsOpened(req.id)}
+                          className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                        >
                           {req.ticket_no}
-                        </div>
+                        </Link>
                       </td>
                       <td className="py-4 px-4 align-top">
                         <div className="font-bold text-slate-900 text-sm">{req.title}</div>
@@ -600,6 +626,7 @@ export const JobRequestsList: React.FC = () => {
                         <div className="flex items-center justify-end gap-3">
                           <Link
                             to={`/portal/job-requests/${req.id}`}
+                            onClick={() => markJobAsOpened(req.id)}
                             className="text-indigo-600 hover:text-indigo-800 font-black text-xs uppercase tracking-wider hover:underline"
                           >
                             VIEW DETAILS
