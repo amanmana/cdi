@@ -118,23 +118,23 @@ publicApi.post('/job-requests', async (c) => {
     const managerEmailHtml = `
       <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); padding: 28px; text-align: center; border-radius: 16px;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px;">PERMOHONAN PROJEK BAHARU</h1>
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px;">NEW JOB REQUEST</h1>
           <p style="color: #bfdbfe; margin: 6px 0 0 0; font-size: 12px; font-weight: 600;">Unit: ${unit}</p>
         </div>
         <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
-          <p style="font-size: 14px; color: #475569;">Salam <strong>${targetManagerName}</strong>,</p>
-          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Terdapat 1 Permohonan Projek Baharu telah dikemukakan oleh Klien untuk semakan & kelulusan anda:</p>
+          <p style="font-size: 14px; color: #475569;">Hello <strong>${targetManagerName}</strong>,</p>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">A new job request has been submitted by a client for your review and approval:</p>
           
           <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 16px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>No. Tiket:</strong> <span style="color: #2563eb; font-weight: 800;">#${ticketNo}</span></p>
-            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Tajuk Projek:</strong> ${title}</p>
-            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Klien:</strong> ${client_name} (${client_email})</p>
-            <p style="margin: 0; font-size: 13px;"><strong>Unit Sasaran:</strong> ${unit}</p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #2563eb; font-weight: 800;">#${ticketNo}</span></p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Project Title:</strong> ${title}</p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Client:</strong> ${client_name} (${client_email})</p>
+            <p style="margin: 0; font-size: 13px;"><strong>Target Unit:</strong> ${unit}</p>
           </div>
 
           <div style="text-align: center; margin: 28px 0;">
             <a href="${detailUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
-              Lihat & Luluskan Projek &rarr;
+              Review & Approve Request &rarr;
             </a>
           </div>
           <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
@@ -147,7 +147,7 @@ publicApi.post('/job-requests', async (c) => {
     try {
       await sendGmail({
         to: targetManagerEmail,
-        subject: `[PROJEK BAHARU] #${ticketNo} - ${title} (${unit})`,
+        subject: `[NEW JOB REQUEST] #${ticketNo} - ${title} (${unit})`,
         html: managerEmailHtml,
       });
     } catch (e) {
