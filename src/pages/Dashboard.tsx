@@ -2,13 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
-import { FileText, Clock, CheckCircle2, ArrowUpRight, Wrench, ShieldAlert, ListTodo, CheckSquare } from 'lucide-react';
+import { FileText, Clock, CheckCircle2, ArrowUpRight, Wrench, ShieldAlert, ListTodo, CheckSquare, PauseCircle, XCircle } from 'lucide-react';
 
 interface Stats {
   totalRequests: number;
   pendingApprovals: number;
   processing: number;
   completed: number;
+  onHold?: number;
+  cancelled?: number;
   totalStaff: number;
   totalUsers: number;
 }
@@ -27,6 +29,8 @@ export const Dashboard: React.FC = () => {
     pendingApprovals: 0,
     processing: 0,
     completed: 0,
+    onHold: 0,
+    cancelled: 0,
     totalStaff: 0,
     totalUsers: 0,
   });
@@ -172,7 +176,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Stats Cards Grid (Clickable to Drill Deep into Job Requests) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Link
           to="/portal/job-requests?tab=all"
           className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
@@ -209,6 +213,32 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <Wrench className="w-6 h-6" />
+          </div>
+        </Link>
+
+        <Link
+          to="/portal/job-requests?status=on_hold"
+          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
+        >
+          <div>
+            <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider block">On Hold</span>
+            <div className="text-3xl font-black text-amber-600 mt-1">{stats.onHold || 0}</div>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+            <PauseCircle className="w-6 h-6" />
+          </div>
+        </Link>
+
+        <Link
+          to="/portal/job-requests?tab=history&status=cancelled"
+          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
+        >
+          <div>
+            <span className="text-[11px] font-bold text-rose-600 uppercase tracking-wider block">Cancelled</span>
+            <div className="text-3xl font-black text-rose-600 mt-1">{stats.cancelled || 0}</div>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+            <XCircle className="w-6 h-6" />
           </div>
         </Link>
 
