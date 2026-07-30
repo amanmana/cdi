@@ -20,14 +20,32 @@ export const Navbar: React.FC = () => {
   const [trackTicket, setTrackTicket] = useState('');
   
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [readIds, setReadIds] = useState<number[]>(() => {
-    try {
-      const stored = localStorage.getItem(`read_notifs_${user?.id}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
+  // Use SAME key as JobRequestsList + JobRequestDetail so read state is always in sync
+  const [readIds, setReadIds] = useState<number[]>([]);
+
+  // Re-load from localStorage once user.id is available (fixes async auth timing)
+  useEffect(() => {
+    if (user?.id) {
+      try {
+        const stored = localStorage.getItem(`opened_jobs_${user.id}`);
+        setReadIds(stored ? JSON.parse(stored) : []);
+      } catch {
+        setReadIds([]);
+      }
     }
-  });
+  }, [user?.id]);
+
+  // Also re-sync whenever notifications load (in case jobs were opened via table)
+  useEffect(() => {
+    if (user?.id && notifications.length > 0) {
+      try {
+        const stored = localStorage.getItem(`opened_jobs_${user.id}`);
+        setReadIds(stored ? JSON.parse(stored) : []);
+      } catch {
+        setReadIds([]);
+      }
+    }
+  }, [notifications, user?.id]);
 
   const fetchNotifications = async () => {
     if (!token || !user) return;
@@ -57,9 +75,11 @@ export const Navbar: React.FC = () => {
 
   const markAllAsRead = () => {
     const allIds = notifications.map((n) => n.id);
-    setReadIds(allIds);
+    // Merge with existing opened_jobs so we don't overwrite jobs opened via table
+    const merged = Array.from(new Set([...readIds, ...allIds]));
+    setReadIds(merged);
     try {
-      localStorage.setItem(`read_notifs_${user?.id}`, JSON.stringify(allIds));
+      localStorage.setItem(`opened_jobs_${user?.id}`, JSON.stringify(merged));
     } catch (e) {
       console.error(e);
     }
@@ -75,7 +95,7 @@ export const Navbar: React.FC = () => {
       const updated = [...readIds, id];
       setReadIds(updated);
       try {
-        localStorage.setItem(`read_notifs_${user?.id}`, JSON.stringify(updated));
+        localStorage.setItem(`opened_jobs_${user?.id}`, JSON.stringify(updated));
       } catch (e) {
         console.error(e);
       }
