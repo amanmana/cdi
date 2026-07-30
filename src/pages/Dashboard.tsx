@@ -174,7 +174,7 @@ export const Dashboard: React.FC = () => {
       {/* Stats Cards Grid (Clickable to Drill Deep into Job Requests) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <Link
-          to="/portal/job-requests?tab=current"
+          to="/portal/job-requests?tab=all"
           className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
         >
           <div>

@@ -8,7 +8,7 @@ export const JobRequestsList: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [requests, setRequests] = useState<any[]>([]);
   const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
+  const [activeTab, setActiveTab] = useState<'all' | 'current' | 'history'>('current');
   const [loading, setLoading] = useState(true);
   const [unitsList, setUnitsList] = useState<any[]>([]);
   const [selectedUnitFilter, setSelectedUnitFilter] = useState('All');
@@ -95,7 +95,9 @@ export const JobRequestsList: React.FC = () => {
   useEffect(() => {
     const tab = searchParams.get('tab');
     const status = searchParams.get('status');
-    if (tab === 'history' || status === 'completed' || status === 'rejected') {
+    if (tab === 'all') {
+      setActiveTab('all');
+    } else if (tab === 'history' || status === 'completed' || status === 'rejected') {
       setActiveTab('history');
     } else if (tab === 'current' || status === 'manager_approval' || status === 'staff_processing' || status === 'on_hold') {
       setActiveTab('current');
@@ -306,7 +308,7 @@ export const JobRequestsList: React.FC = () => {
     ? unitsList.map(u => ({ id: u.id, name: u.name }))
     : fallbackUnits.map((name, index) => ({ id: index + 100, name }));
 
-  let displayedRequests = activeTab === 'current' ? currentJobs : historyJobs;
+  let displayedRequests = activeTab === 'all' ? requests : (activeTab === 'current' ? currentJobs : historyJobs);
 
   const urlStatus = searchParams.get('status');
   if (urlStatus && urlStatus !== 'all') {
@@ -382,6 +384,16 @@ export const JobRequestsList: React.FC = () => {
     <div className="space-y-6 antialiased">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="bg-slate-100/80 p-1.5 rounded-2xl flex items-center gap-1.5 border border-slate-200/60 shadow-inner w-fit">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-5 py-2.5 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 ${
+              activeTab === 'all'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            ALL JOBS ({requests.length})
+          </button>
           <button
             onClick={() => setActiveTab('current')}
             className={`px-5 py-2.5 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 ${
@@ -477,12 +489,12 @@ export const JobRequestsList: React.FC = () => {
             <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[9px] font-black rounded-lg ${
               selectedUnitFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
             }`}>
-              {(activeTab === 'current' ? currentJobs : historyJobs).length}
+              {(activeTab === 'all' ? requests : (activeTab === 'current' ? currentJobs : historyJobs)).length}
             </span>
           </button>
 
           {finalUnitsList.map((unit) => {
-            const count = (activeTab === 'current' ? currentJobs : historyJobs).filter(
+            const count = (activeTab === 'all' ? requests : (activeTab === 'current' ? currentJobs : historyJobs)).filter(
               (r) => r.unit === unit.name || r.unit_id === unit.id
             ).length;
 
@@ -532,7 +544,7 @@ export const JobRequestsList: React.FC = () => {
               ) : displayedRequests.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-sm text-slate-400 font-semibold">
-                    No job requests found in {activeTab === 'current' ? 'Current Jobs' : 'History'}.
+                    No job requests found in {activeTab === 'all' ? 'All Jobs' : activeTab === 'current' ? 'Current Jobs' : 'History'}.
                   </td>
                 </tr>
               ) : (
