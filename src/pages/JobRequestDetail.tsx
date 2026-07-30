@@ -1290,6 +1290,77 @@ export const JobRequestDetail: React.FC = () => {
             </div>
           )}
 
+          {/* SPECIAL STATUS REASON CARD (Placed ABOVE Project Timeline Card) */}
+          {(request.status === 'on_hold' || request.status === 'cancelled' || request.status === 'rejected') && (() => {
+            const isHold = request.status === 'on_hold';
+            const isCancel = request.status === 'cancelled' || request.status === 'rejected';
+
+            // Find matching workflow log for reason comment
+            const statusLog = (history || []).find((h: any) => {
+              if (isHold) {
+                return h.action === 'STATUS_PENDING' || h.to_step_name === 'Pending / On Hold' || h.comment?.toLowerCase().includes('on_hold') || h.comment?.toLowerCase().includes('pending') || h.comment?.toLowerCase().includes('hentian') || h.comment?.toLowerCase().includes('hold');
+              }
+              if (isCancel) {
+                return h.action === 'STATUS_CANCELLED' || h.action === 'REJECT' || h.action === 'STATUS_REJECTED' || h.to_step_name === 'Cancelled' || h.to_step_name === 'Rejected';
+              }
+              return false;
+            }) || (history && history.length > 0 ? history[0] : null);
+
+            const rawComment = statusLog?.comment || '';
+            let cleanComment = rawComment;
+            if (rawComment.includes('Status changed to') && rawComment.includes(':')) {
+              cleanComment = rawComment.split(':')[1]?.trim() || rawComment;
+            }
+
+            const reasonText = request.rejection_reason || request.cancellation_reason || cleanComment || (isHold ? 'Project placed on temporary hold.' : 'Project request cancelled.');
+            const actorName = statusLog?.actor_name || 'Manager';
+            const logTime = statusLog?.created_at ? formatDateTimeMY(statusLog.created_at) : '';
+
+            return (
+              <div className={`rounded-3xl border p-6 space-y-4 shadow-xl transition-all ${
+                isHold
+                  ? 'bg-amber-50/90 border-amber-200 shadow-amber-500/10'
+                  : 'bg-rose-50/90 border-rose-200 shadow-rose-500/10'
+              }`}>
+                <div className="flex items-center justify-between border-b pb-3 border-slate-200/60">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-900">
+                    {isHold ? (
+                      <>
+                        <Clock className="w-4.5 h-4.5 text-amber-600" />
+                        <span className="text-amber-900">HOLD REASON / SEBAB ON HOLD</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-4.5 h-4.5 text-rose-600" />
+                        <span className="text-rose-900">{request.status === 'rejected' ? 'REJECTION REASON' : 'CANCELLATION REASON'}</span>
+                      </>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
+                    isHold
+                      ? 'bg-amber-100 text-amber-800 border-amber-300/80'
+                      : 'bg-rose-100 text-rose-800 border-rose-300/80'
+                  }`}>
+                    {isHold ? 'ON HOLD' : request.status === 'rejected' ? 'REJECTED' : 'CANCELLED'}
+                  </span>
+                </div>
+
+                <div className={`p-4 rounded-2xl border text-xs md:text-sm font-bold italic leading-relaxed ${
+                  isHold
+                    ? 'bg-white/95 border-amber-200/80 text-amber-950 shadow-xs'
+                    : 'bg-white/95 border-rose-200/80 text-rose-950 shadow-xs'
+                }`}>
+                  "{reasonText}"
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500 pt-0.5">
+                  <span>Action by: <strong className="text-slate-800">{actorName}</strong></span>
+                  {logTime && <span className="text-slate-400">{logTime}</span>}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* PROJECT TIMELINE Card */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
