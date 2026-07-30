@@ -115,7 +115,7 @@ publicApi.post('/job-requests', async (c) => {
     const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
     const detailUrl = `${origin}/portal/job-requests/${requestId}`;
 
-    const emailHtml = `
+    const managerEmailHtml = `
       <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); padding: 28px; text-align: center; border-radius: 16px;">
           <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px;">PERMOHONAN PROJEK BAHARU</h1>
@@ -143,14 +143,65 @@ publicApi.post('/job-requests', async (c) => {
       </div>
     `;
 
+    // 1. Dispatch Manager Notification Email
     try {
       await sendGmail({
         to: targetManagerEmail,
         subject: `[PROJEK BAHARU] #${ticketNo} - ${title} (${unit})`,
-        html: emailHtml,
+        html: managerEmailHtml,
       });
     } catch (e) {
       console.error('Failed to send manager notification email:', e);
+    }
+
+    // 2. Dispatch Confirmation Email to Client (in English)
+    const clientTrackUrl = `${origin}/public/track?ticket=${ticketNo}`;
+    const clientEmailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><title>Job Request Received</title></head>
+      <body style="margin:0; padding:0; background-color:#f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+        <!-- Hidden Preheader -->
+        <div style="display:none; max-height:0px; overflow:hidden;">
+          Confirmation of your job request submission #${ticketNo}.
+        </div>
+        <div style="max-width: 580px; margin: 20px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
+          <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); padding: 28px; text-align: center; border-radius: 16px;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px;">REQUEST CONFIRMATION</h1>
+            <p style="color: #bfdbfe; margin: 6px 0 0 0; font-size: 12px; font-weight: 600;">CDI Corporate Communication & Identity Portal</p>
+          </div>
+          <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
+            <p style="font-size: 14px; color: #475569;">Hello <strong>${client_name}</strong>,</p>
+            <p style="font-size: 14px; color: #475569; line-height: 1.6;">Thank you for submitting your job request to the <strong>${unit}</strong> unit. We have received your request and assigned it a tracking ticket number.</p>
+            
+            <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 16px; border-radius: 12px; margin: 20px 0;">
+              <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #2563eb; font-weight: 800;">#${ticketNo}</span></p>
+              <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Project Title:</strong> ${title}</p>
+              <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Unit:</strong> ${unit}</p>
+              <p style="margin: 0; font-size: 13px;"><strong>Initial Status:</strong> <span style="color: #d97706; font-weight: 700;">Manager Review</span></p>
+            </div>
+
+            <div style="text-align: center; margin: 28px 0;">
+              <a href="${clientTrackUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
+                Track Ticket Status &rarr;
+              </a>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+            <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Official System Notification — CDI Management System</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await sendGmail({
+        to: client_email,
+        subject: `[CONFIRMATION] Job Request Received #${ticketNo} - ${title}`,
+        html: clientEmailHtml,
+      });
+    } catch (e) {
+      console.error('Failed to send client confirmation email:', e);
     }
 
     return c.json({
