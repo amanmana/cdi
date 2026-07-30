@@ -24,7 +24,7 @@ async function notifyClientCancellation({
 }) {
   if (!clientEmail) return;
 
-  const trackUrl = `${origin}/public/track?ticket=${ticketNo}`;
+  const trackUrl = `${origin}/track/${ticketNo}`;
 
   const emailHtml = `
     <!DOCTYPE html>
