@@ -75,6 +75,86 @@ async function notifyClientCancellation({
   }
 }
 
+async function notifyStaffAssignment({
+  staffEmail,
+  staffName,
+  ticketNo,
+  title,
+  unit,
+  clientName,
+  managerName,
+  startDate,
+  deadline,
+  comment,
+  origin,
+}: {
+  staffEmail: string;
+  staffName: string;
+  ticketNo: string;
+  title: string;
+  unit: string;
+  clientName: string;
+  managerName: string;
+  startDate?: string;
+  deadline?: string;
+  comment?: string;
+  origin: string;
+}) {
+  if (!staffEmail) return;
+
+  const detailUrl = `${origin}/portal/job-requests`;
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><title>New Task Assignment</title></head>
+    <body style="margin:0; padding:0; background-color:#f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+      <!-- Hidden Preheader -->
+      <div style="display:none; max-height:0px; overflow:hidden;">
+        You have been assigned a new project task: #${ticketNo} (${title}).
+      </div>
+      <div style="max-width: 580px; margin: 20px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #059669, #10b981); padding: 28px; text-align: center; border-radius: 16px;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px;">NEW JOB ASSIGNED</h1>
+          <p style="color: #a7f3d0; margin: 6px 0 0 0; font-size: 12px; font-weight: 600;">Unit: ${unit}</p>
+        </div>
+        <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
+          <p style="font-size: 14px; color: #475569;">Hello <strong>${staffName}</strong>,</p>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">You have been assigned to handle a new job request by Manager <strong>${managerName}</strong>.</p>
+          
+          <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #059669; font-weight: 800;">#${ticketNo}</span></p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Project Title:</strong> ${title}</p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Client:</strong> ${clientName}</p>
+            ${startDate ? `<p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Start Date:</strong> ${startDate}</p>` : ''}
+            ${deadline ? `<p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Deadline:</strong> <span style="color: #dc2626; font-weight: 700;">${deadline}</span></p>` : ''}
+            ${comment ? `<p style="margin: 6px 0 0 0; font-size: 13px; color: #047857;"><strong>Manager Instructions:</strong> ${comment}</p>` : ''}
+          </div>
+
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${detailUrl}" style="background-color: #059669; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(5,150,105,0.25);">
+              Open Staff Dashboard &rarr;
+            </a>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Official System Notification — CDI Management System</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendGmail({
+      to: staffEmail,
+      subject: `[NEW ASSIGNMENT] #${ticketNo} - ${title}`,
+      html: emailHtml,
+    });
+  } catch (err) {
+    console.error('Failed to dispatch staff assignment email:', err);
+  }
+}
+
 type Env = {
   Bindings: {
     DB: D1Database;
@@ -953,6 +1033,35 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
      VALUES (?, 'APPROVE', ?, ?, ?, ?, ?)`
   ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || 'Approved by Manager').run();
 
+  // Notify assigned staff members upon approval
+  if (request.assigned_staff_ids) {
+    const sIds = request.assigned_staff_ids.split(',').map((s: string) => s.trim()).filter(Boolean);
+    if (sIds.length > 0) {
+      const placeholders = sIds.map(() => '?').join(',');
+      const { results: sList } = await db
+        .prepare(`SELECT id, name, email FROM users WHERE id IN (${placeholders})`)
+        .bind(...sIds)
+        .all<{ id: number; name: string; email: string }>();
+
+      const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
+      for (const sUser of sList || []) {
+        await notifyStaffAssignment({
+          staffEmail: sUser.email,
+          staffName: sUser.name,
+          ticketNo: request.ticket_no,
+          title: request.title,
+          unit: request.unit,
+          clientName: request.client_name,
+          managerName: user.name,
+          startDate: request.start_date,
+          deadline: request.deadline,
+          comment: comment || 'Request approved by Manager. Proceed with implementation.',
+          origin,
+        });
+      }
+    }
+  }
+
   return c.json({ success: true, message: 'Request approved and moved to Staff Processing & Design.' });
 });
 
@@ -1147,13 +1256,31 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   if (Array.isArray(staff_ids) && staff_ids.length > 0) {
     const placeholders = staff_ids.map(() => '?').join(',');
     const { results: staffUsers } = await db.prepare(`
-      SELECT id, name FROM users WHERE id IN (${placeholders})
-    `).bind(...staff_ids).all<{ id: number; name: string }>();
+      SELECT id, name, email FROM users WHERE id IN (${placeholders})
+    `).bind(...staff_ids).all<{ id: number; name: string; email: string }>();
     if (staffUsers && staffUsers.length > 0) {
       staffDetailsParts = staffUsers.map((u: any) => {
         const taskText = staff_tasks && staff_tasks[u.id] ? String(staff_tasks[u.id]).trim() : (additionalDataObj.staff_tasks?.[u.id] || '');
         return taskText ? `${u.name} (Task: "${taskText}")` : u.name;
       });
+
+      const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
+      for (const sUser of staffUsers) {
+        const sTask = staff_tasks && staff_tasks[sUser.id] ? String(staff_tasks[sUser.id]).trim() : (additionalDataObj.staff_tasks?.[sUser.id] || '');
+        await notifyStaffAssignment({
+          staffEmail: sUser.email,
+          staffName: sUser.name,
+          ticketNo: request.ticket_no,
+          title: request.title,
+          unit: request.unit,
+          clientName: request.client_name,
+          managerName: user.name,
+          startDate: request.start_date,
+          deadline: request.deadline,
+          comment: sTask || 'You have been assigned to handle this project.',
+          origin,
+        });
+      }
     }
   }
 
