@@ -75,6 +75,78 @@ async function notifyClientCancellation({
   }
 }
 
+async function notifyClientOnHold({
+  clientEmail,
+  clientName,
+  ticketNo,
+  title,
+  managerName,
+  managerUnit,
+  reason,
+  origin,
+}: {
+  clientEmail: string;
+  clientName: string;
+  ticketNo: string;
+  title: string;
+  managerName: string;
+  managerUnit?: string;
+  reason: string;
+  origin: string;
+}) {
+  if (!clientEmail) return;
+
+  const trackUrl = `${origin}/track/${ticketNo}`;
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><title>Job Request On Hold</title></head>
+    <body style="margin:0; padding:0; background-color:#f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+      <!-- Hidden Preheader -->
+      <div style="display:none; max-height:0px; overflow:hidden;">
+        Important update regarding your job request #${ticketNo}.
+      </div>
+      <div style="max-width: 580px; margin: 20px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #d97706, #f59e0b); padding: 28px; text-align: center; border-radius: 16px;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px;">REQUEST PLACED ON HOLD</h1>
+          <p style="color: #fef3c7; margin: 6px 0 0 0; font-size: 12px; font-weight: 600;">CDI Corporate Communication & Identity Portal</p>
+        </div>
+        <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
+          <p style="font-size: 14px; color: #475569;">Hello <strong>${clientName || 'Client'}</strong>,</p>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Your job request <strong>#${ticketNo}</strong> (${title}) has been temporarily placed on hold by Manager <strong>${managerName}</strong>.</p>
+          
+          <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #d97706; font-weight: 800;">#${ticketNo}</span></p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Project Title:</strong> ${title}</p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Action By:</strong> ${managerName} (${managerUnit || 'Manager'})</p>
+            <p style="margin: 0; font-size: 13px; color: #b45309;"><strong>Reason for Hold:</strong> ${reason || 'Project placed on temporary hold.'}</p>
+          </div>
+
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${trackUrl}" style="background-color: #d97706; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(217,119,6,0.25);">
+              View Ticket Details &rarr;
+            </a>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Official System Notification — CDI Management System</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendGmail({
+      to: clientEmail,
+      subject: `[ON HOLD] Job Request #${ticketNo} - ${title}`,
+      html: emailHtml,
+    });
+  } catch (err) {
+    console.error('Failed to dispatch client on-hold email:', err);
+  }
+}
+
 async function notifyStaffAssignment({
   staffEmail,
   staffName,
@@ -1154,8 +1226,9 @@ jobRequestsRouter.post('/:id/change-status', async (c) => {
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).bind(request.id, actionName, user.id, user.name, request.current_step_name || 'In Progress', stepName, reason || `Status changed to ${stepName}`).run();
 
+  const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
+
   if (new_status === 'cancelled') {
-    const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
     await notifyClientCancellation({
       clientEmail: request.client_email,
       clientName: request.client_name,
@@ -1164,6 +1237,17 @@ jobRequestsRouter.post('/:id/change-status', async (c) => {
       managerName: user.name,
       managerUnit: user.unit,
       reason: reason || 'Project cancelled by Manager',
+      origin,
+    });
+  } else if (new_status === 'on_hold') {
+    await notifyClientOnHold({
+      clientEmail: request.client_email,
+      clientName: request.client_name,
+      ticketNo: request.ticket_no,
+      title: request.title,
+      managerName: user.name,
+      managerUnit: user.unit,
+      reason: reason || 'Project temporarily placed on hold by Manager',
       origin,
     });
   }
