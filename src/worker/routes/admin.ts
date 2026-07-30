@@ -102,6 +102,14 @@ admin.get('/dashboard-stats', async (c) => {
     : " WHERE (status = 'completed' OR id IN (SELECT DISTINCT job_request_id FROM workflow_logs WHERE action = 'STAFF_DONE'))";
   const completed = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${compClause}`).bind(...compParams).first<{ count: number }>();
 
+  const holdParams = [...params];
+  const holdClause = whereClause ? `${whereClause} AND status = 'on_hold'` : " WHERE status = 'on_hold'";
+  const onHold = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${holdClause}`).bind(...holdParams).first<{ count: number }>();
+
+  const cancelParams = [...params];
+  const cancelClause = whereClause ? `${whereClause} AND status = 'cancelled'` : " WHERE status = 'cancelled'";
+  const cancelled = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${cancelClause}`).bind(...cancelParams).first<{ count: number }>();
+
   const totalStaff = await db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "staff"').first<{ count: number }>();
   const totalUsers = await db.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>();
 
@@ -119,6 +127,8 @@ admin.get('/dashboard-stats', async (c) => {
       pendingApprovals: pendingApprovals?.count || 0,
       processing: processing?.count || 0,
       completed: completed?.count || 0,
+      onHold: onHold?.count || 0,
+      cancelled: cancelled?.count || 0,
       totalStaff: totalStaff?.count || 0,
       totalUsers: totalUsers?.count || 0,
     },
