@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Settings, Save, CheckCircle2, Trash2, AlertTriangle, Database, X, ShieldAlert } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Trash2, AlertTriangle, Database, X, ShieldAlert, Mail } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { token } = useAuth();
   const [appName, setAppName] = useState('CDI Job Request System');
   const [appEmail, setAppEmail] = useState('admin@example.com');
   const [primaryColor, setPrimaryColor] = useState('#4f46e5');
+  const [emailEnabled, setEmailEnabled] = useState(true);
   const [saved, setSaved] = useState(false);
   
   // Database maintenance state
@@ -22,6 +23,9 @@ export const SettingsPage: React.FC = () => {
         if (data.app_name) setAppName(data.app_name);
         if (data.app_email) setAppEmail(data.app_email);
         if (data.primary_color) setPrimaryColor(data.primary_color);
+        if (data.email_notifications_enabled !== undefined) {
+          setEmailEnabled(data.email_notifications_enabled === 'true' || data.email_notifications_enabled === 'on' || data.email_notifications_enabled === '1');
+        }
       });
   }, [token]);
 
@@ -34,6 +38,7 @@ export const SettingsPage: React.FC = () => {
         app_name: appName,
         app_email: appEmail,
         primary_color: primaryColor,
+        email_notifications_enabled: emailEnabled ? 'true' : 'false',
       }),
     });
     setSaved(true);
@@ -153,6 +158,74 @@ export const SettingsPage: React.FC = () => {
                 onChange={(e) => setPrimaryColor(e.target.value)}
                 className="input input-bordered input-sm bg-slate-50 border-slate-200 rounded-xl font-mono text-sm font-bold flex-1 h-11"
               />
+            </div>
+          </div>
+
+          {/* Email Notifications Control (ON / OFF) */}
+          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                  emailEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                }`}>
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
+                    <span>Email Notifications Feature</span>
+                    <span className={`badge border-none font-black text-[10px] uppercase px-2.5 py-1 rounded-lg ${
+                      emailEnabled ? 'bg-emerald-500 text-white shadow-sm' : 'bg-rose-500 text-white shadow-sm'
+                    }`}>
+                      {emailEnabled ? '🟢 ON — Emails Active' : '🔴 OFF — Emails Disabled'}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Controls automated email dispatches to Manager and Client (e.g. form submissions, updates & assignments).
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setEmailEnabled(true)}
+                  className={`btn btn-sm rounded-xl font-extrabold text-xs px-4 border-none transition-all ${
+                    emailEnabled
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  ON (Enable)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmailEnabled(false)}
+                  className={`btn btn-sm rounded-xl font-extrabold text-xs px-4 border-none transition-all ${
+                    !emailEnabled
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-500/20'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  OFF (Disable)
+                </button>
+              </div>
+            </div>
+
+            <div className={`p-3.5 rounded-xl border text-xs font-semibold leading-relaxed flex items-start gap-2.5 transition-colors ${
+              emailEnabled
+                ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                : 'bg-rose-50/80 border-rose-200 text-rose-900'
+            }`}>
+              <div className="mt-0.5 shrink-0">
+                {emailEnabled ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertTriangle className="w-4 h-4 text-rose-600" />}
+              </div>
+              <div>
+                {emailEnabled ? (
+                  <span><strong>Status: ENABLED (ON).</strong> All automated emails will be dispatched to Managers and Clients upon form submissions, status changes, and staff assignments.</span>
+                ) : (
+                  <span><strong>Status: DISABLED (OFF).</strong> Email dispatches are completely paused. No emails will be sent when forms are submitted or updated (prevents disturbance during testing / development).</span>
+                )}
+              </div>
             </div>
           </div>
 

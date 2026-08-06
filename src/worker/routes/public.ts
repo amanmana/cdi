@@ -149,6 +149,7 @@ publicApi.post('/job-requests', async (c) => {
         to: targetManagerEmail,
         subject: `[NEW JOB REQUEST] #${ticketNo} - ${title} (${unit})`,
         html: managerEmailHtml,
+        db: c.env.DB,
       });
     } catch (e) {
       console.error('Failed to send manager notification email:', e);
@@ -199,6 +200,7 @@ publicApi.post('/job-requests', async (c) => {
         to: client_email,
         subject: `[CONFIRMATION] Job Request Received #${ticketNo} - ${title}`,
         html: clientEmailHtml,
+        db: c.env.DB,
       });
     } catch (e) {
       console.error('Failed to send client confirmation email:', e);
