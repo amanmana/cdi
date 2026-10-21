@@ -1534,7 +1534,7 @@ export const JobRequestDetail: React.FC = () => {
       {/* APPROVE THIS REQUEST MODAL matching Reference Image 1 */}
       {showApproveModal && (
         <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6 md:p-8 space-y-6 relative overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 md:p-8 space-y-6 relative overflow-hidden">
             {/* Modal Title & Subtitle */}
             <div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">
@@ -1551,13 +1551,13 @@ export const JobRequestDetail: React.FC = () => {
                 Assign to Staff Member <span className="text-rose-500 font-bold">*</span>
               </label>
 
-              {/* Unit Filter Tabs */}
+              {/* Unit Filter Tabs - Wrapped and directly visible */}
               {availableModalUnits.length > 1 && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <div className="flex flex-wrap items-center gap-1.5 pb-1">
                   <button
                     type="button"
                     onClick={() => setStaffUnitFilter('All')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
                       staffUnitFilter === 'All'
                         ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
@@ -1591,7 +1591,7 @@ export const JobRequestDetail: React.FC = () => {
                         key={u}
                         type="button"
                         onClick={() => setStaffUnitFilter(u)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
                           isSelectedTab
                             ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
@@ -1910,7 +1910,7 @@ export const JobRequestDetail: React.FC = () => {
       {/* MANAGE / INVITE TEAM ASSIGNMENT MODAL */}
       {showManageTeamModal && (
         <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-8 space-y-6">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 md:p-8 space-y-6">
             {/* Title & Subtitle */}
             <div>
               <h3 className="text-xl font-bold text-slate-800 tracking-tight">
@@ -1923,13 +1923,13 @@ export const JobRequestDetail: React.FC = () => {
               </p>
             </div>
 
-            {/* Unit Filter Tabs */}
+            {/* Unit Filter Tabs - Directly visible and wrapped */}
             {availableModalUnits.length > 1 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 -mb-2 scrollbar-none">
+              <div className="flex flex-wrap items-center gap-1.5 pb-1">
                 <button
                   type="button"
                   onClick={() => setStaffUnitFilter('All')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
                     staffUnitFilter === 'All'
                       ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
@@ -1963,7 +1963,7 @@ export const JobRequestDetail: React.FC = () => {
                       key={u}
                       type="button"
                       onClick={() => setStaffUnitFilter(u)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
                         isSelectedTab
                           ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
