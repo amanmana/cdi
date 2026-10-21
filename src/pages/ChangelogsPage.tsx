@@ -22,6 +22,7 @@ const changelogsData: ChangelogEntry[] = [
       'Feature: Unit Visibility Toggles — Admin setting to hide internal or dormant units (e.g., Administrator, Industrial Design 3D) from public job request submission.',
       'Feature: Unit Head Delegation — Designated Unit Heads (Ketua Unit) receive assignments from Managers and coordinate project tasks & staff invitations.',
       'Feature: Departments & Org Structure Admin Panel — New dedicated admin management view to create/edit departments, assign managers, configure units, and designate unit heads.',
+      'Feature: User Email & Profile Editing — Enabled users across all roles to edit their registered email address and profile details directly from My Profile & Security.',
     ],
   },
   {

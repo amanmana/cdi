@@ -206,6 +206,122 @@ auth.get('/me', async (c) => {
   });
 });
 
+auth.post('/update-profile', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+
+  if (!token) {
+    return c.json({ error: 'Unauthorized or invalid token.' }, 401);
+  }
+
+  const payload = await verifyToken(token);
+  if (!payload) {
+    return c.json({ error: 'Unauthorized or invalid token.' }, 401);
+  }
+
+  const { email, name, phone } = await c.req.json();
+  if (!email || !email.trim()) {
+    return c.json({ error: 'Email address cannot be empty.' }, 400);
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(cleanEmail)) {
+    return c.json({ error: 'Please enter a valid email address.' }, 400);
+  }
+
+  // Check if email is already taken by another account
+  const existing = await c.env.DB
+    .prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id != ?')
+    .bind(cleanEmail, payload.id)
+    .first();
+
+  if (existing) {
+    return c.json({ error: 'This email address is already in use by another account.' }, 400);
+  }
+
+  // Get current user details
+  const currentUser = await c.env.DB
+    .prepare('SELECT id, name, email, role, phone FROM users WHERE id = ?')
+    .bind(payload.id)
+    .first<any>();
+
+  if (!currentUser) {
+    return c.json({ error: 'User not found.' }, 404);
+  }
+
+  const newName = name && name.trim() ? name.trim() : currentUser.name;
+  const newPhone = phone !== undefined ? (phone && phone.trim() ? phone.trim() : null) : currentUser.phone;
+
+  // Update users table
+  await c.env.DB
+    .prepare('UPDATE users SET email = ?, name = ?, phone = ? WHERE id = ?')
+    .bind(cleanEmail, newName, newPhone, payload.id)
+    .run();
+
+  // If client role, update historical requests
+  if (currentUser.role === 'client' && currentUser.email !== cleanEmail) {
+    await c.env.DB
+      .prepare('UPDATE job_requests SET client_email = ? WHERE client_email = ?')
+      .bind(cleanEmail, currentUser.email)
+      .run();
+  }
+
+  // Fetch updated user with department & unit details
+  const freshUser = await c.env.DB
+    .prepare(`
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head, u.phone,
+             COALESCE(un.name, u.unit) as unit,
+             d.id as managed_department_id,
+             COALESCE(dept.name, un.name) as department_name
+      FROM users u
+      LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name)
+      LEFT JOIN departments d ON d.manager_id = u.id
+      LEFT JOIN departments dept ON u.department_id = dept.id
+      WHERE u.id = ?
+    `)
+    .bind(payload.id)
+    .first<any>();
+
+  const today = new Date().toISOString().split('T')[0];
+  const delegation = await c.env.DB
+    .prepare(
+      `SELECT d.*, m.department_id as manager_department_id, COALESCE(un.name, m.unit) as manager_unit, m.role as manager_role
+       FROM delegations d
+       JOIN users m ON d.manager_id = m.id
+       LEFT JOIN units un ON (m.unit_id = un.id OR m.unit = un.name)
+       WHERE d.delegate_id = ? AND d.status = 'active' AND d.start_date <= ? AND d.end_date >= ?
+       LIMIT 1`
+    )
+    .bind(freshUser.id, today, today)
+    .first<any>();
+
+  const finalUser = {
+    ...freshUser,
+    is_acting_manager: !!delegation,
+    acting_manager_unit: delegation ? delegation.manager_unit : null,
+    acting_manager_department_id: delegation ? delegation.manager_department_id : null,
+  };
+
+  const authUser: AuthUser = {
+    id: finalUser.id,
+    name: finalUser.name,
+    email: finalUser.email,
+    role: finalUser.role,
+    unit: finalUser.unit,
+    phone: finalUser.phone || null,
+  };
+
+  const newToken = await createToken(authUser);
+
+  return c.json({
+    success: true,
+    message: 'Profile and email address updated successfully.',
+    user: finalUser,
+    token: newToken,
+  });
+});
+
 auth.post('/change-password', async (c) => {
   const authHeader = c.req.header('Authorization');
   const token = authHeader ? authHeader.replace('Bearer ', '') : null;
