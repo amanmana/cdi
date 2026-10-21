@@ -12,6 +12,18 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.7.0',
+    date: '2026-10-21',
+    items: [
+      'Feature: Inter-Unit Job Requests (Direct Head-to-Head) — Dedicated collaboration channel enabling Unit Heads (Ketua Unit) to submit job requests directly to the Unit Head of another department.',
+      'Feature: Automated "IU" Ticket Generation & Scoping — Distinct "IU" ticket numbering (e.g. #IU123456) with priority levels, deadline targeting, and cross-department routing metadata.',
+      'Workflow: Unit Head Acceptance & Team Assignment — Target Unit Heads have full authorization to review incoming inter-unit requests, Accept & Assign tasks directly to their unit staff, or reject with reason.',
+      'UX: Inter-Unit Visual Badges & Collaboration Banner — Added "INTER-UNIT" badges in job lists and a prominent gradient collaboration banner in the Job Details view detailing requester and recipient units.',
+      'UX: Direct Unit Selection Tabs — Clean, wrap-around Unit Group tabs in Staff Assignment modals for effortless multi-unit staff allocation without side-scrolling.',
+      'UX: "Add My Task" Staff Direct Logging — Redesigned staff self-logging button to "+ Add My Task" with smart suggestions for clients and projects.',
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-10-21',
     items: [
