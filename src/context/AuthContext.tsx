@@ -16,6 +16,7 @@ export interface User {
   acting_manager_unit?: string | null;
   acting_manager_unit_id?: number | null;
   acting_manager_department_id?: number | null;
+  avatar_url?: string | null;
 }
 
 interface AuthContextType {

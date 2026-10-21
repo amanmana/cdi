@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
-import { D1Database } from '@cloudflare/workers-types';
+import { D1Database, R2Bucket } from '@cloudflare/workers-types';
 import { AuthUser, createToken, verifyPassword, verifyToken, hashPassword } from '../auth';
 import { sendGmail } from '../utils/mailer';
 
 type Env = {
   Bindings: {
     DB: D1Database;
+    R2: R2Bucket;
   };
   Variables: {
     user: AuthUser;
@@ -46,7 +47,7 @@ auth.post('/login', async (c) => {
 
   const user = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.password_hash, u.role, u.unit_id, u.phone,
+      SELECT u.id, u.name, u.email, u.password_hash, u.role, u.unit_id, u.phone, u.avatar_url,
              COALESCE(u.department_id, un.department_id, d.id) as department_id,
              u.is_unit_head,
              COALESCE(un.name, u.unit) as unit,
@@ -94,6 +95,7 @@ auth.post('/login', async (c) => {
     role: user.role,
     unit: user.unit,
     unit_id: user.unit_id,
+    avatar_url: user.avatar_url || null,
     phone: user.phone || null,
     department_id: user.department_id || (delegation ? delegation.manager_department_id : null),
     department_name: user.department_name,
@@ -111,6 +113,7 @@ auth.post('/login', async (c) => {
     role: user.role,
     unit: user.unit,
     phone: user.phone || null,
+    avatar_url: user.avatar_url || null,
   };
 
   const token = await createToken(authUser);
@@ -203,7 +206,7 @@ auth.get('/me', async (c) => {
 
   const user = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.unit_id,
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.avatar_url,
              COALESCE(u.department_id, un.department_id, d.id) as department_id,
              u.is_unit_head, u.phone,
              COALESCE(un.name, u.unit) as unit,
@@ -309,7 +312,7 @@ auth.post('/update-profile', async (c) => {
   // Fetch updated user with department & unit details
   const freshUser = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head, u.phone,
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head, u.phone, u.avatar_url,
              COALESCE(un.name, u.unit) as unit,
              d.id as managed_department_id,
              COALESCE(dept.name, un.name) as department_name
@@ -349,6 +352,7 @@ auth.post('/update-profile', async (c) => {
     role: finalUser.role,
     unit: finalUser.unit,
     phone: finalUser.phone || null,
+    avatar_url: finalUser.avatar_url || null,
   };
 
   const newToken = await createToken(authUser);
@@ -359,6 +363,97 @@ auth.post('/update-profile', async (c) => {
     user: finalUser,
     token: newToken,
   });
+});
+
+// Upload User Avatar (Stored in Cloudflare R2, referenced in D1)
+auth.post('/avatar', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+  if (!token) return c.json({ error: 'Unauthorized or invalid token.' }, 401);
+
+  const payload = await verifyToken(token);
+  if (!payload) return c.json({ error: 'Unauthorized or invalid token.' }, 401);
+
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('avatar') as File | null;
+    if (!file) {
+      return c.json({ error: 'No image file was uploaded.' }, 400);
+    }
+
+    // Safety limit: 2MB max (compressed avatars are typically 15-30KB)
+    if (file.size > 2 * 1024 * 1024) {
+      return c.json({ error: 'Image file exceeds maximum limit of 2MB.' }, 400);
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const mimeType = file.type || 'image/webp';
+    const ext = mimeType.includes('png') ? 'png' : mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'webp';
+    const filename = `avatar_${payload.id}_${Date.now()}.${ext}`;
+    const r2Key = `avatars/${filename}`;
+
+    // Upload to Cloudflare R2 bucket
+    await c.env.R2.put(r2Key, arrayBuffer, {
+      httpMetadata: {
+        contentType: mimeType,
+      },
+    });
+
+    const avatarUrl = `/api/media/avatar/${filename}`;
+
+    // Update avatar_url in D1 database
+    await c.env.DB
+      .prepare('UPDATE users SET avatar_url = ? WHERE id = ?')
+      .bind(avatarUrl, payload.id)
+      .run();
+
+    return c.json({
+      success: true,
+      avatar_url: avatarUrl,
+      message: 'Avatar uploaded and updated successfully.',
+    });
+  } catch (err: any) {
+    console.error('Failed to upload avatar to R2:', err);
+    return c.json({ error: 'Failed to upload avatar image.', details: err?.message }, 500);
+  }
+});
+
+// Remove User Avatar
+auth.delete('/avatar', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+  if (!token) return c.json({ error: 'Unauthorized or invalid token.' }, 401);
+
+  const payload = await verifyToken(token);
+  if (!payload) return c.json({ error: 'Unauthorized or invalid token.' }, 401);
+
+  try {
+    // Get current avatar_url to delete from R2 if present
+    const userRow = await c.env.DB
+      .prepare('SELECT avatar_url FROM users WHERE id = ?')
+      .bind(payload.id)
+      .first<{ avatar_url: string | null }>();
+
+    if (userRow?.avatar_url && userRow.avatar_url.startsWith('/api/media/avatar/')) {
+      const filename = userRow.avatar_url.replace('/api/media/avatar/', '');
+      await c.env.R2.delete(`avatars/${filename}`).catch(() => {});
+    }
+
+    // Set avatar_url to NULL in D1
+    await c.env.DB
+      .prepare('UPDATE users SET avatar_url = NULL WHERE id = ?')
+      .bind(payload.id)
+      .run();
+
+    return c.json({
+      success: true,
+      avatar_url: null,
+      message: 'Avatar removed successfully.',
+    });
+  } catch (err: any) {
+    console.error('Failed to remove avatar:', err);
+    return c.json({ error: 'Failed to remove avatar.', details: err?.message }, 500);
+  }
 });
 
 auth.post('/change-password', async (c) => {

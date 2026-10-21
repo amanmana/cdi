@@ -1,20 +1,26 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "cdi-app",
-  "main": "src/worker/index.ts",
-  "compatibility_date": "2024-11-01",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS"
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "cdi-db",
-      "database_id": "f238e029-368a-4934-8381-64f959c138c5"
-    }
-  ]
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "cdi-app",
+	"main": "src/worker/index.ts",
+	"compatibility_date": "2024-11-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "cdi-db",
+			"database_id": "f238e029-368a-4934-8381-64f959c138c5"
+		}
+	],
+	"r2_buckets": [
+		{
+			"bucket_name": "cdi-media",
+			"binding": "R2"
+		}
+	]
 }

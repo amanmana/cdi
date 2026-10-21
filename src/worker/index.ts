@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { D1Database, Fetcher } from '@cloudflare/workers-types';
+import { D1Database, Fetcher, R2Bucket } from '@cloudflare/workers-types';
 import { AuthUser } from './auth';
 
 import authRoutes from './routes/auth';
@@ -15,6 +15,7 @@ type Env = {
   Bindings: {
     DB: D1Database;
     ASSETS: Fetcher;
+    R2: R2Bucket;
   };
   Variables: {
     user: AuthUser;
@@ -33,6 +34,23 @@ app.use(
   })
 );
 
+// Serve Avatars from Cloudflare R2
+app.get('/api/media/avatar/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  if (!filename) return c.text('Not found', 404);
+  const cleanName = filename.replace(/[^a-zA-Z0-9_.-]/g, '');
+  const object = await c.env.R2.get(`avatars/${cleanName}`);
+  if (!object) {
+    return c.text('Avatar not found', 404);
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('etag', object.httpEtag);
+  headers.set('cache-control', 'public, max-age=604800, immutable');
+  return new Response(object.body, { headers });
+});
+
 // Register API Endpoints
 app.route('/api/auth', authRoutes);
 app.route('/api/public', publicRoutes);
@@ -44,7 +62,7 @@ app.route('/api/notifications', notificationsRouter);
 
 // Health check
 app.get('/api/health', (c) => {
-  return c.json({ status: 'ok', timestamp: new Date().toISOString(), env: 'Cloudflare Workers + D1' });
+  return c.json({ status: 'ok', timestamp: new Date().toISOString(), env: 'Cloudflare Workers + D1 + R2' });
 });
 
 // SPA Fallback Routing: Serve index.html for non-API routes when refreshed (F5)

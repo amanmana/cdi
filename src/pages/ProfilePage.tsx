@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Key, CheckCircle2, AlertCircle, Mail, Phone, Crown, Building2, ShieldCheck } from 'lucide-react';
+import { User, Key, CheckCircle2, AlertCircle, Mail, Phone, Crown, Building2, ShieldCheck, Camera, Trash2, Upload } from 'lucide-react';
+import { compressAvatar } from '../utils/imageCompressor';
 
 export const ProfilePage: React.FC = () => {
   const { user, token, login, refreshUser } = useAuth();
+
+  // Avatar state
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const [avatarSuccess, setAvatarSuccess] = useState('');
 
   // Profile / Email state
   const [name, setName] = useState('');
@@ -126,6 +132,84 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
+  // Handle Avatar Upload with client-side compression
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please select a valid image file (PNG, JPG, WebP).');
+      return;
+    }
+
+    setAvatarLoading(true);
+    setAvatarError('');
+    setAvatarSuccess('');
+
+    try {
+      // Compress client-side to max 200x200 square WebP (~15-25KB)
+      const { blob } = await compressAvatar(file, 200, 200, 0.8);
+
+      const formData = new FormData();
+      formData.append('avatar', blob, 'avatar.webp');
+
+      const res = await fetch('/api/auth/avatar', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await refreshUser();
+        setAvatarSuccess('Avatar photo updated successfully!');
+        setTimeout(() => setAvatarSuccess(''), 4000);
+      } else {
+        setAvatarError(data.error || 'Failed to upload avatar.');
+      }
+    } catch (err: any) {
+      console.error('Avatar upload error:', err);
+      setAvatarError('An error occurred during image processing.');
+    } finally {
+      setAvatarLoading(false);
+      e.target.value = '';
+    }
+  };
+
+  // Handle Remove Avatar
+  const handleRemoveAvatar = async () => {
+    if (!window.confirm('Are you sure you want to remove your avatar photo?')) return;
+
+    setAvatarLoading(true);
+    setAvatarError('');
+    setAvatarSuccess('');
+
+    try {
+      const res = await fetch('/api/auth/avatar', {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await refreshUser();
+        setAvatarSuccess('Avatar photo removed.');
+        setTimeout(() => setAvatarSuccess(''), 4000);
+      } else {
+        setAvatarError(data.error || 'Failed to remove avatar.');
+      }
+    } catch (err) {
+      console.error(err);
+      setAvatarError('An error occurred while removing avatar.');
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header Banner */}
@@ -146,9 +230,75 @@ export const ProfilePage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         {/* Left Column: Profile Info Card */}
         <div className="md:col-span-1 bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 flex flex-col items-center text-center space-y-4">
-          <div className="w-20 h-20 rounded-full bg-blue-600 text-white text-3xl font-black flex items-center justify-center shadow-md animate-in zoom-in-50 duration-300">
-            {user.name.charAt(0).toUpperCase()}
+          {/* Avatar with Camera Trigger */}
+          <div className="relative group">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white text-3xl font-black flex items-center justify-center shadow-lg shadow-blue-500/25 overflow-hidden border-4 border-white ring-2 ring-blue-500/20">
+              {avatarLoading ? (
+                <span className="loading loading-spinner loading-md text-white"></span>
+              ) : user.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                user.name.charAt(0).toUpperCase()
+              )}
+            </div>
+
+            {/* Quick Upload Floating Button */}
+            <label
+              htmlFor="avatar-file-input"
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-slate-900/90 text-white hover:bg-blue-600 flex items-center justify-center shadow-md cursor-pointer transition-all border-2 border-white hover:scale-110"
+              title="Upload new avatar photo"
+            >
+              <Camera className="w-4 h-4" />
+            </label>
+            <input
+              id="avatar-file-input"
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              disabled={avatarLoading}
+              className="hidden"
+            />
           </div>
+
+          {/* Action buttons for Avatar */}
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="avatar-file-input"
+              className="btn btn-xs rounded-xl font-bold text-[11px] bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border-none transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <Upload className="w-3 h-3" />
+              <span>Change Photo</span>
+            </label>
+            {user.avatar_url && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                disabled={avatarLoading}
+                className="btn btn-xs btn-ghost text-rose-500 hover:bg-rose-50 rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all"
+                title="Remove photo"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Remove</span>
+              </button>
+            )}
+          </div>
+
+          {/* Avatar Feedback Messages */}
+          {avatarSuccess && (
+            <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 animate-in fade-in">
+              {avatarSuccess}
+            </div>
+          )}
+          {avatarError && (
+            <div className="text-[11px] font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 animate-in fade-in">
+              {avatarError}
+            </div>
+          )}
+
           <div>
             <h2 className="text-base font-extrabold text-slate-900 tracking-tight">{user.name}</h2>
             <p className="text-xs text-slate-400 font-semibold mt-0.5 break-all">{user.email}</p>

@@ -254,15 +254,30 @@ export const Navbar: React.FC = () => {
                 <div
                   tabIndex={0}
                   role="button"
-                  className="w-10 h-10 rounded-full bg-blue-600 text-white font-black text-sm border border-blue-500 shadow-md flex items-center justify-center leading-none cursor-pointer hover:bg-blue-700 transition-colors"
+                  className="w-10 h-10 rounded-full bg-blue-600 text-white font-black text-sm border border-blue-500 shadow-md flex items-center justify-center leading-none cursor-pointer hover:bg-blue-700 transition-colors overflow-hidden"
                 >
-                  <span>{user.name.charAt(0).toUpperCase()}</span>
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{user.name.charAt(0).toUpperCase()}</span>
+                  )}
                 </div>
                 <ul tabIndex={0} className="mt-3 z-[1] p-2 shadow-2xl menu menu-sm dropdown-content bg-white rounded-2xl w-64 border border-slate-100">
-                  <li className="menu-title px-4 py-2 border-b border-slate-100">
-                    <div className="font-bold text-slate-900">{user.name}</div>
-                    <div className="text-xs text-slate-500 font-normal">{user.email}</div>
-                    <div className="mt-1">
+                  <li className="menu-title px-4 py-2.5 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                          user.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 truncate">{user.name}</div>
+                        <div className="text-xs text-slate-500 font-normal truncate">{user.email}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2">
                       <span className="badge bg-blue-100 text-blue-800 border-none badge-sm uppercase font-bold text-[10px]">
                         {user.role} {user.is_acting_manager ? '(Acting Manager)' : ''}
                       </span>
