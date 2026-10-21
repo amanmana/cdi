@@ -156,12 +156,15 @@ admin.get('/gantt', async (c) => {
 admin.get('/team', async (c) => {
   const db = c.env.DB;
   const { results: staffMembers } = await db.prepare(`
-    SELECT u.id, u.name, u.email, u.role, u.unit_id, COALESCE(un.name, u.unit) as unit,
+    SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head,
+           COALESCE(un.name, u.unit) as unit,
+           d.name as department_name,
            (SELECT COUNT(*) FROM job_requests WHERE (',' || assigned_staff_ids || ',') LIKE ('%,' || CAST(u.id AS TEXT) || ',%') AND status != 'completed') as assigned_jobs_count,
            (SELECT COUNT(DISTINCT job_request_id) FROM workflow_logs WHERE actor_id = u.id AND action = 'STAFF_DONE') as completed_jobs_count
     FROM users u
     LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name)
-    WHERE u.role IN ('staff', 'manager')
+    LEFT JOIN departments d ON (u.department_id = d.id OR un.department_id = d.id)
+    WHERE u.role IN ('staff', 'manager', 'director')
     ORDER BY u.name ASC
   `).all();
 
@@ -208,16 +211,113 @@ admin.post('/team/delegation/:id/cancel', async (c) => {
   return c.json({ success: true, message: 'Delegation cancelled' });
 });
 
-// Units List
+// ==========================================
+// DEPARTMENTS CRUD & ORG STRUCTURE
+// ==========================================
+
+// List Departments (with Manager info and Units nested)
+admin.get('/departments', async (c) => {
+  const db = c.env.DB;
+  const { results: depts } = await db.prepare(`
+    SELECT d.*, m.name as manager_name, m.email as manager_email,
+           (SELECT COUNT(*) FROM units WHERE units.department_id = d.id) as units_count,
+           (SELECT COUNT(*) FROM users u WHERE u.department_id = d.id OR u.unit_id IN (SELECT id FROM units WHERE department_id = d.id)) as staff_count
+    FROM departments d
+    LEFT JOIN users m ON d.manager_id = m.id
+    ORDER BY d.id ASC
+  `).all();
+
+  const { results: allUnits } = await db.prepare(`
+    SELECT u.*, h.name as head_name,
+           (SELECT COUNT(*) FROM users WHERE users.unit_id = u.id OR users.unit = u.name) as staff_count
+    FROM units u
+    LEFT JOIN users h ON u.head_id = h.id
+    ORDER BY u.name ASC
+  `).all();
+
+  const formatted = (depts || []).map((d: any) => ({
+    ...d,
+    units: (allUnits || []).filter((u: any) => u.department_id === d.id),
+  }));
+
+  return c.json(formatted);
+});
+
+// Add Department
+admin.post('/departments', async (c) => {
+  const db = c.env.DB;
+  const { name, description, manager_id } = await c.req.json();
+  if (!name || !name.trim()) return c.json({ error: 'Department name is required' }, 400);
+
+  const cleanName = name.trim();
+  const res = await db.prepare('INSERT INTO departments (name, description, manager_id) VALUES (?, ?, ?)')
+    .bind(cleanName, description || null, manager_id || null)
+    .run();
+
+  const newDeptId = res.meta.last_row_id as number;
+
+  if (manager_id) {
+    await db.prepare('UPDATE users SET department_id = ? WHERE id = ?').bind(newDeptId, manager_id).run();
+  }
+
+  return c.json({ success: true, message: 'Department created successfully', id: newDeptId });
+});
+
+// Update Department
+admin.put('/departments/:id', async (c) => {
+  const db = c.env.DB;
+  const id = c.req.param('id');
+  const numId = parseInt(id, 10);
+  const { name, description, manager_id } = await c.req.json();
+
+  if (!name || !name.trim()) return c.json({ error: 'Department name is required' }, 400);
+
+  await db.prepare('UPDATE departments SET name = ?, description = ?, manager_id = ? WHERE id = ?')
+    .bind(name.trim(), description || null, manager_id || null, numId)
+    .run();
+
+  if (manager_id) {
+    await db.prepare('UPDATE users SET department_id = ? WHERE id = ?').bind(numId, manager_id).run();
+  }
+
+  return c.json({ success: true, message: 'Department updated successfully' });
+});
+
+// Delete Department (Unlinks units & users)
+admin.delete('/departments/:id', async (c) => {
+  const db = c.env.DB;
+  const id = c.req.param('id');
+  const numId = parseInt(id, 10);
+
+  await db.prepare('UPDATE units SET department_id = NULL WHERE department_id = ?').bind(numId).run();
+  await db.prepare('UPDATE users SET department_id = NULL WHERE department_id = ?').bind(numId).run();
+  await db.prepare('DELETE FROM departments WHERE id = ?').bind(numId).run();
+
+  return c.json({ success: true, message: 'Department deleted successfully' });
+});
+
+// ==========================================
+// UNITS CRUD & PUBLIC DISPLAY CONFIGURATION
+// ==========================================
+
+// Units List (Includes Department, Head, and Public Label details)
 admin.get('/units', async (c) => {
   const db = c.env.DB;
   const { results } = await db.prepare(`
-    SELECT u.*, (SELECT COUNT(*) FROM users WHERE users.unit_id = u.id OR users.unit = u.name) as staff_count 
+    SELECT u.*, 
+           d.name as department_name,
+           h.name as head_name,
+           h.email as head_email,
+           (SELECT COUNT(*) FROM users WHERE users.unit_id = u.id OR users.unit = u.name) as staff_count 
     FROM units u 
-    ORDER BY u.name ASC
+    LEFT JOIN departments d ON u.department_id = d.id
+    LEFT JOIN users h ON u.head_id = h.id
+    ORDER BY COALESCE(d.id, 999) ASC, u.name ASC
   `).all();
+
   const formatted = (results || []).map((u: any) => ({
     ...u,
+    display_label: u.public_label && u.public_label.trim() ? u.public_label.trim() : u.name,
     form_schema: u.form_schema ? JSON.parse(u.form_schema) : [],
     staff_count: u.staff_count || 0
   }));
@@ -227,48 +327,101 @@ admin.get('/units', async (c) => {
 // Add Unit
 admin.post('/units', async (c) => {
   const db = c.env.DB;
-  const { name } = await c.req.json();
-  if (!name) return c.json({ error: 'Name is required' }, 400);
+  const { name, department_id, public_label, is_public, head_id } = await c.req.json();
+  if (!name || !name.trim()) return c.json({ error: 'Name is required' }, 400);
 
-  await db.prepare('INSERT INTO units (name, form_schema) VALUES (?, "[]")').bind(name).run();
-  return c.json({ success: true, message: 'Unit added' });
+  const cleanName = name.trim();
+  const res = await db.prepare(
+    'INSERT INTO units (name, department_id, public_label, is_public, head_id, form_schema) VALUES (?, ?, ?, ?, ?, "[]")'
+  )
+    .bind(
+      cleanName,
+      department_id || null,
+      public_label ? public_label.trim() : null,
+      is_public !== undefined ? (is_public ? 1 : 0) : 1,
+      head_id || null
+    )
+    .run();
+
+  const newUnitId = res.meta.last_row_id as number;
+
+  if (head_id) {
+    await db.prepare('UPDATE users SET is_unit_head = 1, unit_id = ?, department_id = COALESCE(?, department_id) WHERE id = ?')
+      .bind(newUnitId, department_id || null, head_id)
+      .run();
+  }
+
+  return c.json({ success: true, message: 'Unit added', id: newUnitId });
 });
 
-// Update Unit (name and/or schema) — cascades name change to all users in that unit
+// Update Unit (name, department, public_label, is_public, head_id, form_schema)
 admin.put('/units/:id', async (c) => {
   const db = c.env.DB;
   const id = c.req.param('id');
   const numId = parseInt(id, 10);
-  const { name, form_schema } = await c.req.json();
+  const { name, department_id, public_label, is_public, head_id, form_schema } = await c.req.json();
 
-  // Fetch current unit name before update (needed for cascade)
-  const existing = await db.prepare('SELECT name FROM units WHERE id = ?').bind(numId).first<{ name: string }>();
+  // Fetch current unit info before update (needed for cascade)
+  const existing = await db.prepare('SELECT name, head_id FROM units WHERE id = ?').bind(numId).first<any>();
   const oldName = existing?.name;
+  const oldHeadId = existing?.head_id;
 
-  if (name !== undefined && form_schema !== undefined) {
-    await db.prepare('UPDATE units SET name = ?, form_schema = ? WHERE id = ?')
-      .bind(name, JSON.stringify(form_schema || []), numId)
-      .run();
-  } else if (name !== undefined) {
-    await db.prepare('UPDATE units SET name = ? WHERE id = ?')
-      .bind(name, numId)
-      .run();
-  } else {
-    await db.prepare('UPDATE units SET form_schema = ? WHERE id = ?')
-      .bind(JSON.stringify(form_schema || []), numId)
-      .run();
+  const updates: string[] = [];
+  const params: any[] = [];
+
+  if (name !== undefined) {
+    updates.push('name = ?');
+    params.push(name.trim());
+  }
+  if (department_id !== undefined) {
+    updates.push('department_id = ?');
+    params.push(department_id || null);
+  }
+  if (public_label !== undefined) {
+    updates.push('public_label = ?');
+    params.push(public_label ? public_label.trim() : null);
+  }
+  if (is_public !== undefined) {
+    updates.push('is_public = ?');
+    params.push(is_public ? 1 : 0);
+  }
+  if (head_id !== undefined) {
+    updates.push('head_id = ?');
+    params.push(head_id || null);
+  }
+  if (form_schema !== undefined) {
+    updates.push('form_schema = ?');
+    params.push(JSON.stringify(form_schema || []));
   }
 
-  // Cascade: update all users, job requests, and delegations who had the old unit name OR matching unit_id
-  if (name !== undefined && oldName && oldName !== name) {
+  if (updates.length > 0) {
+    params.push(numId);
+    await db.prepare(`UPDATE units SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run();
+  }
+
+  // Sync unit head status
+  if (head_id !== undefined && head_id !== oldHeadId) {
+    if (oldHeadId) {
+      await db.prepare('UPDATE users SET is_unit_head = 0 WHERE id = ?').bind(oldHeadId).run();
+    }
+    if (head_id) {
+      await db.prepare('UPDATE users SET is_unit_head = 1, unit_id = ?, department_id = COALESCE(?, department_id) WHERE id = ?')
+        .bind(numId, department_id || null, head_id)
+        .run();
+    }
+  }
+
+  // Cascade name changes if name updated
+  if (name !== undefined && oldName && oldName !== name.trim()) {
+    const newName = name.trim();
     await db.prepare('UPDATE users SET unit = ?, unit_id = ? WHERE unit = ? OR unit_id = ?')
-      .bind(name, numId, oldName, numId)
+      .bind(newName, numId, oldName, numId)
       .run();
     await db.prepare('UPDATE job_requests SET unit = ?, unit_id = ? WHERE unit = ? OR unit_id = ?')
-      .bind(name, numId, oldName, numId)
+      .bind(newName, numId, oldName, numId)
       .run();
     await db.prepare('UPDATE delegations SET unit = ?, unit_id = ? WHERE unit = ? OR unit_id = ?')
-      .bind(name, numId, oldName, numId)
+      .bind(newName, numId, oldName, numId)
       .run();
   }
 
@@ -310,9 +463,11 @@ admin.delete('/units/:id', async (c) => {
 admin.get('/users', async (c) => {
   const db = c.env.DB;
   const { results } = await db.prepare(`
-    SELECT u.id, u.name, u.email, u.role, u.unit, u.created_at,
+    SELECT u.id, u.name, u.email, u.role, u.unit, u.unit_id, u.department_id, u.is_unit_head, u.created_at,
+           d.name as department_name,
            (SELECT COUNT(*) FROM job_requests j WHERE j.client_email = u.email OR LOWER(TRIM(j.client_name)) = LOWER(TRIM(u.name))) as project_count
     FROM users u
+    LEFT JOIN departments d ON u.department_id = d.id
     ORDER BY u.id ASC
   `).all();
   return c.json(results || []);
@@ -321,7 +476,7 @@ admin.get('/users', async (c) => {
 // Add User
 admin.post('/users', async (c) => {
   const db = c.env.DB;
-  const { name, email, password, role, unit } = await c.req.json();
+  const { name, email, password, role, unit, department_id, is_unit_head } = await c.req.json();
   if (!name || !email || !password) return c.json({ error: 'Missing required fields' }, 400);
 
   const cleanEmail = email.toLowerCase().trim();
@@ -332,12 +487,13 @@ admin.post('/users', async (c) => {
       return c.json({ error: 'Email address is already in use. Please use a different email.' }, 400);
     }
 
-    const unitRow = unit ? await db.prepare('SELECT id FROM units WHERE name = ?').bind(unit).first<{ id: number }>() : null;
+    const unitRow = unit ? await db.prepare('SELECT id, department_id FROM units WHERE name = ?').bind(unit).first<any>() : null;
     const unitId = unitRow?.id || null;
+    const resolvedDeptId = department_id || unitRow?.department_id || null;
 
     const hash = await hashPassword(password);
-    await db.prepare('INSERT INTO users (name, email, password_hash, role, unit_id, unit) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(name.trim(), cleanEmail, hash, role || 'staff', unitId, unit || null)
+    await db.prepare('INSERT INTO users (name, email, password_hash, role, unit_id, unit, department_id, is_unit_head) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(name.trim(), cleanEmail, hash, role || 'staff', unitId, unit || null, resolvedDeptId, is_unit_head ? 1 : 0)
       .run();
 
     return c.json({ success: true, message: 'User created' });
@@ -350,7 +506,7 @@ admin.post('/users', async (c) => {
 admin.put('/users/:id', async (c) => {
   const db = c.env.DB;
   const id = c.req.param('id');
-  const { name, email, password, role, unit } = await c.req.json();
+  const { name, email, password, role, unit, department_id, is_unit_head } = await c.req.json();
 
   const numId = parseInt(id, 10);
   const targetId = isNaN(numId) ? id : numId;
@@ -364,17 +520,18 @@ admin.put('/users/:id', async (c) => {
       return c.json({ error: 'Email address is already in use by another user. Please use a different email.' }, 400);
     }
 
-    const unitRow = unit ? await db.prepare('SELECT id FROM units WHERE name = ?').bind(unit).first<{ id: number }>() : null;
+    const unitRow = unit ? await db.prepare('SELECT id, department_id FROM units WHERE name = ?').bind(unit).first<any>() : null;
     const unitId = unitRow?.id || null;
+    const resolvedDeptId = department_id !== undefined ? department_id : (unitRow?.department_id || null);
 
     if (password) {
       const hash = await hashPassword(password);
-      await db.prepare('UPDATE users SET name = ?, email = ?, password_hash = ?, role = ?, unit_id = ?, unit = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
-        .bind(name.trim(), cleanEmail, hash, role, unitId, unit || null, targetId, id)
+      await db.prepare('UPDATE users SET name = ?, email = ?, password_hash = ?, role = ?, unit_id = ?, unit = ?, department_id = ?, is_unit_head = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
+        .bind(name.trim(), cleanEmail, hash, role, unitId, unit || null, resolvedDeptId, is_unit_head ? 1 : 0, targetId, id)
         .run();
     } else {
-      await db.prepare('UPDATE users SET name = ?, email = ?, role = ?, unit_id = ?, unit = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
-        .bind(name.trim(), cleanEmail, role, unitId, unit || null, targetId, id)
+      await db.prepare('UPDATE users SET name = ?, email = ?, role = ?, unit_id = ?, unit = ?, department_id = ?, is_unit_head = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
+        .bind(name.trim(), cleanEmail, role, unitId, unit || null, resolvedDeptId, is_unit_head ? 1 : 0, targetId, id)
         .run();
     }
 

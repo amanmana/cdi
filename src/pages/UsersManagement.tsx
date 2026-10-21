@@ -26,6 +26,7 @@ export const UsersManagement: React.FC = () => {
   const [role, setRole] = useState<'admin' | 'manager' | 'staff' | 'client'>('staff');
   const [unit, setUnit] = useState('');
   const [organisation, setOrganisation] = useState('');
+  const [isUnitHead, setIsUnitHead] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -62,6 +63,7 @@ export const UsersManagement: React.FC = () => {
       setRole(u.role);
       setUnit(u.unit || '');
       setOrganisation(u.organisation || '');
+      setIsUnitHead(Boolean(u.is_unit_head));
     } else {
       setEditingUser(null);
       setName('');
@@ -70,6 +72,7 @@ export const UsersManagement: React.FC = () => {
       setRole(mainTab === 'clients' ? 'client' : 'staff');
       setUnit('');
       setOrganisation('');
+      setIsUnitHead(false);
     }
     setShowModal(true);
     setSaveError('');
@@ -105,7 +108,14 @@ export const UsersManagement: React.FC = () => {
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: name.trim(), email: cleanEmail, password, role, unit: role === 'client' ? '' : unit }),
+        body: JSON.stringify({
+          name: name.trim(),
+          email: cleanEmail,
+          password,
+          role,
+          unit: role === 'client' ? '' : unit,
+          is_unit_head: isUnitHead ? 1 : 0,
+        }),
       });
 
       let data: any = null;
@@ -290,7 +300,21 @@ export const UsersManagement: React.FC = () => {
                         <td className="font-bold text-sm text-slate-900">{u.name}</td>
                         <td className="text-xs text-slate-600 font-medium">{u.email}</td>
                         <td>{getRoleBadge(u.role)}</td>
-                        <td className="text-xs font-medium text-slate-700">{u.unit || '-'}</td>
+                        <td className="text-xs font-medium text-slate-700">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{u.unit || '-'}</span>
+                            {Boolean(u.is_unit_head) && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold uppercase">
+                                Head
+                              </span>
+                            )}
+                            {u.department_name && (
+                              <span className="text-[10px] text-slate-400 font-semibold">
+                                ({u.department_name})
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="text-center">
                           <div className="flex justify-center gap-1">
                             <button onClick={() => handleOpenModal(u)} className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-xl"><Edit2 className="w-4 h-4" /></button>
@@ -457,6 +481,22 @@ export const UsersManagement: React.FC = () => {
                     <option value="">-- Select Unit --</option>
                     {units.map((un) => <option key={un.id} value={un.name}>{un.name}</option>)}
                   </select>
+                </div>
+              )}
+
+              {/* Unit Head Checkbox — only for internal staff */}
+              {!isClientModal && (
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50/60 border border-amber-200/80">
+                  <input
+                    type="checkbox"
+                    id="isUnitHeadModal"
+                    checked={isUnitHead}
+                    onChange={(e) => setIsUnitHead(e.target.checked)}
+                    className="checkbox checkbox-warning checkbox-sm rounded-lg"
+                  />
+                  <label htmlFor="isUnitHeadModal" className="text-xs font-bold text-amber-900 cursor-pointer">
+                    Designate as Unit Head (Ketua Unit)
+                  </label>
                 </div>
               )}
 

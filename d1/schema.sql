@@ -10,26 +10,45 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Departments Table
+CREATE TABLE IF NOT EXISTS departments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
+  manager_id INTEGER,
+  description TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (manager_id) REFERENCES users(id)
+);
+
 -- Users Table
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'client', -- admin, manager, staff, client
+  role TEXT NOT NULL DEFAULT 'client', -- admin, director, manager, staff, client
   unit_id INTEGER,                     -- Foreign Key to units(id)
   unit TEXT,                           -- Associated unit/company name
+  department_id INTEGER,               -- Foreign Key to departments(id)
+  is_unit_head INTEGER DEFAULT 0,      -- 1 if Unit Head, 0 otherwise
   phone TEXT,                          -- Contact Phone number
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (unit_id) REFERENCES units(id)
+  FOREIGN KEY (unit_id) REFERENCES units(id),
+  FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 
 -- Service Units Table
 CREATE TABLE IF NOT EXISTS units (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT UNIQUE NOT NULL,
-  form_schema TEXT, -- JSON string representing custom dynamic fields
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  department_id INTEGER,               -- Foreign Key to departments(id)
+  public_label TEXT,                   -- Custom public display label for clients
+  is_public INTEGER DEFAULT 1,         -- 1 = visible on public request form, 0 = hidden
+  head_id INTEGER,                     -- Foreign Key to users(id) (Unit Head)
+  form_schema TEXT,                    -- JSON string representing custom dynamic fields
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (department_id) REFERENCES departments(id),
+  FOREIGN KEY (head_id) REFERENCES users(id)
 );
 
 -- Acting Manager Delegations Table
@@ -58,7 +77,8 @@ CREATE TABLE IF NOT EXISTS job_requests (
   description TEXT,
   unit_id INTEGER,                     -- Foreign Key to units(id)
   unit TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'manager_approval', -- manager_approval, staff_processing, completed, rejected
+  department_id INTEGER,               -- Foreign Key to departments(id)
+  status TEXT NOT NULL DEFAULT 'manager_approval', -- manager_approval, staff_processing, completed, rejected, on_hold, cancelled
   current_step_name TEXT DEFAULT 'Manager Review',
   assigned_staff_ids TEXT,                         -- Comma-separated user IDs
   start_date TEXT,
@@ -66,7 +86,8 @@ CREATE TABLE IF NOT EXISTS job_requests (
   additional_data TEXT,                             -- JSON string for dynamic fields
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (unit_id) REFERENCES units(id)
+  FOREIGN KEY (unit_id) REFERENCES units(id),
+  FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 
 -- Sub-Tasks Table for Designers / Staff

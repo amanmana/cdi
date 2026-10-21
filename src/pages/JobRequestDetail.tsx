@@ -1512,7 +1512,15 @@ export const JobRequestDetail: React.FC = () => {
                 }`}
               >
                 {teamMembers
-                  .filter((m: any) => (user?.role !== 'manager' && user?.role !== 'staff') || !user?.unit || m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim())
+                  .filter((m: any) => {
+                    if (user?.role === 'admin' || user?.role === 'director') return true;
+                    const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+                    if (userDeptId && m.department_id && m.department_id === userDeptId) return true;
+                    if (request?.department_id && m.department_id === request.department_id) return true;
+                    if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) return true;
+                    if (request?.unit && m.unit?.toLowerCase().trim() === request.unit?.toLowerCase().trim()) return true;
+                    return false;
+                  })
                   .map((m) => {
                     const isChecked = selectedStaff.includes(m.id);
                   return (
@@ -1522,19 +1530,33 @@ export const JobRequestDetail: React.FC = () => {
                         if (isChecked) setSelectedStaff(selectedStaff.filter((sid) => sid !== m.id));
                         else setSelectedStaff([...selectedStaff, m.id]);
                       }}
-                      className="flex items-center gap-3 p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition-colors"
                     >
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          isChecked ? 'border-blue-600 bg-white' : 'border-slate-300 bg-white'
-                        }`}
-                      >
-                        {isChecked && <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            isChecked ? 'border-blue-600 bg-white' : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isChecked && <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>}
+                        </div>
+                        <div>
+                          <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                            <span>{m.name}</span>
+                            {Boolean(m.is_unit_head) && (
+                              <span className="text-[9px] bg-amber-50 text-amber-700 font-black px-1.5 py-0.2 rounded border border-amber-200">
+                                HEAD
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-medium">{m.email}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-xs font-extrabold text-slate-900">{m.name}</div>
-                        <div className="text-[10px] text-slate-400 font-medium">{m.email}</div>
-                      </div>
+                      {m.unit && (
+                        <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md shrink-0">
+                          {m.unit}
+                        </span>
+                      )}
                     </label>
                   );
                 })}
@@ -1794,7 +1816,15 @@ export const JobRequestDetail: React.FC = () => {
             {/* Staff List with Checkboxes & Task Field */}
             <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/80 max-h-80 overflow-y-auto space-y-3">
               {teamMembers && teamMembers
-                .filter((m: any) => (user?.role !== 'manager' && user?.role !== 'staff') || !user?.unit || m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim())
+                .filter((m: any) => {
+                  if (user?.role === 'admin' || user?.role === 'director') return true;
+                  const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+                  if (userDeptId && m.department_id && m.department_id === userDeptId) return true;
+                  if (request?.department_id && m.department_id === request.department_id) return true;
+                  if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) return true;
+                  if (request?.unit && m.unit?.toLowerCase().trim() === request.unit?.toLowerCase().trim()) return true;
+                  return false;
+                })
                 .map((m: any) => {
                   const isSelected = selectedStaff.includes(m.id);
                   const isSelfStaff = user?.role === 'staff' && m.id === user?.id;
@@ -1838,12 +1868,24 @@ export const JobRequestDetail: React.FC = () => {
                         </div>
 
                         <div className="flex-1">
-                          <div className="text-xs font-bold text-slate-900">
-                            {m.name} 
-                            {isSelfStaff && <span className="text-[10px] text-slate-400 font-semibold italic ml-1">(You)</span>}
-                            {isAlreadyDone && <span className="text-[10px] text-emerald-600 font-semibold italic ml-1">(Done)</span>}
-                            {!isSelfStaff && !isAlreadyDone && isAlreadyAssigned && (
-                              <span className="text-[10px] text-blue-600 font-semibold italic ml-1">(In Team)</span>
+                          <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5 flex-wrap">
+                              {m.name} 
+                              {Boolean(m.is_unit_head) && (
+                                <span className="text-[9px] bg-amber-50 text-amber-700 font-black px-1.5 py-0.2 rounded border border-amber-200">
+                                  HEAD
+                                </span>
+                              )}
+                              {isSelfStaff && <span className="text-[10px] text-slate-400 font-semibold italic">(You)</span>}
+                              {isAlreadyDone && <span className="text-[10px] text-emerald-600 font-semibold italic">(Done)</span>}
+                              {!isSelfStaff && !isAlreadyDone && isAlreadyAssigned && (
+                                <span className="text-[10px] text-blue-600 font-semibold italic">(In Team)</span>
+                              )}
+                            </span>
+                            {m.unit && (
+                              <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">
+                                {m.unit}
+                              </span>
                             )}
                           </div>
                           <div className="text-[10px] font-semibold text-slate-400">{m.email}</div>

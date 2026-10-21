@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Check } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 
 interface Unit {
   id: number;
   name: string;
+  public_label?: string | null;
+  display_label?: string;
+  department_id?: number | null;
+  department_name?: string | null;
   form_schema: Array<{
     id: string;
     label: string;
@@ -213,26 +217,54 @@ export const PublicHome: React.FC = () => {
               {/* Target Unit Pills Selection */}
               <div className="form-control">
                 <label className="label pt-0 pb-2">
-                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
-                    Select Target Unit <span className="text-rose-500">*</span>
+                  <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center justify-between w-full">
+                    <span>Select Target Unit <span className="text-rose-500">*</span></span>
+                    <span className="text-[11px] font-semibold text-slate-400 lowercase normal-case">
+                      choose specialized unit
+                    </span>
                   </span>
                 </label>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {units.map((u) => {
                     const isSelected = selectedUnit === u.name;
+                    const displayTitle = u.display_label || u.public_label || u.name;
+                    const deptTag = u.department_name ? u.department_name.toUpperCase() : 'GENERAL';
                     return (
                       <button
                         key={u.id}
                         type="button"
                         onClick={() => setSelectedUnit(u.name)}
-                        className={`h-12 rounded-xl text-sm font-bold transition-all duration-200 border flex items-center justify-center ${
+                        className={`p-3.5 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between relative group ${
                           isSelected
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25'
-                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25 ring-2 ring-blue-600/30'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/20 shadow-xs'
                         }`}
                       >
-                        {u.name}
+                        <div className="flex items-center justify-between w-full mb-2">
+                          <span
+                            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-colors ${
+                              isSelected
+                                ? 'bg-white/20 text-white'
+                                : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-700'
+                            }`}
+                          >
+                            {deptTag}
+                          </span>
+                          {isSelected && (
+                            <div className="w-4 h-4 rounded-full bg-white text-blue-600 flex items-center justify-center shrink-0">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="font-extrabold text-sm tracking-tight leading-snug">
+                          {displayTitle}
+                        </div>
+                        {u.public_label && u.public_label !== u.name && (
+                          <div className={`text-[10px] font-semibold mt-1 ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                            Unit: {u.name}
+                          </div>
+                        )}
                       </button>
                     );
                   })}

@@ -11,14 +11,22 @@ type Env = {
 
 const publicApi = new Hono<Env>();
 
-// Get list of units and their form schema
+// Get list of units and their form schema (Public view: only is_public = 1 or null)
 publicApi.get('/units', async (c) => {
   const { results } = await c.env.DB
-    .prepare('SELECT id, name, form_schema FROM units ORDER BY name ASC')
-    .all<{ id: number; name: string; form_schema: string }>();
+    .prepare(`
+      SELECT u.id, u.name, u.public_label, u.is_public, u.form_schema, u.department_id,
+             d.name as department_name
+      FROM units u
+      LEFT JOIN departments d ON u.department_id = d.id
+      WHERE u.is_public = 1 OR u.is_public IS NULL
+      ORDER BY COALESCE(d.id, 999) ASC, u.id ASC
+    `)
+    .all<any>();
 
   const formatted = (results || []).map((u) => ({
     ...u,
+    display_label: u.public_label && u.public_label.trim() ? u.public_label.trim() : u.name,
     form_schema: u.form_schema ? JSON.parse(u.form_schema) : [],
   }));
 
@@ -63,16 +71,26 @@ publicApi.post('/job-requests', async (c) => {
     const numbers = Math.floor(100000 + Math.random() * 900000).toString();
     const ticketNo = letters + numbers;
 
-        const unitRow = await c.env.DB
-      .prepare('SELECT id FROM units WHERE name = ?')
-      .bind(unit)
-      .first<{ id: number }>();
+    // Resolve target unit & department
+    const unitRow = await c.env.DB
+      .prepare(`
+        SELECT u.id, u.name, u.department_id, d.manager_id, m.email as manager_email, m.name as manager_name
+        FROM units u
+        LEFT JOIN departments d ON u.department_id = d.id
+        LEFT JOIN users m ON d.manager_id = m.id
+        WHERE u.name = ? OR u.public_label = ? OR CAST(u.id AS TEXT) = ?
+      `)
+      .bind(unit, unit, unit)
+      .first<any>();
+
     const unitId = unitRow?.id || null;
+    const departmentId = unitRow?.department_id || null;
+    const resolvedUnitName = unitRow?.name || unit;
 
     const res = await c.env.DB
       .prepare(
-        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, additional_data, unit, unit_id, status, current_step_name, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Manager Review', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, additional_data, unit, unit_id, department_id, status, current_step_name, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Manager Review', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
       .bind(
         ticketNo,
@@ -81,8 +99,9 @@ publicApi.post('/job-requests', async (c) => {
         title,
         description || '',
         additional_data ? JSON.stringify(additional_data) : null,
-        unit,
-        unitId
+        resolvedUnitName,
+        unitId,
+        departmentId
       )
       .run();
 
@@ -97,19 +116,24 @@ publicApi.post('/job-requests', async (c) => {
       .bind(requestId, client_name, `Job request submitted by ${client_email}`)
       .run();
 
-    // Find Manager email for target unit
-    const manager = await c.env.DB
-      .prepare(`
-        SELECT u.email, u.name FROM users u
-        LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name)
-        WHERE (u.unit_id = ? OR LOWER(TRIM(u.unit)) = LOWER(TRIM(?)) OR LOWER(TRIM(un.name)) = LOWER(TRIM(?))) AND u.role = 'manager'
-        LIMIT 1
-      `)
-      .bind(unitId, unit, unit)
-      .first<{ email: string; name: string }>();
+    // Find Manager email for target unit/department
+    let targetManagerEmail = unitRow?.manager_email;
+    let targetManagerName = unitRow?.manager_name;
 
-    const targetManagerEmail = manager?.email || 'amanmana@gmail.com';
-    const targetManagerName = manager?.name || 'Workflow Manager';
+    if (!targetManagerEmail) {
+      const manager = await c.env.DB
+        .prepare(`
+          SELECT u.email, u.name FROM users u
+          LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name)
+          WHERE (u.unit_id = ? OR LOWER(TRIM(u.unit)) = LOWER(TRIM(?)) OR LOWER(TRIM(un.name)) = LOWER(TRIM(?))) AND u.role = 'manager'
+          LIMIT 1
+        `)
+        .bind(unitId, resolvedUnitName, resolvedUnitName)
+        .first<{ email: string; name: string }>();
+
+      targetManagerEmail = manager?.email || 'amanmana@gmail.com';
+      targetManagerName = manager?.name || 'Workflow Manager';
+    }
 
     // Dispatch automatic HTML email to Manager via Gmail SMTP (creativeuxdmim@gmail.com)
     const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';

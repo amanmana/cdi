@@ -5,10 +5,17 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'manager' | 'staff' | 'client' | 'director';
+  unit_id?: number | null;
   unit?: string | null;
+  department_id?: number | null;
+  department_name?: string | null;
+  managed_department_id?: number | null;
+  is_unit_head?: boolean | number;
   phone?: string | null;
   is_acting_manager?: boolean;
   acting_manager_unit?: string | null;
+  acting_manager_unit_id?: number | null;
+  acting_manager_department_id?: number | null;
 }
 
 interface AuthContextType {

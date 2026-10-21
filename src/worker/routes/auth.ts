@@ -166,13 +166,18 @@ auth.get('/me', async (c) => {
 
   const user = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.unit_id, COALESCE(un.name, u.unit) as unit 
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head,
+             COALESCE(un.name, u.unit) as unit,
+             d.id as managed_department_id,
+             COALESCE(dept.name, d.name) as department_name
       FROM users u 
       LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
+      LEFT JOIN departments d ON d.manager_id = u.id
+      LEFT JOIN departments dept ON u.department_id = dept.id
       WHERE u.id = ?
     `)
     .bind(payload.id)
-    .first<AuthUser>();
+    .first<any>();
 
   if (!user) {
     return c.json({ user: null });
@@ -181,7 +186,7 @@ auth.get('/me', async (c) => {
   const today = new Date().toISOString().split('T')[0];
   const delegation = await c.env.DB
     .prepare(
-      `SELECT d.*, COALESCE(un.name, m.unit) as manager_unit, m.role as manager_role
+      `SELECT d.*, m.department_id as manager_department_id, COALESCE(un.name, m.unit) as manager_unit, m.role as manager_role
        FROM delegations d
        JOIN users m ON d.manager_id = m.id
        LEFT JOIN units un ON (m.unit_id = un.id OR m.unit = un.name)
@@ -189,13 +194,14 @@ auth.get('/me', async (c) => {
        LIMIT 1`
     )
     .bind(user.id, today, today)
-    .first<{ manager_unit: string; manager_role: string }>();
+    .first<any>();
 
   return c.json({
     user: {
       ...user,
       is_acting_manager: !!delegation,
       acting_manager_unit: delegation ? delegation.manager_unit : null,
+      acting_manager_department_id: delegation ? delegation.manager_department_id : null,
     },
   });
 });

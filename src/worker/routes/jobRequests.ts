@@ -257,9 +257,14 @@ jobRequestsRouter.use('*', async (c, next) => {
 
   const freshUser = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.unit_id, COALESCE(un.name, u.unit) as unit 
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head,
+             COALESCE(un.name, u.unit) as unit,
+             d.id as managed_department_id,
+             COALESCE(dept.name, d.name) as department_name
       FROM users u 
       LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
+      LEFT JOIN departments d ON d.manager_id = u.id
+      LEFT JOIN departments dept ON u.department_id = dept.id
       WHERE u.id = ?
     `)
     .bind(payload.id)
@@ -269,7 +274,7 @@ jobRequestsRouter.use('*', async (c, next) => {
     const today = new Date().toISOString().split('T')[0];
     const delegation = await c.env.DB
       .prepare(
-        `SELECT d.*, m.unit_id as manager_unit_id, COALESCE(un.name, m.unit) as manager_unit
+        `SELECT d.*, m.unit_id as manager_unit_id, m.department_id as manager_department_id, COALESCE(un.name, m.unit) as manager_unit
          FROM delegations d
          JOIN users m ON d.manager_id = m.id
          LEFT JOIN units un ON (m.unit_id = un.id OR m.unit = un.name)
@@ -277,13 +282,14 @@ jobRequestsRouter.use('*', async (c, next) => {
          LIMIT 1`
       )
       .bind(freshUser.id, today, today)
-      .first<{ manager_unit_id: number; manager_unit: string }>();
+      .first<any>();
 
     c.set('user', {
       ...freshUser,
       is_acting_manager: !!delegation,
       acting_manager_unit_id: delegation ? delegation.manager_unit_id : null,
       acting_manager_unit: delegation ? delegation.manager_unit : null,
+      acting_manager_department_id: delegation ? delegation.manager_department_id : null,
     });
   } else {
     c.set('user', payload);
@@ -320,15 +326,27 @@ jobRequestsRouter.get('/', async (c) => {
 
   // Role Scoping
   const managerUnit = (user as any)?.acting_manager_unit || user?.unit;
+  const managerDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+
   if (user && user.role === 'staff') {
     query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 AND j.status != 'manager_approval'`;
     params.push(String(user.id));
   } else if (user && user.role === 'client') {
     query += ` AND j.client_email = ?`;
     params.push(user.email);
-  } else if (user && (user.role === 'manager' || (user as any)?.is_acting_manager) && managerUnit) {
-    query += ` AND (j.unit = ? OR j.unit_id IN (SELECT id FROM units WHERE name = ?))`;
-    params.push(managerUnit, managerUnit);
+  } else if (user && (user.role === 'manager' || (user as any)?.is_acting_manager)) {
+    if (managerDeptId) {
+      query += ` AND (
+        j.department_id = ?
+        OR j.unit_id IN (SELECT id FROM units WHERE department_id = ?)
+        OR j.unit = ?
+        OR j.unit_id IN (SELECT id FROM units WHERE name = ?)
+      )`;
+      params.push(managerDeptId, managerDeptId, managerUnit || '', managerUnit || '');
+    } else if (managerUnit) {
+      query += ` AND (j.unit = ? OR j.unit_id IN (SELECT id FROM units WHERE name = ?))`;
+      params.push(managerUnit, managerUnit);
+    }
   }
 
   if (search) {
