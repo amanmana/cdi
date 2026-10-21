@@ -1152,7 +1152,8 @@ export const JobRequestDetail: React.FC = () => {
                 <span>Workflow Actions</span>
               </div>
 
-            {!(request.status === 'staff_processing' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) && (
+            {!(request.status === 'staff_processing' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) &&
+             !(request.status === 'manager_approval' && !(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || (isInterUnitJob && user?.is_unit_head))) && (
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-slate-100"></div>
                 <span className="flex-shrink mx-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
@@ -1162,17 +1163,25 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             )}
 
+            {/* Notice for Unit Heads & Staff viewing requests awaiting Manager Approval */}
+            {request.status === 'manager_approval' && !(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || (isInterUnitJob && user?.is_unit_head)) && (
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-1 my-2">
+                <div className="text-xs font-bold text-slate-700">Awaiting Manager Approval</div>
+                <div className="text-[11px] text-slate-400 font-medium">Online client job requests are reviewed and approved exclusively by Department Managers.</div>
+              </div>
+            )}
+
             {/* Action Buttons based on Role & Status */}
             {canAct && (
               <div className="space-y-2">
-                {request.status === 'manager_approval' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_unit_head || user?.is_acting_manager) && (
+                {request.status === 'manager_approval' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || (isInterUnitJob && user?.is_unit_head)) && (
                   <>
                     <button
                       onClick={handleOpenApproveModal}
                       disabled={actionLoading}
                       className="btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-2xl h-12 border-none shadow-lg shadow-emerald-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
                     >
-                      <CheckCircle2 className="w-4.5 h-4.5" /> {request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU') ? 'ACCEPT & ASSIGN TEAM' : 'APPROVE REQUEST'}
+                      <CheckCircle2 className="w-4.5 h-4.5" /> {isInterUnitJob ? 'ACCEPT & ASSIGN TEAM' : 'APPROVE REQUEST'}
                     </button>
                     <button
                       onClick={() => setShowRejectModal(true)}

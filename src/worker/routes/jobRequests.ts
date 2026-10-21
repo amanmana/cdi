@@ -1244,7 +1244,13 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
 
-  const isTargetUnitHead = Boolean(user.is_unit_head) && (
+  const isInterUnit = Boolean(
+    request.ticket_no?.startsWith('IU') ||
+    request.request_type === 'inter_unit' ||
+    (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
+  );
+
+  const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
   );
@@ -1282,7 +1288,13 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
 
-  const isTargetUnitHead = Boolean(user.is_unit_head) && (
+  const isInterUnit = Boolean(
+    request.ticket_no?.startsWith('IU') ||
+    request.request_type === 'inter_unit' ||
+    (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
+  );
+
+  const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
   );
@@ -1431,6 +1443,21 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   const previousStaffIds = request.assigned_staff_ids
     ? request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n))
     : [];
+
+  const isInterUnit = Boolean(
+    request.ticket_no?.startsWith('IU') ||
+    request.request_type === 'inter_unit' ||
+    (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
+  );
+
+  const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
+    (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
+    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+  );
+
+  if ((request.status === 'manager_approval' || request.status === 'pending') && !['admin', 'manager'].includes(user.role) && !user.is_acting_manager && !isTargetUnitHead) {
+    return c.json({ error: 'Unauthorized to approve and assign team to this request.' }, 403);
+  }
 
   const assignedStr = Array.isArray(staff_ids) ? staff_ids.join(',') : '';
 

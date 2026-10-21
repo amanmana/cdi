@@ -13,11 +13,22 @@ export class WorkflowEngine {
     }
 
     if (request.status === 'manager_approval') {
-      const isTargetUnitHead = Boolean((user as any).is_unit_head) && (
-        (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||
-        (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+      const isInterUnit = Boolean(
+        request.ticket_no?.startsWith('IU') ||
+        request.request_type === 'inter_unit' ||
+        (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
       );
-      return user.role === 'manager' || user.role === 'admin' || isTargetUnitHead;
+
+      if (isInterUnit) {
+        const isTargetUnitHead = Boolean((user as any).is_unit_head) && (
+          (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||
+          (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+        );
+        return user.role === 'manager' || user.role === 'admin' || Boolean((user as any).is_acting_manager) || isTargetUnitHead;
+      }
+
+      // Online client requests: ONLY Manager, Admin, or Acting Manager has approval authority
+      return user.role === 'manager' || user.role === 'admin' || Boolean((user as any).is_acting_manager);
     }
 
     if (request.status === 'staff_processing') {
