@@ -851,8 +851,12 @@ export const JobRequestDetail: React.FC = () => {
                   {data.staffDetails.map((s: any) => (
                     <div key={s.id} className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/70 flex items-center justify-between shadow-xs">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-white text-slate-800 font-black text-xs flex items-center justify-center border border-slate-200 shrink-0 shadow-inner">
-                          {s.name.charAt(0).toUpperCase()}
+                        <div className="w-9 h-9 rounded-xl bg-white text-slate-800 font-black text-xs flex items-center justify-center border border-slate-200 shrink-0 shadow-inner overflow-hidden">
+                          {s.avatar_url ? (
+                            <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
+                          ) : (
+                            s.name.charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-black text-slate-900 truncate">{s.name}</div>
@@ -912,11 +916,15 @@ export const JobRequestDetail: React.FC = () => {
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div
-                            className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 ${
+                            className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 overflow-hidden ${
                               isSelf ? 'bg-blue-600 text-white shadow-sm' : 'bg-indigo-100 text-indigo-700'
                             }`}
                           >
-                            {s.name.charAt(0).toUpperCase()}
+                            {s.avatar_url ? (
+                              <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
+                            ) : (
+                              s.name.charAt(0).toUpperCase()
+                            )}
                           </div>
                           <div className="min-w-0">
                             <div className="text-xs font-black text-slate-900 flex items-center gap-1.5 truncate">

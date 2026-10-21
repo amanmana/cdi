@@ -631,7 +631,7 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
 
   try {
     // 1. Fetch relevant staff users
-    let staffQuery = "SELECT id, name, email, role, unit FROM users WHERE role IN ('staff', 'manager', 'admin')";
+    let staffQuery = "SELECT id, name, email, avatar_url, role, unit FROM users WHERE role IN ('staff', 'manager', 'admin')";
     const staffParams: any[] = [];
 
     if (user.role === 'staff' && !user.is_acting_manager) {
@@ -826,6 +826,7 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
         staff_id: staff.id,
         staff_name: staff.name,
         staff_email: staff.email,
+        staff_avatar_url: staff.avatar_url,
         staff_unit: staff.unit,
         entries: formattedEntries,
         total_count: formattedEntries.length,
@@ -1157,7 +1158,7 @@ jobRequestsRouter.get('/:id', async (c) => {
   if (request.assigned_staff_ids) {
     const staffIds = request.assigned_staff_ids.split(',');
     const placeholders = staffIds.map(() => '?').join(',');
-    const { results } = await db.prepare(`SELECT id, name, email, role, unit FROM users WHERE id IN (${placeholders})`).bind(...staffIds).all();
+    const { results } = await db.prepare(`SELECT id, name, email, avatar_url, role, unit FROM users WHERE id IN (${placeholders})`).bind(...staffIds).all();
 
     const { results: doneLogs } = await db.prepare(`
       SELECT DISTINCT actor_id FROM workflow_logs 

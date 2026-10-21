@@ -37,6 +37,7 @@ interface StaffReportGroup {
   staff_id: number;
   staff_name: string;
   staff_email: string;
+  staff_avatar_url?: string | null;
   staff_unit: string;
   entries: ReportEntry[];
   total_count: number;
@@ -470,8 +471,12 @@ export const ReportsPage: React.FC = () => {
                       className="bg-slate-900 hover:bg-slate-950 text-white p-4 md:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 cursor-pointer select-none transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center font-black text-base shrink-0 border border-white/10 shadow-inner">
-                          {group.staff_name.charAt(0).toUpperCase()}
+                        <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center font-black text-base shrink-0 border border-white/10 shadow-inner overflow-hidden">
+                          {group.staff_avatar_url ? (
+                            <img src={group.staff_avatar_url} alt={group.staff_name} className="w-full h-full object-cover" />
+                          ) : (
+                            group.staff_name.charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div>
                           <div className="flex flex-wrap items-center gap-2">

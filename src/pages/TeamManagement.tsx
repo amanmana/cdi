@@ -9,6 +9,7 @@ interface StaffMember {
   email: string;
   role: string;
   unit: string;
+  avatar_url?: string | null;
   status?: string;
   assigned_jobs_count?: number;
   completed_jobs_count?: number;
@@ -281,8 +282,12 @@ export const TeamManagement: React.FC = () => {
                       {/* Name Column with Solid Initial Avatar */}
                       <td className="py-4 px-4 align-middle">
                         <div className="flex items-center gap-3.5">
-                          <div className={`w-11 h-11 rounded-2xl ${colorClass} text-white font-extrabold text-base flex items-center justify-center shadow-md`}>
-                            {member.name.charAt(0).toUpperCase()}
+                          <div className={`w-11 h-11 rounded-2xl ${colorClass} text-white font-extrabold text-base flex items-center justify-center shadow-md overflow-hidden shrink-0`}>
+                            {member.avatar_url ? (
+                              <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+                            ) : (
+                              member.name.charAt(0).toUpperCase()
+                            )}
                           </div>
                           <div>
                             <div className="font-bold text-slate-900 text-sm">{member.name}</div>

@@ -926,10 +926,14 @@ export const JobRequestsList: React.FC = () => {
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                              <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 overflow-hidden ${
                                 isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
                               }`}>
-                                {staff.name.charAt(0).toUpperCase()}
+                                {staff.avatar_url ? (
+                                  <img src={staff.avatar_url} alt={staff.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  staff.name.charAt(0).toUpperCase()
+                                )}
                               </div>
                               <div className="truncate">
                                 <div className="font-extrabold text-xs text-slate-900 truncate">{staff.name}</div>

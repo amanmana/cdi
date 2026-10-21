@@ -176,7 +176,7 @@ admin.get('/gantt', async (c) => {
 admin.get('/team', async (c) => {
   const db = c.env.DB;
   const { results: staffMembers } = await db.prepare(`
-    SELECT u.id, u.name, u.email, u.role, u.unit_id,
+    SELECT u.id, u.name, u.email, u.avatar_url, u.role, u.unit_id,
            COALESCE(u.department_id, un.department_id, d.id) as department_id,
            u.is_unit_head,
            COALESCE(un.name, u.unit) as unit,
@@ -486,7 +486,7 @@ admin.delete('/units/:id', async (c) => {
 admin.get('/users', async (c) => {
   const db = c.env.DB;
   const { results } = await db.prepare(`
-    SELECT u.id, u.name, u.email, u.role, u.unit, u.unit_id,
+    SELECT u.id, u.name, u.email, u.avatar_url, u.role, u.unit, u.unit_id,
            COALESCE(u.department_id, d.id, dept.id) as department_id,
            u.is_unit_head, u.created_at,
            COALESCE(d.name, dept.name) as department_name,
