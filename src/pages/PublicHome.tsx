@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AlertCircle, Check, Calendar, AlertTriangle } from 'lucide-react';
+import { AlertCircle, Check, Calendar, AlertTriangle, Sparkles, User, Mail, FileText, Layers, Send } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { Footer } from '../components/Footer';
 
@@ -202,79 +202,107 @@ export const PublicHome: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 antialiased">
-      <div className="max-w-2xl mx-auto flex flex-col gap-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-50 to-slate-100/70 py-12 md:py-16 px-4 sm:px-6 lg:px-8 antialiased">
+      <div className="max-w-4xl lg:max-w-5xl mx-auto flex flex-col gap-10">
         {/* Header Hero Banner */}
-        <div className="text-center">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 mb-3 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            <span>Corporate Design & Innovation Portal</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
             Submit a Job Request
           </h1>
-          <p className="mt-2 text-slate-500 text-sm md:text-base">
-            Fill in the details below and we'll get back to you as soon as possible.
+          <p className="mt-3 text-slate-500 text-sm md:text-base leading-relaxed">
+            Sila lengkapkan butiran permohonan di bawah untuk tindakan pantas unit perkhidmatan kami.
           </p>
         </div>
 
         {/* Card Form Container */}
-        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-          {/* Top 8px Blue Accent Line */}
-          <div className="h-2 bg-blue-600"></div>
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200/80 overflow-hidden">
+          {/* Top Gradient Accent Line */}
+          <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500"></div>
 
-          <div className="p-8 md:p-10 flex flex-col gap-6">
+          <div className="p-8 sm:p-10 md:p-12 lg:p-14 flex flex-col gap-8">
             {error && (
-              <div className="alert alert-error text-sm py-3 rounded-xl shadow-sm bg-rose-500 text-white border-none flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
+              <div className="alert alert-error text-sm py-3.5 px-4 rounded-2xl shadow-sm bg-rose-500 text-white border-none flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <span className="font-medium">{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-              {/* 2-Column Inputs: Full Name & Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="form-control">
-                  <label className="label pt-0 pb-1.5">
-                    <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
-                      Your Full Name <span className="text-rose-500">*</span>
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="client1"
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
-                  />
+            <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+              {/* SECTION 1: APPLICANT DETAILS */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                    1
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-blue-600" />
+                      Maklumat Pemohon (Applicant Details)
+                    </h2>
+                    <p className="text-[11px] text-slate-400 font-medium">Butiran untuk rujukan rasmi dan semakan status tiket</p>
+                  </div>
                 </div>
 
-                <div className="form-control">
-                  <label className="label pt-0 pb-1.5">
-                    <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
-                      Email Address <span className="text-rose-500">*</span>
-                    </span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="cdiclient@mimos.my"
-                    value={clientEmail}
-                    onChange={(e) => setClientEmail(e.target.value)}
-                    className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="form-control">
+                    <label className="label pt-0 pb-1.5">
+                      <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
+                        Nama Penuh (Full Name) <span className="text-rose-500">*</span>
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="cth: Ahmad Razali"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
+                    />
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label pt-0 pb-1.5">
+                      <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
+                        Alamat Emel (Email Address) <span className="text-rose-500">*</span>
+                      </span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="cth: pemohon@mimos.my"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Target Unit Pills Selection */}
-              <div className="form-control">
-                <label className="label pt-0 pb-2">
-                  <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center justify-between w-full">
-                    <span>Select Target Unit <span className="text-rose-500">*</span></span>
-                    <span className="text-[11px] font-semibold text-slate-400 lowercase normal-case">
-                      choose specialized unit
-                    </span>
+              {/* SECTION 2: TARGET UNIT SELECTION */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                      2
+                    </div>
+                    <div>
+                      <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-blue-600" />
+                        Unit Sasaran (Target Service Unit) <span className="text-rose-500">*</span>
+                      </h2>
+                      <p className="text-[11px] text-slate-400 font-medium">Pilih unit perkhidmatan yang bersesuaian dengan permohonan anda</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-slate-400 font-semibold hidden md:inline">
+                    {units.length} Unit Perkhidmatan
                   </span>
-                </label>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
                   {units.map((u) => {
                     const isSelected = selectedUnit === u.name;
                     const displayTitle = u.display_label || u.public_label || u.name;
@@ -284,10 +312,10 @@ export const PublicHome: React.FC = () => {
                         key={u.id}
                         type="button"
                         onClick={() => setSelectedUnit(u.name)}
-                        className={`p-3.5 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between relative group ${
+                        className={`p-4 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between relative group min-h-[105px] ${
                           isSelected
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25 ring-2 ring-blue-600/30'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/20 shadow-xs'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25 ring-2 ring-blue-600/30 -translate-y-0.5'
+                            : 'bg-slate-50/70 text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-white hover:shadow-md'
                         }`}
                       >
                         <div className="flex items-center justify-between w-full mb-2">
@@ -295,7 +323,7 @@ export const PublicHome: React.FC = () => {
                             className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-colors ${
                               isSelected
                                 ? 'bg-white/20 text-white'
-                                : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-700'
+                                : 'bg-slate-200/70 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
                             }`}
                           >
                             {deptTag}
@@ -306,80 +334,79 @@ export const PublicHome: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <div className="font-extrabold text-sm tracking-tight leading-snug">
-                          {displayTitle}
-                        </div>
-                        {u.public_label && u.public_label !== u.name && (
-                          <div className={`text-[10px] font-semibold mt-1 ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
-                            Unit: {u.name}
+                        <div>
+                          <div className="font-extrabold text-sm tracking-tight leading-snug">
+                            {displayTitle}
                           </div>
-                        )}
+                          {u.public_label && u.public_label !== u.name && (
+                            <div className={`text-[10px] font-medium mt-1 ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                              Unit: {u.name}
+                            </div>
+                          )}
+                        </div>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Title Field */}
-              <div className="form-control">
-                <label className="label pt-0 pb-1.5">
-                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
-                    Title <span className="text-rose-500">*</span>
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="test"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
-                />
-              </div>
-
-              {/* Description Field */}
-              <div className="form-control">
-                <label className="label pt-0 pb-1.5">
-                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider">
-                    Description
-                  </span>
-                </label>
-                <textarea
-                  rows={4}
-                  placeholder="Enter additional description or instructions..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-4"
-                ></textarea>
-              </div>
-
-              {/* Target Deadline Field (Mandatory) */}
-              <div className="form-control">
-                <label className="label pt-0 pb-1.5">
-                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider flex items-center justify-between w-full">
-                    <span>
-                      Target Deadline (Tarikh Diperlukan) <span className="text-rose-500">*</span>
-                    </span>
-                    <span className="text-[10px] font-normal text-slate-400 lowercase">
-                      format: yyyy-mm-dd
-                    </span>
-                  </span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-semibold text-slate-800 pl-11"
-                  />
-                  <Calendar className="w-5 h-5 absolute left-3.5 top-3.5 text-slate-400 pointer-events-none" />
+              {/* SECTION 3: SCOPE & TIMELINE */}
+              <div className="space-y-5">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                    3
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-blue-600" />
+                      Skop Permohonan & Garis Masa (Scope & Timeline)
+                    </h2>
+                    <p className="text-[11px] text-slate-400 font-medium">Nyatakan tajuk, tarikh sasaran dan butiran terperinci tugasan</p>
+                  </div>
                 </div>
 
-                {/* Interactive Deadline Proximity Alert */}
+                {/* Paired Title (2 cols) & Dateline (1 col) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="form-control md:col-span-2">
+                    <label className="label pt-0 pb-1.5">
+                      <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
+                        Tajuk Permohonan (Title) <span className="text-rose-500">*</span>
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="cth: Poster Kempen Kesedaran Keselamatan Siber 2026"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
+                    />
+                  </div>
+
+                  <div className="form-control md:col-span-1">
+                    <label className="label pt-0 pb-1.5">
+                      <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center justify-between w-full">
+                        <span>Dateline <span className="text-rose-500">*</span></span>
+                        <span className="text-[10px] font-normal text-slate-400 lowercase">yyyy-mm-dd</span>
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        required
+                        min={new Date().toISOString().split('T')[0]}
+                        value={deadline}
+                        onChange={(e) => setDeadline(e.target.value)}
+                        className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-semibold text-slate-800 pl-11"
+                      />
+                      <Calendar className="w-5 h-5 absolute left-3.5 top-3.5 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Interactive Deadline Proximity Alert Box */}
                 {isDeadlineAlertTriggered && (
-                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/90 shadow-xs flex items-start gap-3 mt-3 animate-in fade-in duration-200">
+                  <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 shadow-xs flex items-start gap-3.5 animate-in fade-in duration-200">
                     <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div className="space-y-1">
                       <div className="text-xs font-black uppercase text-amber-900 tracking-wider">
@@ -395,20 +422,37 @@ export const PublicHome: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Description Field */}
+                <div className="form-control">
+                  <label className="label pt-0 pb-1.5">
+                    <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
+                      Penerangan Tugasan (Description)
+                    </span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    placeholder="Nyatakan arahan, objektif, format output atau pautan bahan rujukan..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-4"
+                  ></textarea>
+                </div>
               </div>
 
               {/* Dynamic Unit Schema Fields */}
               {currentUnitObj && currentUnitObj.form_schema && currentUnitObj.form_schema.length > 0 && (
-                <div className="space-y-5 mt-8 mb-4">
-                  <div className="border-b border-slate-200 pb-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
-                      {selectedUnit} Unit Requirements
+                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                  <div className="border-b border-slate-200/80 pb-2 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Keperluan Tambahan: Unit {selectedUnit}
                     </span>
+                    <span className="text-[11px] text-slate-400 font-medium">Borang Khusus Unit</span>
                   </div>
 
-                  <div className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {currentUnitObj.form_schema.map((field) => (
-                      <div key={field.id} className="form-control">
+                      <div key={field.id} className={`form-control ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
                         <label className="label pt-0 pb-1">
                           <span className="label-text font-bold text-slate-700 text-xs">
                             {field.label} {field.required && <span className="text-rose-500">*</span>}
@@ -437,7 +481,7 @@ export const PublicHome: React.FC = () => {
                             placeholder={field.placeholder || `Enter ${field.label}...`}
                             value={dynamicFields[field.id] || ''}
                             onChange={(e) => handleDynamicChange(field.id, e.target.value)}
-                            className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full h-24 text-xs font-medium"
+                            className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full h-24 text-xs font-medium p-3"
                           ></textarea>
                         )}
                         
@@ -463,7 +507,6 @@ export const PublicHome: React.FC = () => {
                         {field.type === 'checkbox' && (
                           <div className="space-y-2 mt-1">
                             {field.options?.map((opt) => {
-                              // For checkbox, value is comma separated string
                               const currentValues = dynamicFields[field.id] ? dynamicFields[field.id].split(', ') : [];
                               const isChecked = currentValues.includes(opt);
                               
@@ -507,6 +550,7 @@ export const PublicHome: React.FC = () => {
                 </div>
               )}
 
+              {/* Turnstile verification */}
               <div className="pt-2 flex justify-center">
                 <Turnstile 
                   siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
@@ -524,17 +568,24 @@ export const PublicHome: React.FC = () => {
                 />
               </div>
 
-              {/* Glowing Blue Submit Button */}
+              {/* Sleek Gradient Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="btn btn-primary w-full h-14 normal-case text-base font-bold shadow-lg shadow-blue-500/30 rounded-xl bg-blue-600 hover:bg-blue-700 border-blue-600 text-white tracking-wider uppercase mt-4"
+                className="btn btn-primary w-full h-14 normal-case text-base font-bold shadow-xl shadow-blue-500/25 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-700 hover:to-indigo-700 border-none text-white tracking-wider uppercase transition-all duration-200 hover:shadow-2xl hover:shadow-blue-500/35 hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
               >
-                {loading ? <span className="loading loading-spinner"></span> : 'Submit Request'}
+                {loading ? (
+                  <span className="loading loading-spinner"></span>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    <span>Hantar Permohonan (Submit Request)</span>
+                  </>
+                )}
               </button>
 
-              <p className="text-center text-xs text-slate-400 font-medium pt-2">
-                By submitting, you agree to our privacy policy and terms.
+              <p className="text-center text-xs text-slate-400 font-medium">
+                Dengan menghantar borang ini, anda bersetuju dengan terma perkhidmatan dan dasar privasi kami.
               </p>
             </form>
           </div>
