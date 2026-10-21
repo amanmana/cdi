@@ -7,6 +7,7 @@ export const UsersManagement: React.FC = () => {
   const { token, user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
 
@@ -25,6 +26,7 @@ export const UsersManagement: React.FC = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'admin' | 'manager' | 'staff' | 'client'>('staff');
   const [unit, setUnit] = useState('');
+  const [departmentId, setDepartmentId] = useState<number | string>('');
   const [organisation, setOrganisation] = useState('');
   const [isUnitHead, setIsUnitHead] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -38,6 +40,10 @@ export const UsersManagement: React.FC = () => {
     fetch('/api/public/units')
       .then((res) => res.json())
       .then((data) => { if (Array.isArray(data)) setUnits(data); });
+
+    fetch('/api/admin/departments', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => res.json())
+      .then((data) => { if (Array.isArray(data)) setDepartments(data); });
   };
 
   useEffect(() => { fetchUsers(); }, [token]);
@@ -52,6 +58,8 @@ export const UsersManagement: React.FC = () => {
   const filteredInternalUsers =
     activeUnitTab === 'all'
       ? internalUsers
+      : activeUnitTab === 'managers'
+      ? internalUsers.filter((u) => u.role === 'manager')
       : internalUsers.filter((u) => (u.unit || '').trim() === activeUnitTab);
 
   const handleOpenModal = (u: any = null) => {
@@ -62,6 +70,7 @@ export const UsersManagement: React.FC = () => {
       setPassword('');
       setRole(u.role);
       setUnit(u.unit || '');
+      setDepartmentId(u.department_id || '');
       setOrganisation(u.organisation || '');
       setIsUnitHead(Boolean(u.is_unit_head));
     } else {
@@ -71,6 +80,7 @@ export const UsersManagement: React.FC = () => {
       setPassword('');
       setRole(mainTab === 'clients' ? 'client' : 'staff');
       setUnit('');
+      setDepartmentId('');
       setOrganisation('');
       setIsUnitHead(false);
     }
@@ -94,9 +104,13 @@ export const UsersManagement: React.FC = () => {
       return;
     }
 
-    // Frontend validation: unit is mandatory for internal staff
-    if (role !== 'client' && !unit) {
-      setSaveError('Please select a unit before saving.');
+    // Role-based validation
+    if (role === 'staff' && !unit) {
+      setSaveError('Please select a unit for this staff member.');
+      return;
+    }
+    if (role === 'manager' && !departmentId) {
+      setSaveError('Please select a managed department for this manager.');
       return;
     }
 
@@ -113,8 +127,9 @@ export const UsersManagement: React.FC = () => {
           email: cleanEmail,
           password,
           role,
-          unit: role === 'client' ? '' : unit,
-          is_unit_head: isUnitHead ? 1 : 0,
+          unit: role === 'staff' ? unit : null,
+          department_id: role === 'manager' ? Number(departmentId) : undefined,
+          is_unit_head: role === 'staff' && isUnitHead ? 1 : 0,
         }),
       });
 
@@ -199,18 +214,22 @@ export const UsersManagement: React.FC = () => {
   const getUnitTabStyle = (tabKey: string) => {
     const isActive = activeUnitTab === tabKey;
     if (tabKey === 'all') return isActive ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200';
+    if (tabKey === 'managers') return isActive ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/25' : 'bg-white text-amber-700 hover:bg-amber-50 border border-amber-200';
     const c = unitColorMap[tabKey] || defaultColor;
     return isActive ? c.active : c.inactive;
   };
   const getUnitBadgeStyle = (tabKey: string) => {
     const isActive = activeUnitTab === tabKey;
     if (tabKey === 'all') return isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600';
+    if (tabKey === 'managers') return isActive ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700';
     const c = unitColorMap[tabKey] || defaultColor;
     return isActive ? c.badge : c.inactiveBadge;
   };
-  const getUnitTabCount = (tabKey: string) =>
-    tabKey === 'all' ? internalUsers.length
-      : internalUsers.filter((u) => (u.unit || '').trim() === tabKey).length;
+  const getUnitTabCount = (tabKey: string) => {
+    if (tabKey === 'all') return internalUsers.length;
+    if (tabKey === 'managers') return internalUsers.filter((u) => u.role === 'manager').length;
+    return internalUsers.filter((u) => u.role !== 'manager' && (u.unit || '').trim() === tabKey).length;
+  };
 
   const isClientModal = role === 'client';
 
@@ -265,6 +284,10 @@ export const UsersManagement: React.FC = () => {
               <Users className="w-3.5 h-3.5" /> All Staff
               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${getUnitBadgeStyle('all')}`}>{getUnitTabCount('all')}</span>
             </button>
+            <button onClick={() => setActiveUnitTab('managers')} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 ${getUnitTabStyle('managers')}`}>
+              <Shield className="w-3.5 h-3.5" /> Managers
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${getUnitBadgeStyle('managers')}`}>{getUnitTabCount('managers')}</span>
+            </button>
             {unitGroups.map((unitName) => (
               <button key={unitName} onClick={() => setActiveUnitTab(unitName)} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 ${getUnitTabStyle(unitName)}`}>
                 {unitName}
@@ -289,7 +312,7 @@ export const UsersManagement: React.FC = () => {
                       <th className="py-3">Full Name</th>
                       <th className="py-3">Email Address</th>
                       <th className="py-3">Role</th>
-                      <th className="py-3">Unit</th>
+                      <th className="py-3">Unit / Department</th>
                       <th className="rounded-r-xl py-3 text-center">Actions</th>
                     </tr>
                   </thead>
@@ -301,19 +324,29 @@ export const UsersManagement: React.FC = () => {
                         <td className="text-xs text-slate-600 font-medium">{u.email}</td>
                         <td>{getRoleBadge(u.role)}</td>
                         <td className="text-xs font-medium text-slate-700">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span>{u.unit || '-'}</span>
-                            {Boolean(u.is_unit_head) && (
-                              <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold uppercase">
-                                Head
+                          {u.role === 'manager' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/80 font-bold text-xs">
+                              <span className="text-sm">🏢</span>
+                              <span>{u.department_name || 'Design Department'}</span>
+                              <span className="text-[9px] text-amber-700 font-black uppercase bg-amber-200/60 px-1.5 py-0.5 rounded">
+                                Manager
                               </span>
-                            )}
-                            {u.department_name && (
-                              <span className="text-[10px] text-slate-400 font-semibold">
-                                ({u.department_name})
-                              </span>
-                            )}
-                          </div>
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{u.unit || '-'}</span>
+                              {Boolean(u.is_unit_head) && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold uppercase">
+                                  Head
+                                </span>
+                              )}
+                              {u.department_name && (
+                                <span className="text-[10px] text-slate-400 font-semibold">
+                                  ({u.department_name})
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="text-center">
                           <div className="flex justify-center gap-1">
@@ -458,11 +491,13 @@ export const UsersManagement: React.FC = () => {
                 </select>
               </div>
 
-              {/* Unit field — only for internal staff */}
-              {!isClientModal && (
+              {/* Unit field — only for staff */}
+              {!isClientModal && role === 'staff' && (
                 <div>
                   <div className="flex items-center justify-between py-1">
-                    <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-0">Unit</label>
+                    <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-0">
+                      Unit <span className="text-rose-500">*</span>
+                    </label>
                     <a
                       href="/portal/units"
                       target="_blank"
@@ -484,8 +519,41 @@ export const UsersManagement: React.FC = () => {
                 </div>
               )}
 
+              {/* Department field — only for manager */}
+              {!isClientModal && role === 'manager' && (
+                <div>
+                  <div className="flex items-center justify-between py-1">
+                    <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-0">
+                      Managed Department <span className="text-rose-500">*</span>
+                    </label>
+                    <a
+                      href="/portal/units"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-blue-600 uppercase tracking-wider px-2 py-1 rounded-lg hover:bg-blue-50 transition-all"
+                    >
+                      Manage Departments <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                  <select
+                    required
+                    value={departmentId}
+                    onChange={(e) => { setDepartmentId(e.target.value); setSaveError(''); }}
+                    className={`select select-bordered select-sm bg-slate-50 rounded-xl w-full h-11 text-sm font-medium ${!departmentId ? 'border-slate-200' : 'border-emerald-400'}`}
+                  >
+                    <option value="">-- Select Managed Department --</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-400 mt-1 font-medium">
+                    Manager leads this department and has oversight across all sub-units under it.
+                  </p>
+                </div>
+              )}
+
               {/* Unit Head Checkbox — only for internal staff */}
-              {!isClientModal && (
+              {!isClientModal && role === 'staff' && (
                 <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50/60 border border-amber-200/80">
                   <input
                     type="checkbox"

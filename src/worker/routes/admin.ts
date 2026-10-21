@@ -480,11 +480,14 @@ admin.delete('/units/:id', async (c) => {
 admin.get('/users', async (c) => {
   const db = c.env.DB;
   const { results } = await db.prepare(`
-    SELECT u.id, u.name, u.email, u.role, u.unit, u.unit_id, u.department_id, u.is_unit_head, u.created_at,
-           d.name as department_name,
+    SELECT u.id, u.name, u.email, u.role, u.unit, u.unit_id,
+           COALESCE(u.department_id, d.id, dept.id) as department_id,
+           u.is_unit_head, u.created_at,
+           COALESCE(d.name, dept.name) as department_name,
            (SELECT COUNT(*) FROM job_requests j WHERE j.client_email = u.email OR LOWER(TRIM(j.client_name)) = LOWER(TRIM(u.name))) as project_count
     FROM users u
     LEFT JOIN departments d ON u.department_id = d.id
+    LEFT JOIN departments dept ON dept.manager_id = u.id
     ORDER BY u.id ASC
   `).all();
   return c.json(results || []);
@@ -504,14 +507,23 @@ admin.post('/users', async (c) => {
       return c.json({ error: 'Email address is already in use. Please use a different email.' }, 400);
     }
 
-    const unitRow = unit ? await db.prepare('SELECT id, department_id FROM units WHERE name = ?').bind(unit).first<any>() : null;
+    const isManager = role === 'manager';
+    const unitRow = (!isManager && unit) ? await db.prepare('SELECT id, department_id FROM units WHERE name = ?').bind(unit).first<any>() : null;
     const unitId = unitRow?.id || null;
-    const resolvedDeptId = department_id || unitRow?.department_id || null;
+    const resolvedDeptId = isManager ? (department_id ? Number(department_id) : null) : (unitRow?.department_id || null);
+    const resolvedUnit = isManager ? null : (unit || null);
+    const resolvedIsUnitHead = isManager ? 0 : (is_unit_head ? 1 : 0);
 
     const hash = await hashPassword(password);
-    await db.prepare('INSERT INTO users (name, email, password_hash, role, unit_id, unit, department_id, is_unit_head) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(name.trim(), cleanEmail, hash, role || 'staff', unitId, unit || null, resolvedDeptId, is_unit_head ? 1 : 0)
+    const res = await db.prepare('INSERT INTO users (name, email, password_hash, role, unit_id, unit, department_id, is_unit_head) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(name.trim(), cleanEmail, hash, role || 'staff', unitId, resolvedUnit, resolvedDeptId, resolvedIsUnitHead)
       .run();
+
+    const newUserId = res.meta.last_row_id as number;
+
+    if (isManager && resolvedDeptId) {
+      await db.prepare('UPDATE departments SET manager_id = ? WHERE id = ?').bind(newUserId, resolvedDeptId).run();
+    }
 
     return c.json({ success: true, message: 'User created' });
   } catch (err: any) {
@@ -537,19 +549,34 @@ admin.put('/users/:id', async (c) => {
       return c.json({ error: 'Email address is already in use by another user. Please use a different email.' }, 400);
     }
 
-    const unitRow = unit ? await db.prepare('SELECT id, department_id FROM units WHERE name = ?').bind(unit).first<any>() : null;
+    const isManager = role === 'manager';
+    const unitRow = (!isManager && unit) ? await db.prepare('SELECT id, department_id FROM units WHERE name = ?').bind(unit).first<any>() : null;
     const unitId = unitRow?.id || null;
-    const resolvedDeptId = department_id !== undefined ? department_id : (unitRow?.department_id || null);
+    const resolvedDeptId = isManager
+      ? (department_id !== undefined && department_id !== '' ? Number(department_id) : null)
+      : (unitRow?.department_id || null);
+    const resolvedUnit = isManager ? null : (unit || null);
+    const resolvedIsUnitHead = isManager ? 0 : (is_unit_head ? 1 : 0);
 
     if (password) {
       const hash = await hashPassword(password);
       await db.prepare('UPDATE users SET name = ?, email = ?, password_hash = ?, role = ?, unit_id = ?, unit = ?, department_id = ?, is_unit_head = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
-        .bind(name.trim(), cleanEmail, hash, role, unitId, unit || null, resolvedDeptId, is_unit_head ? 1 : 0, targetId, id)
+        .bind(name.trim(), cleanEmail, hash, role, unitId, resolvedUnit, resolvedDeptId, resolvedIsUnitHead, targetId, id)
         .run();
     } else {
       await db.prepare('UPDATE users SET name = ?, email = ?, role = ?, unit_id = ?, unit = ?, department_id = ?, is_unit_head = ? WHERE id = ? OR CAST(id AS TEXT) = ?')
-        .bind(name.trim(), cleanEmail, role, unitId, unit || null, resolvedDeptId, is_unit_head ? 1 : 0, targetId, id)
+        .bind(name.trim(), cleanEmail, role, unitId, resolvedUnit, resolvedDeptId, resolvedIsUnitHead, targetId, id)
         .run();
+    }
+
+    if (isManager && resolvedDeptId) {
+      // Clear previous department if any
+      await db.prepare('UPDATE departments SET manager_id = NULL WHERE manager_id = ? AND id != ?').bind(targetId, resolvedDeptId).run();
+      // Link to new department
+      await db.prepare('UPDATE departments SET manager_id = ? WHERE id = ?').bind(targetId, resolvedDeptId).run();
+    } else if (!isManager) {
+      // If user changed away from manager, clear any department manager_id pointing to this user
+      await db.prepare('UPDATE departments SET manager_id = NULL WHERE manager_id = ?').bind(targetId).run();
     }
 
     return c.json({ success: true, message: 'User updated' });
