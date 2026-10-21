@@ -55,7 +55,15 @@ export const TeamManagement: React.FC = () => {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.staffMembers)) {
-          setStaffMembers(data.staffMembers);
+          setStaffMembers(
+            data.staffMembers.filter(
+              (m: any) =>
+                m.role !== 'admin' &&
+                m.id !== 1 &&
+                m.email !== 'admin@example.com' &&
+                !m.name.toLowerCase().includes('admin')
+            )
+          );
         }
       })
       .catch((err) => console.error(err))

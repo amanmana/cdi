@@ -104,7 +104,13 @@ export const ReportsPage: React.FC = () => {
       .then((res) => res.json())
       .then((data) => {
         if (data.reports) {
-          setReports(data.reports);
+          const staffOnlyReports = (data.reports as StaffReportGroup[]).filter(
+            (r) =>
+              r.staff_email !== 'admin@example.com' &&
+              !r.staff_name.toLowerCase().includes('admin') &&
+              r.staff_unit !== 'Administrator'
+          );
+          setReports(staffOnlyReports);
           // Default to collapsed for all staff
           setExpandedStaffIds(new Set());
         }
@@ -166,10 +172,18 @@ export const ReportsPage: React.FC = () => {
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) {
+            const validStaff = data.filter(
+              (u) =>
+                (u.role === 'staff' || u.role === 'manager') &&
+                u.role !== 'admin' &&
+                u.id !== 1 &&
+                u.email !== 'admin@example.com' &&
+                !u.name.toLowerCase().includes('admin')
+            );
             if (user?.role === 'manager' && user?.unit) {
-              setStaffListOptions(data.filter((u) => (u.role === 'staff' || u.role === 'manager') && u.unit === user.unit));
+              setStaffListOptions(validStaff.filter((u) => u.unit === user.unit));
             } else {
-              setStaffListOptions(data.filter((u) => u.role === 'staff' || u.role === 'manager'));
+              setStaffListOptions(validStaff);
             }
           }
         })

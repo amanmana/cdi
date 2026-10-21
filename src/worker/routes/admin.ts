@@ -187,7 +187,7 @@ admin.get('/team', async (c) => {
     LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name)
     LEFT JOIN departments d ON (u.department_id = d.id OR un.department_id = d.id)
     LEFT JOIN departments dept ON dept.manager_id = u.id
-    WHERE u.role IN ('staff', 'manager', 'director')
+    WHERE u.role IN ('staff', 'manager') AND u.role != 'admin' AND u.id != 1 AND LOWER(u.name) NOT LIKE '%admin%'
     ORDER BY u.name ASC
   `).all();
 

@@ -630,8 +630,8 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
   const statusFilter = c.req.query('status');
 
   try {
-    // 1. Fetch relevant staff users
-    let staffQuery = "SELECT id, name, email, avatar_url, role, unit FROM users WHERE role IN ('staff', 'manager', 'admin')";
+    // 1. Fetch relevant staff users (Exclude System Admin / admin role since admin does not execute tasks)
+    let staffQuery = "SELECT id, name, email, avatar_url, role, unit FROM users WHERE role IN ('staff', 'manager') AND role != 'admin' AND id != 1 AND LOWER(name) NOT LIKE '%admin%'";
     const staffParams: any[] = [];
 
     if (user.role === 'staff' && !user.is_acting_manager) {
@@ -725,12 +725,6 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
           }
         }
 
-        // Check if self-initiated or logged by staff member email
-        if (!belongsToStaff && job.client_email) {
-          if (job.client_email.toLowerCase().trim() === staffEmailLower) {
-            belongsToStaff = true;
-          }
-        }
 
         // Check if staff has a specific task in additional_data.staff_tasks
         if (!belongsToStaff && job.additional_data) {
