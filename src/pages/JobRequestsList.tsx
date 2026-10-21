@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2 } from 'lucide-react';
+import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle } from 'lucide-react';
 
 export const JobRequestsList: React.FC = () => {
   const { token, user } = useAuth();
@@ -63,6 +63,18 @@ export const JobRequestsList: React.FC = () => {
   const [selfStatus, setSelfStatus] = useState('completed');
   const [selfDescription, setSelfDescription] = useState('');
   const [submittingSelf, setSubmittingSelf] = useState(false);
+
+  // Inter-Unit Request State (for Unit Heads)
+  const [showInterUnitModal, setShowInterUnitModal] = useState(false);
+  const [interUnitTitle, setInterUnitTitle] = useState('');
+  const [interUnitDescription, setInterUnitDescription] = useState('');
+  const [interUnitTargetUnit, setInterUnitTargetUnit] = useState('');
+  const [interUnitPriority, setInterUnitPriority] = useState('normal');
+  const [interUnitStartDate, setInterUnitStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [interUnitDeadline, setInterUnitDeadline] = useState('');
+  const [interUnitParentJobId, setInterUnitParentJobId] = useState('');
+  const [interUnitSubmitting, setInterUnitSubmitting] = useState(false);
+  const [interUnitError, setInterUnitError] = useState('');
 
   // Manage Presets State
   const [showManagePresetsModal, setShowManagePresetsModal] = useState(false);
@@ -179,6 +191,53 @@ export const JobRequestsList: React.FC = () => {
       alert('Network error while connecting to server.');
     } finally {
       setSubmittingSelf(false);
+    }
+  };
+
+  const handleCreateInterUnitRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!interUnitTitle.trim()) {
+      setInterUnitError('Job title is required.');
+      return;
+    }
+    if (!interUnitTargetUnit) {
+      setInterUnitError('Please select a target unit.');
+      return;
+    }
+    setInterUnitSubmitting(true);
+    setInterUnitError('');
+    try {
+      const res = await fetch('/api/job-requests/inter-unit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: interUnitTitle.trim(),
+          description: interUnitDescription.trim(),
+          target_unit: interUnitTargetUnit,
+          priority: interUnitPriority,
+          start_date: interUnitStartDate,
+          deadline: interUnitDeadline || null,
+          parent_job_id: interUnitParentJobId ? Number(interUnitParentJobId) : null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowInterUnitModal(false);
+        setInterUnitTitle('');
+        setInterUnitDescription('');
+        setInterUnitTargetUnit('');
+        setInterUnitPriority('normal');
+        setInterUnitDeadline('');
+        setInterUnitParentJobId('');
+        fetchRequests();
+      } else {
+        setInterUnitError(data.error || 'Failed to submit inter-unit request.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setInterUnitError('Network error while connecting to server.');
+    } finally {
+      setInterUnitSubmitting(false);
     }
   };
 
@@ -435,6 +494,28 @@ export const JobRequestsList: React.FC = () => {
             </button>
           )}
 
+          {/* Special Button for Unit Heads to Request Jobs from other units */}
+          {Boolean(user?.is_unit_head || isManagerOrAdmin) && (
+            <button
+              onClick={() => {
+                setInterUnitTitle('');
+                setInterUnitDescription('');
+                setInterUnitTargetUnit('');
+                setInterUnitPriority('normal');
+                setInterUnitStartDate(new Date().toISOString().split('T')[0]);
+                setInterUnitDeadline('');
+                setInterUnitParentJobId('');
+                setInterUnitError('');
+                setShowInterUnitModal(true);
+              }}
+              className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl px-4 h-11 border-none shadow-md shadow-indigo-500/25 flex items-center gap-2 shrink-0 transition-all"
+              title="Request job from another unit head"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+              <span>Inter-Unit Request</span>
+            </button>
+          )}
+
           {isManagerOrAdmin && (
             <button
               onClick={handleOpenCreateModal}
@@ -572,6 +653,15 @@ export const JobRequestsList: React.FC = () => {
                               <UserCheck className="w-3.5 h-3.5" />
                             </span>
                           )}
+                          {(req.ticket_no?.startsWith('IU') || req.additional_data?.is_inter_unit) && (
+                            <span
+                              title="Inter-Unit Job Request"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black shrink-0"
+                            >
+                              <ArrowLeftRight className="w-3 h-3 text-indigo-600" />
+                              <span>INTER-UNIT</span>
+                            </span>
+                          )}
                         </div>
                         <Link
                           to={`/portal/job-requests/${req.id}`}
@@ -584,7 +674,15 @@ export const JobRequestsList: React.FC = () => {
                       <td className="py-4 px-4 align-top">
                         <div className="font-bold text-slate-900 text-sm">{req.title}</div>
                         <div className="text-xs text-slate-400 font-medium mt-0.5">
-                          {req.client_name} <span className="mx-1">•</span> {req.client_email}
+                          {req.additional_data?.is_inter_unit || req.ticket_no?.startsWith('IU') ? (
+                            <span className="text-indigo-600 font-bold flex items-center gap-1 flex-wrap">
+                              <span>From: {req.additional_data?.requester_name || req.client_name} ({req.additional_data?.requester_unit || 'Unit'})</span>
+                              <span>&rarr;</span>
+                              <span className="text-slate-800 font-black">{req.unit}</span>
+                            </span>
+                          ) : (
+                            <>{req.client_name} <span className="mx-1">•</span> {req.client_email}</>
+                          )}
                         </div>
                       </td>
                       <td className="py-4 px-4 align-top">
@@ -1170,6 +1268,172 @@ export const JobRequestsList: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTER-UNIT JOB REQUEST MODAL (FOR UNIT HEADS & MANAGERS) */}
+      {showInterUnitModal && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden my-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-800 p-6 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
+                  <ArrowLeftRight className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">Inter-Unit Job Request</h3>
+                  <p className="text-[11px] text-blue-200 font-medium">
+                    From {user?.unit || 'Your Unit'} to another department unit
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInterUnitModal(false)}
+                className="btn btn-sm btn-ghost btn-circle text-white/80 hover:text-white hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateInterUnitRequest} className="p-6 md:p-8 space-y-4">
+              {interUnitError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{interUnitError}</span>
+                </div>
+              )}
+
+              {/* Target Unit Selector */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  Target Unit <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  required
+                  value={interUnitTargetUnit}
+                  onChange={(e) => setInterUnitTargetUnit(e.target.value)}
+                  className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                >
+                  <option value="">-- Select Target Unit --</option>
+                  {unitsList
+                    .filter((u: any) => !user?.unit || u.name?.toLowerCase().trim() !== user.unit.toLowerCase().trim())
+                    .map((u: any) => (
+                      <option key={u.id} value={u.name}>
+                        {u.name}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-slate-400 font-medium mt-1">
+                  The request will be sent directly to the Unit Head of the chosen unit for review and acceptance.
+                </p>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  Job / Task Title <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Design 3D Booth Assets for Karnival Konvo"
+                  value={interUnitTitle}
+                  onChange={(e) => setInterUnitTitle(e.target.value)}
+                  className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                />
+              </div>
+
+              {/* Priority & Deadline */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                    Priority Level
+                  </label>
+                  <select
+                    value={interUnitPriority}
+                    onChange={(e) => setInterUnitPriority(e.target.value)}
+                    className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                  >
+                    <option value="low">⚪ Low Priority</option>
+                    <option value="normal">🔵 Normal Priority</option>
+                    <option value="high">🟠 High Priority</option>
+                    <option value="urgent">🔴 Urgent / ASAP</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                    Target Deadline
+                  </label>
+                  <input
+                    type="date"
+                    value={interUnitDeadline}
+                    onChange={(e) => setInterUnitDeadline(e.target.value)}
+                    className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                  />
+                </div>
+              </div>
+
+              {/* Optional Parent Job Reference */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  Related Project / Ticket (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Ticket #, Parent Project ID or Name"
+                  value={interUnitParentJobId}
+                  onChange={(e) => setInterUnitParentJobId(e.target.value)}
+                  className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                />
+              </div>
+
+              {/* Description & Requirements */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  Requirements / Description
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder="Detail what deliverables are needed, dimensions, file formats, guidelines..."
+                  value={interUnitDescription}
+                  onChange={(e) => setInterUnitDescription(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all resize-none"
+                ></textarea>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowInterUnitModal(false)}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-5"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={interUnitSubmitting}
+                  className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl px-6 h-11 border-none shadow-md shadow-indigo-500/25 flex items-center gap-2"
+                >
+                  {interUnitSubmitting ? (
+                    <>
+                      <span className="loading loading-spinner loading-xs"></span>
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowLeftRight className="w-4 h-4" />
+                      <span>Submit Request</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

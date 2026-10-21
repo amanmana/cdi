@@ -345,8 +345,20 @@ jobRequestsRouter.get('/', async (c) => {
   const managerDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
 
   if (user && user.role === 'staff') {
-    query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 AND j.status != 'manager_approval'`;
-    params.push(String(user.id));
+    if (user.is_unit_head) {
+      query += ` AND (
+        INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0
+        OR j.unit_id = ?
+        OR j.unit = ?
+        OR un.name = ?
+        OR j.client_email = ?
+        OR JSON_EXTRACT(j.additional_data, '$.requester_id') = ?
+      )`;
+      params.push(String(user.id), user.unit_id || 0, user.unit || '', user.unit || '', user.email, user.id);
+    } else {
+      query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 AND j.status != 'manager_approval'`;
+      params.push(String(user.id));
+    }
   } else if (user && user.role === 'client') {
     query += ` AND j.client_email = ?`;
     params.push(user.email);
@@ -1027,6 +1039,106 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
   });
 });
 
+// POST /api/job-requests/inter-unit - Unit Head direct Inter-Unit Job Request
+jobRequestsRouter.post('/inter-unit', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+
+  if (!user.is_unit_head && !['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
+    return c.json({ error: 'Unauthorized. Only Unit Heads, Managers, or Admins can submit Inter-Unit requests.' }, 403);
+  }
+
+  const {
+    title,
+    description,
+    target_unit,
+    priority,
+    start_date,
+    deadline,
+    parent_job_id,
+    parent_ticket_no,
+  } = await c.req.json();
+
+  if (!title || !title.trim()) {
+    return c.json({ error: 'Title is required.' }, 400);
+  }
+  if (!target_unit || !target_unit.trim()) {
+    return c.json({ error: 'Target unit is required.' }, 400);
+  }
+
+  // Lookup target unit
+  const unitRow = await db
+    .prepare('SELECT id, department_id, name, head_id FROM units WHERE name = ? OR CAST(id AS TEXT) = ?')
+    .bind(target_unit.trim(), target_unit.trim())
+    .first<any>();
+
+  if (!unitRow) {
+    return c.json({ error: 'Target unit not found.' }, 400);
+  }
+
+  const numbers = Math.floor(100000 + Math.random() * 900000).toString();
+  const ticketNo = 'IU' + numbers;
+
+  const additionalData = JSON.stringify({
+    is_inter_unit: true,
+    request_type: 'inter_unit',
+    requester_id: user.id,
+    requester_name: user.name,
+    requester_unit: user.unit,
+    requester_unit_id: user.unit_id,
+    priority: priority || 'normal',
+    parent_job_id: parent_job_id || null,
+    parent_ticket_no: parent_ticket_no || null,
+  });
+
+  const clientName = `${user.name} (${user.unit || 'Unit Head'})`;
+
+  const res = await db
+    .prepare(
+      `INSERT INTO job_requests (
+        ticket_no, client_name, client_email, title, description,
+        unit, unit_id, department_id, status, current_step_name,
+        start_date, deadline, additional_data, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Unit Head Review & Acceptance', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    )
+    .bind(
+      ticketNo,
+      clientName,
+      user.email,
+      title.trim(),
+      description || '',
+      unitRow.name,
+      unitRow.id,
+      unitRow.department_id || null,
+      start_date || new Date().toISOString().split('T')[0],
+      deadline || null,
+      additionalData
+    )
+    .run();
+
+  const requestId = res.meta.last_row_id as number;
+
+  await db
+    .prepare(
+      `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+       VALUES (?, 'INTER_UNIT_REQUEST', ?, ?, 'Direct Request', 'Unit Head Review & Acceptance', ?)`
+    )
+    .bind(
+      requestId,
+      user.id,
+      user.name,
+      `Submitted Inter-Unit Job Request from ${user.unit || 'Unit Head'} to ${unitRow.name}. Priority: ${(priority || 'normal').toUpperCase()}`
+    )
+    .run();
+
+  return c.json({
+    success: true,
+    message: 'Inter-Unit request submitted successfully.',
+    ticket_no: ticketNo,
+    id: requestId,
+  });
+});
+
 // GET /api/job-requests/:id - Single job request detail
 jobRequestsRouter.get('/:id', async (c) => {
   const db = c.env.DB;
@@ -1127,7 +1239,7 @@ jobRequestsRouter.post('/:id/tasks', async (c) => {
   return c.json({ success: true, message: 'Sub-task created successfully.' });
 });
 
-// POST /api/job-requests/:id/approve - Manager approve
+// POST /api/job-requests/:id/approve - Manager / Unit Head approve
 jobRequestsRouter.post('/:id/approve', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
@@ -1137,6 +1249,15 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
 
+  const isTargetUnitHead = Boolean(user.is_unit_head) && (
+    (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
+    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+  );
+
+  if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager && !isTargetUnitHead) {
+    return c.json({ error: 'Unauthorized to approve this request.' }, 403);
+  }
+
   const newStatus = 'staff_processing';
   const newStepName = 'Staff Processing & Design';
   const fromStep = request.current_step_name || 'Manager Review';
@@ -1145,15 +1266,16 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
   ).bind(newStatus, newStepName, request.id).run();
 
+  const approverTitle = isTargetUnitHead ? 'Unit Head' : 'Manager';
   await db.prepare(
     `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
      VALUES (?, 'APPROVE', ?, ?, ?, ?, ?)`
-  ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || 'Approved by Manager').run();
+  ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || `Approved by ${approverTitle}`).run();
 
   return c.json({ success: true, message: 'Request approved and moved to Staff Processing & Design.' });
 });
 
-// POST /api/job-requests/:id/reject - Manager reject
+// POST /api/job-requests/:id/reject - Manager / Unit Head reject
 jobRequestsRouter.post('/:id/reject', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
@@ -1165,6 +1287,15 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
 
+  const isTargetUnitHead = Boolean(user.is_unit_head) && (
+    (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
+    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+  );
+
+  if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager && !isTargetUnitHead) {
+    return c.json({ error: 'Unauthorized to reject this request.' }, 403);
+  }
+
   const newStatus = 'rejected';
   const newStepName = 'Rejected';
   const fromStep = request.current_step_name || 'Manager Review';
@@ -1173,10 +1304,11 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
     'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
   ).bind(newStatus, newStepName, request.id).run();
 
+  const rejecterTitle = isTargetUnitHead ? 'Unit Head' : 'Manager';
   await db.prepare(
     `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
      VALUES (?, 'REJECT', ?, ?, ?, ?, ?)`
-  ).bind(request.id, user.id, user.name, fromStep, newStepName, comment).run();
+  ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || `Rejected by ${rejecterTitle}`).run();
 
   // Dispatch Cancellation Notification Email to Client (with reason)
   const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';

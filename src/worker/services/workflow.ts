@@ -13,7 +13,11 @@ export class WorkflowEngine {
     }
 
     if (request.status === 'manager_approval') {
-      return user.role === 'manager' || user.role === 'admin';
+      const isTargetUnitHead = Boolean((user as any).is_unit_head) && (
+        (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||
+        (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+      );
+      return user.role === 'manager' || user.role === 'admin' || isTargetUnitHead;
     }
 
     if (request.status === 'staff_processing') {

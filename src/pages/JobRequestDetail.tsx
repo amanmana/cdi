@@ -22,6 +22,7 @@ import {
   X,
   Wrench,
   Users,
+  ArrowLeftRight,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
@@ -675,6 +676,67 @@ export const JobRequestDetail: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT COLUMN (2 Columns Wide) */}
         <div className="lg:col-span-2 space-y-6">
+          {/* INTER-UNIT REQUEST HIGHLIGHT BANNER */}
+          {(request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU')) && (
+            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 rounded-3xl p-5 md:p-6 text-white shadow-xl shadow-indigo-500/20 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-white/15 text-white flex items-center justify-center shrink-0 border border-white/20">
+                    <ArrowLeftRight className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black tracking-tight uppercase">Inter-Unit Job Collaboration</h2>
+                    <p className="text-[11px] text-blue-100 font-medium">
+                      Direct cross-unit request between department unit heads
+                    </p>
+                  </div>
+                </div>
+                {request.additional_data?.priority && (
+                  <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full border ${
+                    request.additional_data.priority === 'urgent'
+                      ? 'bg-rose-500/30 text-rose-100 border-rose-300/40 animate-pulse'
+                      : request.additional_data.priority === 'high'
+                      ? 'bg-amber-500/30 text-amber-100 border-amber-300/40'
+                      : 'bg-white/20 text-white border-white/20'
+                  }`}>
+                    Priority: {request.additional_data.priority}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white/15 text-xs">
+                <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
+                  <span className="text-[10px] font-black text-blue-200 uppercase tracking-wider block">Requested By</span>
+                  <div className="font-extrabold text-white mt-0.5">
+                    {request.additional_data?.requester_name || request.client_name}
+                  </div>
+                  <div className="text-[11px] text-blue-200">
+                    Unit: <strong>{request.additional_data?.requester_unit || 'Head'}</strong>
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
+                  <span className="text-[10px] font-black text-blue-200 uppercase tracking-wider block">Target Handling Unit</span>
+                  <div className="font-extrabold text-white mt-0.5">
+                    {request.unit}
+                  </div>
+                  <div className="text-[11px] text-blue-200">
+                    Reviewer: <strong>Target Unit Head</strong>
+                  </div>
+                </div>
+              </div>
+
+              {request.additional_data?.parent_job_id && (
+                <div className="text-[11px] font-semibold text-blue-100 pt-1 flex items-center gap-1.5">
+                  <span>Related Reference / Job ID:</span>
+                  <span className="bg-white/20 px-2 py-0.5 rounded-lg font-mono font-bold text-white">
+                    #{request.additional_data.parent_job_id}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Main Request Header Card */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 space-y-6">
             {/* Top Title & Status Capsule Row */}
@@ -1058,7 +1120,7 @@ export const JobRequestDetail: React.FC = () => {
           {user?.role !== 'client' &&
             user?.role !== 'director' &&
             request.status !== 'rejected' &&
-            !(user?.role === 'staff' && (
+            !(user?.role === 'staff' && !user?.is_unit_head && (
               data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ||
               request.status === 'completed'
             )) &&
@@ -1082,14 +1144,14 @@ export const JobRequestDetail: React.FC = () => {
             {/* Action Buttons based on Role & Status */}
             {canAct && (
               <div className="space-y-2">
-                {request.status === 'manager_approval' && (user?.role === 'admin' || user?.role === 'manager') && (
+                {request.status === 'manager_approval' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_unit_head || user?.is_acting_manager) && (
                   <>
                     <button
                       onClick={handleOpenApproveModal}
                       disabled={actionLoading}
                       className="btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-2xl h-12 border-none shadow-lg shadow-emerald-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
                     >
-                      <CheckCircle2 className="w-4.5 h-4.5" /> APPROVE REQUEST
+                      <CheckCircle2 className="w-4.5 h-4.5" /> {request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU') ? 'ACCEPT & ASSIGN TEAM' : 'APPROVE REQUEST'}
                     </button>
                     <button
                       onClick={() => setShowRejectModal(true)}
@@ -1538,10 +1600,14 @@ export const JobRequestDetail: React.FC = () => {
             {/* Modal Title & Subtitle */}
             <div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                Approve This Request?
+                {request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU')
+                  ? 'Accept & Assign Staff'
+                  : 'Approve This Request?'}
               </h3>
               <p className="text-xs text-slate-400 font-semibold mt-1">
-                This will move the request to the staff processing stage.
+                {request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU')
+                  ? 'Accept this request from another unit and assign tasks to your team members.'
+                  : 'This will move the request to the staff processing stage.'}
               </p>
             </div>
 
@@ -1754,7 +1820,7 @@ export const JobRequestDetail: React.FC = () => {
                 disabled={actionLoading || selectedStaff.length === 0 || Boolean(startDate && deadline && deadline < startDate)}
                 className="btn bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-12 uppercase tracking-wider shadow-lg shadow-emerald-500/25"
               >
-                {actionLoading ? <span className="loading loading-spinner"></span> : 'CONFIRM & ASSIGN'}
+                {actionLoading ? <span className="loading loading-spinner"></span> : request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU') ? 'CONFIRM ACCEPT & ASSIGN' : 'CONFIRM & ASSIGN'}
               </button>
             </div>
           </div>
