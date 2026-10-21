@@ -23,9 +23,15 @@ admin.use('*', async (c, next) => {
 
   const freshUser = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.unit_id, COALESCE(un.name, u.unit) as unit 
+      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.is_unit_head,
+             COALESCE(u.department_id, un.department_id, d.id) as department_id,
+             COALESCE(un.name, u.unit) as unit,
+             d.id as managed_department_id,
+             COALESCE(d.name, dept.name) as department_name
       FROM users u 
       LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
+      LEFT JOIN departments d ON d.manager_id = u.id
+      LEFT JOIN departments dept ON (u.department_id = dept.id OR un.department_id = dept.id)
       WHERE u.id = ?
     `)
     .bind(payload.id)
@@ -35,7 +41,7 @@ admin.use('*', async (c, next) => {
     const today = new Date().toISOString().split('T')[0];
     const delegation = await c.env.DB
       .prepare(
-        `SELECT d.*, m.unit_id as manager_unit_id, COALESCE(un.name, m.unit) as manager_unit
+        `SELECT d.*, m.unit_id as manager_unit_id, m.department_id as manager_department_id, COALESCE(un.name, m.unit) as manager_unit
          FROM delegations d
          JOIN users m ON d.manager_id = m.id
          LEFT JOIN units un ON (m.unit_id = un.id OR m.unit = un.name)
@@ -43,13 +49,15 @@ admin.use('*', async (c, next) => {
          LIMIT 1`
       )
       .bind(freshUser.id, today, today)
-      .first<{ manager_unit_id: number; manager_unit: string }>();
+      .first<{ manager_unit_id: number; manager_department_id: number; manager_unit: string }>();
 
     c.set('user', {
       ...freshUser,
+      department_id: freshUser.department_id || (delegation ? delegation.manager_department_id : null),
       is_acting_manager: !!delegation,
       acting_manager_unit_id: delegation ? delegation.manager_unit_id : null,
       acting_manager_unit: delegation ? delegation.manager_unit : null,
+      acting_manager_department_id: delegation ? delegation.manager_department_id : null,
     });
   } else {
     c.set('user', payload);
@@ -69,6 +77,7 @@ admin.get('/dashboard-stats', async (c) => {
   // Scoping for Staff vs Manager vs Client
   const managerUnit = (user as any).acting_manager_unit || user.unit;
   const managerUnitId = (user as any).acting_manager_unit_id || (user as any).unit_id;
+  const managerDeptId = (user as any).managed_department_id || (user as any).department_id || (user as any).acting_manager_department_id;
 
   if (user.role === 'staff') {
     whereClause = ' WHERE INSTR(\',\' || assigned_staff_ids || \',\', \',\' || ? || \',\') > 0 AND status != \'manager_approval\'';
@@ -76,13 +85,18 @@ admin.get('/dashboard-stats', async (c) => {
   } else if (user.role === 'client') {
     whereClause = ' WHERE (client_email = ? OR client_name = ?)';
     params.push(user.email, user.name);
-  } else if ((user.role === 'manager' || (user as any).is_acting_manager) && (managerUnitId || managerUnit)) {
-    if (managerUnitId) {
+  } else if ((user.role === 'manager' || (user as any).is_acting_manager)) {
+    if (managerDeptId) {
+      whereClause = ` WHERE (
+        department_id = ? 
+        OR unit_id IN (SELECT id FROM units WHERE department_id = ?) 
+        OR unit_id = ? 
+        OR unit = ?
+      )`;
+      params.push(managerDeptId, managerDeptId, managerUnitId || 0, managerUnit || '');
+    } else if (managerUnitId || managerUnit) {
       whereClause = ' WHERE (unit_id = ? OR unit = ? OR unit_id IN (SELECT id FROM units WHERE name = ?))';
-      params.push(managerUnitId, managerUnit || '', managerUnit || '');
-    } else {
-      whereClause = ' WHERE (unit = ? OR unit_id IN (SELECT id FROM units WHERE name = ?))';
-      params.push(managerUnit, managerUnit);
+      params.push(managerUnitId || 0, managerUnit || '', managerUnit || '');
     }
   }
 
@@ -156,14 +170,17 @@ admin.get('/gantt', async (c) => {
 admin.get('/team', async (c) => {
   const db = c.env.DB;
   const { results: staffMembers } = await db.prepare(`
-    SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head,
+    SELECT u.id, u.name, u.email, u.role, u.unit_id,
+           COALESCE(u.department_id, un.department_id, d.id) as department_id,
+           u.is_unit_head,
            COALESCE(un.name, u.unit) as unit,
-           d.name as department_name,
+           COALESCE(d.name, dept.name) as department_name,
            (SELECT COUNT(*) FROM job_requests WHERE (',' || assigned_staff_ids || ',') LIKE ('%,' || CAST(u.id AS TEXT) || ',%') AND status != 'completed') as assigned_jobs_count,
            (SELECT COUNT(DISTINCT job_request_id) FROM workflow_logs WHERE actor_id = u.id AND action = 'STAFF_DONE') as completed_jobs_count
     FROM users u
     LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name)
     LEFT JOIN departments d ON (u.department_id = d.id OR un.department_id = d.id)
+    LEFT JOIN departments dept ON dept.manager_id = u.id
     WHERE u.role IN ('staff', 'manager', 'director')
     ORDER BY u.name ASC
   `).all();

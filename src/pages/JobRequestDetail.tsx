@@ -1515,10 +1515,20 @@ export const JobRequestDetail: React.FC = () => {
                   .filter((m: any) => {
                     if (user?.role === 'admin' || user?.role === 'director') return true;
                     const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
-                    if (userDeptId && m.department_id && m.department_id === userDeptId) return true;
-                    if (request?.department_id && m.department_id === request.department_id) return true;
+                    const reqDeptId = request?.department_id;
+
+                    // 1. Department ID match
+                    if (userDeptId && m.department_id && String(m.department_id) === String(userDeptId)) return true;
+                    if (reqDeptId && m.department_id && String(m.department_id) === String(reqDeptId)) return true;
+
+                    // 2. Department Name match
+                    if (user?.department_name && m.department_name && user.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+                    if (request?.department_name && m.department_name && request.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+
+                    // 3. Unit Name match
                     if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) return true;
                     if (request?.unit && m.unit?.toLowerCase().trim() === request.unit?.toLowerCase().trim()) return true;
+
                     return false;
                   })
                   .map((m) => {
@@ -1819,10 +1829,20 @@ export const JobRequestDetail: React.FC = () => {
                 .filter((m: any) => {
                   if (user?.role === 'admin' || user?.role === 'director') return true;
                   const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
-                  if (userDeptId && m.department_id && m.department_id === userDeptId) return true;
-                  if (request?.department_id && m.department_id === request.department_id) return true;
+                  const reqDeptId = request?.department_id;
+
+                  // 1. Department ID match
+                  if (userDeptId && m.department_id && String(m.department_id) === String(userDeptId)) return true;
+                  if (reqDeptId && m.department_id && String(m.department_id) === String(reqDeptId)) return true;
+
+                  // 2. Department Name match
+                  if (user?.department_name && m.department_name && user.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+                  if (request?.department_name && m.department_name && request.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+
+                  // 3. Unit Name match
                   if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) return true;
                   if (request?.unit && m.unit?.toLowerCase().trim() === request.unit?.toLowerCase().trim()) return true;
+
                   return false;
                 })
                 .map((m: any) => {

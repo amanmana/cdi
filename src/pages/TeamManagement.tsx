@@ -152,11 +152,27 @@ export const TeamManagement: React.FC = () => {
     }
   };
 
-  const filteredStaffMembers = user?.role === 'manager' && user?.unit
-    ? staffMembers.filter((m) => m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim())
-    : selectedUnitFilter === 'All'
-      ? staffMembers
-      : staffMembers.filter((m) => m.unit === selectedUnitFilter);
+  const managerDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+
+  const accessibleStaff = user?.role === 'manager'
+    ? staffMembers.filter((m: any) => {
+        if (managerDeptId && m.department_id && String(m.department_id) === String(managerDeptId)) return true;
+        if (user?.department_name && m.department_name && user.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+        if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) return true;
+        return false;
+      })
+    : staffMembers;
+
+  const filteredStaffMembers = selectedUnitFilter === 'All'
+    ? accessibleStaff
+    : accessibleStaff.filter((m) => m.unit === selectedUnitFilter);
+
+  const availableUnits = user?.role === 'manager'
+    ? units.filter((u: any) => {
+        if (managerDeptId && u.department_id && String(u.department_id) === String(managerDeptId)) return true;
+        return accessibleStaff.some((m) => m.unit?.toLowerCase().trim() === u.name?.toLowerCase().trim());
+      })
+    : units.filter((u: any) => u.name !== 'Administrator');
 
   return (
     <div className="space-y-6 antialiased">
@@ -177,7 +193,9 @@ export const TeamManagement: React.FC = () => {
           <div>
             <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">TEAM MEMBERS</h2>
             <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Monitor performance and workload of staff in your unit
+              {user?.role === 'manager' && user?.department_name
+                ? `Monitor performance and workload of staff under ${user.department_name}`
+                : 'Monitor performance and workload of staff in your unit'}
             </p>
           </div>
           <span className="text-xs font-black text-blue-600 uppercase tracking-widest">
@@ -186,7 +204,7 @@ export const TeamManagement: React.FC = () => {
         </div>
 
         {/* Unit Filter Tabs */}
-        {user?.role === 'admin' && (
+        {(user?.role === 'admin' || (user?.role === 'manager' && availableUnits.length > 1)) && (
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4 mb-4">
             <button
               onClick={() => setSelectedUnitFilter('All')}
@@ -200,12 +218,12 @@ export const TeamManagement: React.FC = () => {
               <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[9px] font-black rounded-lg ${
                 selectedUnitFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
               }`}>
-                {staffMembers.length}
+                {accessibleStaff.length}
               </span>
             </button>
 
-            {units.filter((u: any) => u.name !== 'Administrator').map((unit) => {
-              const count = staffMembers.filter((m) => m.unit === unit.name).length;
+            {availableUnits.map((unit) => {
+              const count = accessibleStaff.filter((m) => m.unit === unit.name).length;
 
               return (
                 <button

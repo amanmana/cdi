@@ -46,13 +46,20 @@ auth.post('/login', async (c) => {
 
   const user = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.password_hash, u.role, u.unit_id, u.phone, COALESCE(un.name, u.unit) as unit 
+      SELECT u.id, u.name, u.email, u.password_hash, u.role, u.unit_id, u.phone,
+             COALESCE(u.department_id, un.department_id, d.id) as department_id,
+             u.is_unit_head,
+             COALESCE(un.name, u.unit) as unit,
+             d.id as managed_department_id,
+             COALESCE(dept.name, d.name, un.name) as department_name
       FROM users u 
       LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
+      LEFT JOIN departments d ON d.manager_id = u.id
+      LEFT JOIN departments dept ON (u.department_id = dept.id OR un.department_id = dept.id)
       WHERE u.email = ?
     `)
     .bind(email)
-    .first<{ id: number; name: string; email: string; password_hash: string; role: 'admin' | 'manager' | 'staff' | 'client' | 'director'; unit_id?: number | null; unit: string; phone?: string | null }>();
+    .first<any>();
 
   if (!user) {
     return c.json({ error: 'Invalid email or password.' }, 401);
@@ -67,6 +74,36 @@ auth.post('/login', async (c) => {
     return c.json({ error: 'E-mel atau kata laluan tidak sah.' }, 401);
   }
 
+  const today = new Date().toISOString().split('T')[0];
+  const delegation = await c.env.DB
+    .prepare(
+      `SELECT d.*, m.department_id as manager_department_id, COALESCE(un.name, m.unit) as manager_unit, m.role as manager_role
+       FROM delegations d
+       JOIN users m ON d.manager_id = m.id
+       LEFT JOIN units un ON (m.unit_id = un.id OR m.unit = un.name)
+       WHERE d.delegate_id = ? AND d.status = 'active' AND d.start_date <= ? AND d.end_date >= ?
+       LIMIT 1`
+    )
+    .bind(user.id, today, today)
+    .first<any>();
+
+  const fullUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    unit: user.unit,
+    unit_id: user.unit_id,
+    phone: user.phone || null,
+    department_id: user.department_id || (delegation ? delegation.manager_department_id : null),
+    department_name: user.department_name,
+    managed_department_id: user.managed_department_id,
+    is_unit_head: Boolean(user.is_unit_head),
+    is_acting_manager: !!delegation,
+    acting_manager_unit: delegation ? delegation.manager_unit : null,
+    acting_manager_department_id: delegation ? delegation.manager_department_id : null,
+  };
+
   const authUser: AuthUser = {
     id: user.id,
     name: user.name,
@@ -80,7 +117,7 @@ auth.post('/login', async (c) => {
 
   return c.json({
     success: true,
-    user: authUser,
+    user: fullUser,
     token,
   });
 });
@@ -166,14 +203,16 @@ auth.get('/me', async (c) => {
 
   const user = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head,
+      SELECT u.id, u.name, u.email, u.role, u.unit_id,
+             COALESCE(u.department_id, un.department_id, d.id) as department_id,
+             u.is_unit_head, u.phone,
              COALESCE(un.name, u.unit) as unit,
              d.id as managed_department_id,
-             COALESCE(dept.name, d.name) as department_name
+             COALESCE(dept.name, d.name, un.name) as department_name
       FROM users u 
       LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
       LEFT JOIN departments d ON d.manager_id = u.id
-      LEFT JOIN departments dept ON u.department_id = dept.id
+      LEFT JOIN departments dept ON (u.department_id = dept.id OR un.department_id = dept.id)
       WHERE u.id = ?
     `)
     .bind(payload.id)

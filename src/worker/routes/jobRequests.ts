@@ -257,14 +257,16 @@ jobRequestsRouter.use('*', async (c, next) => {
 
   const freshUser = await c.env.DB
     .prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.unit_id, u.department_id, u.is_unit_head,
+      SELECT u.id, u.name, u.email, u.role, u.unit_id,
+             COALESCE(u.department_id, un.department_id, d.id) as department_id,
+             u.is_unit_head,
              COALESCE(un.name, u.unit) as unit,
              d.id as managed_department_id,
-             COALESCE(dept.name, d.name) as department_name
+             COALESCE(dept.name, d.name, un.name) as department_name
       FROM users u 
       LEFT JOIN units un ON (u.unit_id = un.id OR u.unit = un.name) 
       LEFT JOIN departments d ON d.manager_id = u.id
-      LEFT JOIN departments dept ON u.department_id = dept.id
+      LEFT JOIN departments dept ON (u.department_id = dept.id OR un.department_id = dept.id)
       WHERE u.id = ?
     `)
     .bind(payload.id)
@@ -286,6 +288,7 @@ jobRequestsRouter.use('*', async (c, next) => {
 
     c.set('user', {
       ...freshUser,
+      department_id: freshUser.department_id || (delegation ? delegation.manager_department_id : null),
       is_acting_manager: !!delegation,
       acting_manager_unit_id: delegation ? delegation.manager_unit_id : null,
       acting_manager_unit: delegation ? delegation.manager_unit : null,
@@ -301,11 +304,21 @@ jobRequestsRouter.use('*', async (c, next) => {
 // Helper to find job request by ID or ticket_no
 async function findJobRequest(db: D1Database, param: string) {
   const numId = parseInt(param, 10);
+  const sql = `
+    SELECT j.*,
+           COALESCE(j.department_id, un.department_id, d.id) as department_id,
+           COALESCE(un.name, j.unit) as unit,
+           d.name as department_name
+    FROM job_requests j
+    LEFT JOIN units un ON (j.unit_id = un.id OR j.unit = un.name)
+    LEFT JOIN departments d ON (j.department_id = d.id OR un.department_id = d.id)
+    WHERE j.id = ? OR j.ticket_no = ?
+  `;
   if (!isNaN(numId)) {
-    const req = await db.prepare('SELECT * FROM job_requests WHERE id = ? OR ticket_no = ?').bind(numId, param).first<any>();
+    const req = await db.prepare(sql).bind(numId, param).first<any>();
     if (req) return req;
   }
-  return await db.prepare('SELECT * FROM job_requests WHERE ticket_no = ? OR CAST(id AS TEXT) = ?').bind(param, param).first<any>();
+  return await db.prepare(sql).bind(param, param).first<any>();
 }
 
 // GET /api/job-requests - List all job requests (Filtered by user role & unit)
@@ -316,10 +329,13 @@ jobRequestsRouter.get('/', async (c) => {
 
   let query = `
     SELECT j.*, 
+           COALESCE(j.department_id, un.department_id, d.id) as department_id,
            COALESCE(un.name, j.unit) as unit,
+           d.name as department_name,
            (SELECT GROUP_CONCAT(name, ', ') FROM users WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || id || ',') > 0) as assigned_staff_name
     FROM job_requests j
     LEFT JOIN units un ON (j.unit_id = un.id OR j.unit = un.name)
+    LEFT JOIN departments d ON (j.department_id = d.id OR un.department_id = d.id)
     WHERE 1=1
   `;
   const params: any[] = [];
@@ -338,11 +354,12 @@ jobRequestsRouter.get('/', async (c) => {
     if (managerDeptId) {
       query += ` AND (
         j.department_id = ?
+        OR un.department_id = ?
         OR j.unit_id IN (SELECT id FROM units WHERE department_id = ?)
         OR j.unit = ?
         OR j.unit_id IN (SELECT id FROM units WHERE name = ?)
       )`;
-      params.push(managerDeptId, managerDeptId, managerUnit || '', managerUnit || '');
+      params.push(managerDeptId, managerDeptId, managerDeptId, managerUnit || '', managerUnit || '');
     } else if (managerUnit) {
       query += ` AND (j.unit = ? OR j.unit_id IN (SELECT id FROM units WHERE name = ?))`;
       params.push(managerUnit, managerUnit);
