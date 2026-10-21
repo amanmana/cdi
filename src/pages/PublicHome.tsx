@@ -59,7 +59,7 @@ export const PublicHome: React.FC = () => {
   const { user } = useAuth();
 
   const [units, setUnits] = useState<Unit[]>(DEFAULT_UNITS);
-  const [selectedUnit, setSelectedUnit] = useState<string>('Graphic');
+  const [selectedUnit, setSelectedUnit] = useState<string>('');
   const [clientName, setClientName] = useState(user?.name || '');
   const [clientEmail, setClientEmail] = useState(user?.email || '');
   const [title, setTitle] = useState('');
@@ -91,9 +91,6 @@ export const PublicHome: React.FC = () => {
         if (Array.isArray(data) && data.length > 0) {
           const publicUnits = data.filter((u) => u.name !== 'Administrator');
           setUnits(publicUnits);
-          if (publicUnits.length > 0) {
-            setSelectedUnit(publicUnits[0].name);
-          }
         }
       })
       .catch((err) => {
@@ -144,6 +141,11 @@ export const PublicHome: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!selectedUnit) {
+      setError('Please select a target service unit.');
+      return;
+    }
 
     const missing: Record<string, string> = {};
     currentUnitObj?.form_schema.forEach(field => {
@@ -311,7 +313,13 @@ export const PublicHome: React.FC = () => {
                       <button
                         key={u.id}
                         type="button"
-                        onClick={() => setSelectedUnit(u.name)}
+                        onClick={() => {
+                          if (selectedUnit !== u.name) {
+                            setSelectedUnit(u.name);
+                            setDynamicFields({});
+                            setError(null);
+                          }
+                        }}
                         className={`p-4 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between relative group min-h-[105px] ${
                           isSelected
                             ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25 ring-2 ring-blue-600/30 -translate-y-0.5'
