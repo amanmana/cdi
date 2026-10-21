@@ -68,86 +68,92 @@ admin.use('*', async (c, next) => {
 
 // Dashboard Stats
 admin.get('/dashboard-stats', async (c) => {
-  const db = c.env.DB;
-  const user = c.get('user');
+  try {
+    const db = c.env.DB;
+    const user = c.get('user');
 
-  let whereClause = '';
-  const params: any[] = [];
+    let whereClause = '';
+    const params: any[] = [];
 
-  // Scoping for Staff vs Manager vs Client
-  const managerUnit = (user as any).acting_manager_unit || user.unit;
-  const managerUnitId = (user as any).acting_manager_unit_id || (user as any).unit_id;
-  const managerDeptId = (user as any).managed_department_id || (user as any).department_id || (user as any).acting_manager_department_id;
+    // Scoping for Staff vs Manager vs Client
+    const managerUnit = (user as any).acting_manager_unit || user.unit;
+    const managerUnitId = (user as any).acting_manager_unit_id || (user as any).unit_id;
+    const managerDeptId = (user as any).managed_department_id || (user as any).department_id || (user as any).acting_manager_department_id;
 
-  if (user.role === 'staff') {
-    whereClause = ' WHERE INSTR(\',\' || assigned_staff_ids || \',\', \',\' || ? || \',\') > 0 AND status != \'manager_approval\'';
-    params.push(String(user.id));
-  } else if (user.role === 'client') {
-    whereClause = ' WHERE (client_email = ? OR client_name = ?)';
-    params.push(user.email, user.name);
-  } else if ((user.role === 'manager' || (user as any).is_acting_manager)) {
-    if (managerDeptId) {
-      whereClause = ` WHERE (
-        department_id = ? 
-        OR unit_id IN (SELECT id FROM units WHERE department_id = ?) 
-        OR unit_id = ? 
-        OR unit = ?
-      )`;
-      params.push(managerDeptId, managerDeptId, managerUnitId || 0, managerUnit || '');
-    } else if (managerUnitId || managerUnit) {
-      whereClause = ' WHERE (unit_id = ? OR unit = ? OR unit_id IN (SELECT id FROM units WHERE name = ?))';
-      params.push(managerUnitId || 0, managerUnit || '', managerUnit || '');
+    if (user.role === 'staff') {
+      whereClause = ' WHERE INSTR(\',\' || j.assigned_staff_ids || \',\', \',\' || ? || \',\') > 0 AND j.status != \'manager_approval\'';
+      params.push(String(user.id));
+    } else if (user.role === 'client') {
+      whereClause = ' WHERE (j.client_email = ? OR j.client_name = ?)';
+      params.push(user.email, user.name);
+    } else if ((user.role === 'manager' || (user as any).is_acting_manager)) {
+      if (managerDeptId) {
+        whereClause = ` WHERE (
+          j.department_id = ? 
+          OR j.unit_id IN (SELECT id FROM units WHERE department_id = ?) 
+          OR j.unit IN (SELECT name FROM units WHERE department_id = ?)
+          OR j.unit_id = ? 
+          OR j.unit = ?
+        )`;
+        params.push(managerDeptId, managerDeptId, managerDeptId, managerUnitId || 0, managerUnit || '');
+      } else if (managerUnitId || managerUnit) {
+        whereClause = ' WHERE (j.unit_id = ? OR j.unit = ? OR j.unit_id IN (SELECT id FROM units WHERE name = ?))';
+        params.push(managerUnitId || 0, managerUnit || '', managerUnit || '');
+      }
     }
+
+    const totalRequests = await db.prepare(`SELECT COUNT(*) as count FROM job_requests j ${whereClause}`).bind(...params).first<{ count: number }>();
+    
+    const pendingParams = [...params];
+    const pendingClause = whereClause ? `${whereClause} AND j.status = 'manager_approval'` : " WHERE j.status = 'manager_approval'";
+    const pendingApprovals = await db.prepare(`SELECT COUNT(*) as count FROM job_requests j ${pendingClause}`).bind(...pendingParams).first<{ count: number }>();
+
+    const procParams = [...params];
+    const procClause = whereClause ? `${whereClause} AND j.status = 'staff_processing'` : " WHERE j.status = 'staff_processing'";
+    const processing = await db.prepare(`SELECT COUNT(*) as count FROM job_requests j ${procClause}`).bind(...procParams).first<{ count: number }>();
+
+    const compParams = [...params];
+    const compClause = whereClause 
+      ? `${whereClause} AND (j.status = 'completed' OR j.id IN (SELECT DISTINCT job_request_id FROM workflow_logs WHERE action = 'STAFF_DONE'))` 
+      : " WHERE (j.status = 'completed' OR j.id IN (SELECT DISTINCT job_request_id FROM workflow_logs WHERE action = 'STAFF_DONE'))";
+    const completed = await db.prepare(`SELECT COUNT(*) as count FROM job_requests j ${compClause}`).bind(...compParams).first<{ count: number }>();
+
+    const holdParams = [...params];
+    const holdClause = whereClause ? `${whereClause} AND j.status = 'on_hold'` : " WHERE j.status = 'on_hold'";
+    const onHold = await db.prepare(`SELECT COUNT(*) as count FROM job_requests j ${holdClause}`).bind(...holdParams).first<{ count: number }>();
+
+    const cancelParams = [...params];
+    const cancelClause = whereClause ? `${whereClause} AND j.status = 'cancelled'` : " WHERE j.status = 'cancelled'";
+    const cancelled = await db.prepare(`SELECT COUNT(*) as count FROM job_requests j ${cancelClause}`).bind(...cancelParams).first<{ count: number }>();
+
+    const totalStaff = await db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "staff"').first<{ count: number }>();
+    const totalUsers = await db.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>();
+
+    const { results: recentRequests } = await db.prepare(
+      `SELECT j.*, COALESCE(un.name, j.unit) as unit 
+       FROM job_requests j 
+       LEFT JOIN units un ON (j.unit_id = un.id OR j.unit = un.name) 
+       ${whereClause} 
+       ORDER BY j.created_at DESC LIMIT 5`
+    ).bind(...params).all();
+
+    return c.json({
+      stats: {
+        totalRequests: totalRequests?.count || 0,
+        pendingApprovals: pendingApprovals?.count || 0,
+        processing: processing?.count || 0,
+        completed: completed?.count || 0,
+        onHold: onHold?.count || 0,
+        cancelled: cancelled?.count || 0,
+        totalStaff: totalStaff?.count || 0,
+        totalUsers: totalUsers?.count || 0,
+      },
+      recentRequests: recentRequests || [],
+    });
+  } catch (err: any) {
+    console.error('Error in /dashboard-stats:', err);
+    return c.json({ error: 'Failed to fetch dashboard stats', details: err?.message }, 500);
   }
-
-  const totalRequests = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${whereClause}`).bind(...params).first<{ count: number }>();
-  
-  const pendingParams = [...params];
-  const pendingClause = whereClause ? `${whereClause} AND status = 'manager_approval'` : " WHERE status = 'manager_approval'";
-  const pendingApprovals = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${pendingClause}`).bind(...pendingParams).first<{ count: number }>();
-
-  const procParams = [...params];
-  const procClause = whereClause ? `${whereClause} AND status = 'staff_processing'` : " WHERE status = 'staff_processing'";
-  const processing = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${procClause}`).bind(...procParams).first<{ count: number }>();
-
-  const compParams = [...params];
-  const compClause = whereClause 
-    ? `${whereClause} AND (status = 'completed' OR id IN (SELECT DISTINCT job_request_id FROM workflow_logs WHERE action = 'STAFF_DONE'))` 
-    : " WHERE (status = 'completed' OR id IN (SELECT DISTINCT job_request_id FROM workflow_logs WHERE action = 'STAFF_DONE'))";
-  const completed = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${compClause}`).bind(...compParams).first<{ count: number }>();
-
-  const holdParams = [...params];
-  const holdClause = whereClause ? `${whereClause} AND status = 'on_hold'` : " WHERE status = 'on_hold'";
-  const onHold = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${holdClause}`).bind(...holdParams).first<{ count: number }>();
-
-  const cancelParams = [...params];
-  const cancelClause = whereClause ? `${whereClause} AND status = 'cancelled'` : " WHERE status = 'cancelled'";
-  const cancelled = await db.prepare(`SELECT COUNT(*) as count FROM job_requests ${cancelClause}`).bind(...cancelParams).first<{ count: number }>();
-
-  const totalStaff = await db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "staff"').first<{ count: number }>();
-  const totalUsers = await db.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>();
-
-  const { results: recentRequests } = await db.prepare(
-    `SELECT j.*, COALESCE(un.name, j.unit) as unit 
-     FROM job_requests j 
-     LEFT JOIN units un ON (j.unit_id = un.id OR j.unit = un.name) 
-     ${whereClause} 
-     ORDER BY j.created_at DESC LIMIT 5`
-  ).bind(...params).all();
-
-  return c.json({
-    stats: {
-      totalRequests: totalRequests?.count || 0,
-      pendingApprovals: pendingApprovals?.count || 0,
-      processing: processing?.count || 0,
-      completed: completed?.count || 0,
-      onHold: onHold?.count || 0,
-      cancelled: cancelled?.count || 0,
-      totalStaff: totalStaff?.count || 0,
-      totalUsers: totalUsers?.count || 0,
-    },
-    recentRequests: recentRequests || [],
-  });
 });
 
 // Gantt Chart Data

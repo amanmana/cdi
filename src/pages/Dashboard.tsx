@@ -90,7 +90,7 @@ export const Dashboard: React.FC = () => {
           </span>
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Welcome back, {user?.name}!</h1>
           <p className="text-blue-100 text-sm mt-1.5 font-medium">
-            Overview of {user?.acting_manager_unit || user?.unit || 'unit'} job request status and approval workflow.
+            Overview of {user?.department_name || user?.acting_manager_unit || user?.unit || 'department'} job request status and approval workflow.
           </p>
         </div>
         <Link
