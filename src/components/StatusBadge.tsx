@@ -4,13 +4,21 @@ import { Clock, CheckCircle2, XCircle, UserCheck, Wrench } from 'lucide-react';
 interface StatusBadgeProps {
   status: string;
   stepName?: string;
+  isInterUnit?: boolean;
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, stepName }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, stepName, isInterUnit }) => {
   const getBadgeConfig = () => {
     switch (status) {
       case 'manager_approval':
       case 'pending':
+        if (isInterUnit) {
+          return {
+            bg: 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-900/40 dark:text-teal-300',
+            icon: <Clock className="w-3.5 h-3.5 mr-1" />,
+            label: 'Head Unit Approval',
+          };
+        }
         return {
           bg: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300',
           icon: <Clock className="w-3.5 h-3.5 mr-1" />,

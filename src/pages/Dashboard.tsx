@@ -310,7 +310,11 @@ export const Dashboard: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <StatusBadge status={req.status} stepName={req.current_step_name} />
+                      <StatusBadge
+                        status={req.status}
+                        stepName={req.current_step_name}
+                        isInterUnit={req.ticket_no?.startsWith('IU') || req.additional_data?.is_inter_unit}
+                      />
                     </td>
                     <td className="text-xs text-slate-500 font-medium">{req.created_at}</td>
                     <td className="text-center">

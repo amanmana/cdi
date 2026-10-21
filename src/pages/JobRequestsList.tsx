@@ -405,7 +405,23 @@ export const JobRequestsList: React.FC = () => {
     }
   };
 
-  const renderStatusBadge = (status: string, stepName?: string) => {
+  const isInterUnitJob = (req: any) => {
+    if (!req) return false;
+    if (req.ticket_no && String(req.ticket_no).startsWith('IU')) return true;
+    if (req.request_type === 'inter_unit') return true;
+    if (req.additional_data) {
+      if (typeof req.additional_data === 'object' && req.additional_data.is_inter_unit) return true;
+      if (typeof req.additional_data === 'string' && req.additional_data.includes('is_inter_unit')) {
+        try {
+          const parsed = JSON.parse(req.additional_data);
+          if (parsed.is_inter_unit) return true;
+        } catch {}
+      }
+    }
+    return false;
+  };
+
+  const renderStatusBadge = (status: string, stepName?: string, isInterUnit?: boolean) => {
     if (status === 'completed') {
       return <span className="inline-flex items-center justify-center whitespace-nowrap bg-emerald-500 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">COMPLETED</span>;
     }
@@ -413,6 +429,9 @@ export const JobRequestsList: React.FC = () => {
       return <span className="inline-flex items-center justify-center whitespace-nowrap bg-rose-500 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">REJECTED</span>;
     }
     if (status === 'manager_approval') {
+      if (isInterUnit) {
+        return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">HEAD UNIT APPROVAL</span>;
+      }
       return <span className="inline-flex items-center justify-center whitespace-nowrap bg-blue-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">MANAGER APPROVAL</span>;
     }
     if (status === 'on_hold') {
@@ -686,7 +705,7 @@ export const JobRequestsList: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-4 px-4 align-top">
-                        {renderStatusBadge(req.status, req.current_step_name)}
+                        {renderStatusBadge(req.status, req.current_step_name, isInterUnitJob(req))}
                       </td>
                       <td className="py-4 px-4 align-top text-xs font-semibold text-slate-700">
                         {req.assigned_staff && req.assigned_staff.length > 0 ? (

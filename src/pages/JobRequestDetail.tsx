@@ -593,8 +593,21 @@ export const JobRequestDetail: React.FC = () => {
     }
   };
 
+  const isInterUnitJob = Boolean(
+    request?.ticket_no?.startsWith('IU') ||
+    request?.request_type === 'inter_unit' ||
+    request?.additional_data?.is_inter_unit
+  );
+
   const renderStatusCapsule = (status: string) => {
     if (status === 'manager_approval') {
+      if (isInterUnitJob) {
+        return (
+          <span className="bg-teal-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm">
+            HEAD UNIT APPROVAL
+          </span>
+        );
+      }
       return (
         <span className="bg-blue-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm">
           MANAGER APPROVAL
@@ -1073,7 +1086,7 @@ export const JobRequestDetail: React.FC = () => {
                     getStepState(2) !== 'pending' ? 'text-slate-900' : 'text-slate-400'
                   }`}
                 >
-                  Manager Review
+                  {isInterUnitJob ? 'Head Unit Review' : 'Manager Review'}
                 </span>
               </div>
 

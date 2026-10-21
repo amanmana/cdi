@@ -200,7 +200,7 @@ export const DirectorDashboard: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isInterUnit?: boolean) => {
     switch (status) {
       case 'completed':
         return <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">COMPLETED</span>;
@@ -208,6 +208,9 @@ export const DirectorDashboard: React.FC = () => {
         return <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">IN PROCESSING</span>;
       case 'manager_approval':
       case 'pending':
+        if (isInterUnit) {
+          return <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-teal-50 text-teal-700 border border-teal-200">HEAD UNIT APPROVAL</span>;
+        }
         return <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">PENDING APPROVAL</span>;
       case 'on_hold':
         return <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-orange-50 text-orange-700 border border-orange-200">ON HOLD</span>;
@@ -964,7 +967,7 @@ export const DirectorDashboard: React.FC = () => {
                           #{p.ticket_no}
                         </span>
                         <span className="text-xs font-bold text-slate-400">{p.unit_name} Unit</span>
-                        {getStatusBadge(p.status)}
+                        {getStatusBadge(p.status, p.ticket_no?.startsWith('IU') || p.additional_data?.is_inter_unit)}
                       </div>
                       <h4 className="text-sm font-extrabold text-slate-900">{p.title}</h4>
                       <div className="text-xs text-slate-500 font-medium">
