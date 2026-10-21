@@ -21,6 +21,8 @@ const changelogsData: ChangelogEntry[] = [
       'UX: Inter-Unit Visual Badges & Collaboration Banner — Added "INTER-UNIT" badges in job lists and a prominent gradient collaboration banner in the Job Details view detailing requester and recipient units.',
       'UX: Direct Unit Selection Tabs — Clean, wrap-around Unit Group tabs in Staff Assignment modals for effortless multi-unit staff allocation without side-scrolling.',
       'UX: "Add My Task" Staff Direct Logging — Redesigned staff self-logging button to "+ Add My Task" with smart suggestions for clients and projects.',
+      'Feature: Mandatory Target Deadline Field — Added required completion deadline input to the public job request form with past-date prevention.',
+      'Feature: Dynamic Deadline Proximity Alert & Admin Threshold — Real-time interactive warning alert for clients requesting short-notice jobs with fully customizable notice days threshold and alert message configured by Admins.',
     ],
   },
   {

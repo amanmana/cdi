@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Settings, Save, CheckCircle2, Trash2, AlertTriangle, Database, X, ShieldAlert, Mail } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Trash2, AlertTriangle, Database, X, ShieldAlert, Mail, Clock } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { token } = useAuth();
@@ -9,6 +9,13 @@ export const SettingsPage: React.FC = () => {
   const [primaryColor, setPrimaryColor] = useState('#4f46e5');
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [saved, setSaved] = useState(false);
+
+  // Client form deadline alert settings
+  const [deadlineAlertEnabled, setDeadlineAlertEnabled] = useState(true);
+  const [deadlineMinDays, setDeadlineMinDays] = useState(2);
+  const [deadlineAlertMessage, setDeadlineAlertMessage] = useState(
+    'Perhatian: Tarikh sasaran siap (deadline) yang dipilih adalah dalam tempoh singkat (kurang daripada {days} hari). Permohonan segera/kecemasan tertakluk kepada kelulusan dan kelapangan jadual unit berkaitan.'
+  );
   
   // Database maintenance state
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -26,6 +33,15 @@ export const SettingsPage: React.FC = () => {
         if (data.email_notifications_enabled !== undefined) {
           setEmailEnabled(data.email_notifications_enabled === 'true' || data.email_notifications_enabled === 'on' || data.email_notifications_enabled === '1');
         }
+        if (data.deadline_alert_enabled !== undefined) {
+          setDeadlineAlertEnabled(data.deadline_alert_enabled === 'true' || data.deadline_alert_enabled === '1' || data.deadline_alert_enabled === 'on');
+        }
+        if (data.deadline_min_days) {
+          setDeadlineMinDays(parseInt(data.deadline_min_days, 10) || 2);
+        }
+        if (data.deadline_alert_message) {
+          setDeadlineAlertMessage(data.deadline_alert_message);
+        }
       });
   }, [token]);
 
@@ -39,6 +55,9 @@ export const SettingsPage: React.FC = () => {
         app_email: appEmail,
         primary_color: primaryColor,
         email_notifications_enabled: emailEnabled ? 'true' : 'false',
+        deadline_alert_enabled: deadlineAlertEnabled ? 'true' : 'false',
+        deadline_min_days: String(deadlineMinDays),
+        deadline_alert_message: deadlineAlertMessage,
       }),
     });
     setSaved(true);
@@ -227,6 +246,119 @@ export const SettingsPage: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Client Form Target Deadline Notice & Alert Configuration */}
+          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                  deadlineAlertEnabled ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
+                    <span>Deadline Notice Alert (Amaran Tempoh Siap)</span>
+                    <span className={`badge border-none font-black text-[10px] uppercase px-2.5 py-1 rounded-lg ${
+                      deadlineAlertEnabled ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-400 text-white'
+                    }`}>
+                      {deadlineAlertEnabled ? '🟢 Active' : '⚪ Disabled'}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Memaparkan amaran / notis kepada client sekiranya mereka memilih tarikh siap (deadline) dalam tempoh singkat.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setDeadlineAlertEnabled(true)}
+                  className={`btn btn-sm rounded-xl font-extrabold text-xs px-4 border-none transition-all ${
+                    deadlineAlertEnabled
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  Enable
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeadlineAlertEnabled(false)}
+                  className={`btn btn-sm rounded-xl font-extrabold text-xs px-4 border-none transition-all ${
+                    !deadlineAlertEnabled
+                      ? 'bg-slate-600 hover:bg-slate-700 text-white shadow-md'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  Disable
+                </button>
+              </div>
+            </div>
+
+            {deadlineAlertEnabled && (
+              <div className="space-y-4 pt-2 border-t border-slate-200/60">
+                {/* Minimum Days Threshold */}
+                <div className="form-control">
+                  <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-1">
+                    Tempoh Ambang Amaran (Notice Days Threshold)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={deadlineMinDays}
+                      onChange={(e) => setDeadlineMinDays(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="input input-bordered input-sm bg-white border-slate-300 rounded-xl w-24 h-11 text-sm font-bold text-center focus:border-amber-600"
+                    />
+                    <span className="text-xs font-bold text-slate-600">
+                      Hari atau kurang dari tarikh permohonan dibuat.
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium mt-1">
+                    Contoh: Jika diset <strong>{deadlineMinDays}</strong> hari, permohonan yang dihantar hari ini dengan deadline {deadlineMinDays === 1 ? 'hari ini atau esok' : `dalam tempoh ${deadlineMinDays} hari`} akan mencetuskan amaran kepada client.
+                  </p>
+                </div>
+
+                {/* Custom Message to User */}
+                <div className="form-control">
+                  <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-1">
+                    Mesej Amaran Kepada Client (Custom Alert Message)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={deadlineAlertMessage}
+                    onChange={(e) => setDeadlineAlertMessage(e.target.value)}
+                    placeholder="Masukkan mesej amaran untuk client..."
+                    className="textarea textarea-bordered bg-white border-slate-300 rounded-xl text-xs font-medium focus:border-amber-600 leading-relaxed p-3.5"
+                  ></textarea>
+                  <p className="text-[11px] text-slate-400 font-medium mt-1">
+                    Petua: Gunakan tag <code className="bg-slate-200 px-1 py-0.5 rounded font-bold text-slate-700">&#123;days&#125;</code> untuk memasukkan bilangan hari ambang secara automatik.
+                  </p>
+                </div>
+
+                {/* Live Preview for Admin */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Live Preview (Rupa pada Borang Client):
+                  </span>
+                  <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-amber-950 flex items-start gap-3 shadow-xs">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-black uppercase text-amber-900 tracking-wide">
+                        PERMOHONAN TEMPOH SINGKAT ({deadlineMinDays} HARI)
+                      </div>
+                      <p className="text-xs font-semibold text-amber-800 leading-relaxed">
+                        {deadlineAlertMessage.replace('{days}', String(deadlineMinDays))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <button

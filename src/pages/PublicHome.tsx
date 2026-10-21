@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, Check, Calendar, AlertTriangle } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { Footer } from '../components/Footer';
 
@@ -64,6 +64,13 @@ export const PublicHome: React.FC = () => {
   const [clientEmail, setClientEmail] = useState(user?.email || '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [deadline, setDeadline] = useState('');
+  const [deadlineSettings, setDeadlineSettings] = useState({
+    deadline_min_days: 2,
+    deadline_alert_message:
+      'Perhatian: Tarikh sasaran siap (deadline) yang dipilih adalah dalam tempoh singkat (kurang daripada {days} hari). Permohonan segera/kecemasan tertakluk kepada kelulusan dan kelapangan jadual unit berkaitan.',
+    deadline_alert_enabled: true,
+  });
   const [dynamicFields, setDynamicFields] = useState<Record<string, string>>({});
   
   const [loading, setLoading] = useState(false);
@@ -92,7 +99,42 @@ export const PublicHome: React.FC = () => {
       .catch((err) => {
         console.warn('Using default units:', err);
       });
+
+    fetch('/api/public/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          setDeadlineSettings({
+            deadline_min_days: data.deadline_min_days !== undefined ? Number(data.deadline_min_days) : 2,
+            deadline_alert_message: data.deadline_alert_message || '',
+            deadline_alert_enabled: data.deadline_alert_enabled !== false,
+          });
+        }
+      })
+      .catch((err) => console.error('Failed to load public settings:', err));
   }, []);
+
+  const getDaysDiff = (dateStr: string) => {
+    if (!dateStr) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr);
+    target.setHours(0, 0, 0, 0);
+    const diffTime = target.getTime() - today.getTime();
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const daysUntilDeadline = getDaysDiff(deadline);
+  const isDeadlineAlertTriggered =
+    daysUntilDeadline !== null &&
+    deadlineSettings.deadline_alert_enabled &&
+    daysUntilDeadline >= 0 &&
+    daysUntilDeadline <= deadlineSettings.deadline_min_days;
+
+  const renderedAlertMessage = (deadlineSettings.deadline_alert_message || '').replace(
+    '{days}',
+    String(deadlineSettings.deadline_min_days)
+  );
 
   const currentUnitObj = units.find((u) => u.name === selectedUnit);
 
@@ -115,6 +157,11 @@ export const PublicHome: React.FC = () => {
       return;
     }
 
+    if (!deadline) {
+      setError('Sila tetapkan tarikh sasaran siap (Target Deadline).');
+      return;
+    }
+
     if (!turnstileToken) {
       setError('Sila lengkapkan pengesahan keselamatan (Turnstile) terlebih dahulu.');
       return;
@@ -132,6 +179,7 @@ export const PublicHome: React.FC = () => {
           client_email: clientEmail,
           title,
           description,
+          deadline,
           unit: selectedUnit,
           turnstileToken,
           additional_data: dynamicFields,
@@ -303,6 +351,50 @@ export const PublicHome: React.FC = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-4"
                 ></textarea>
+              </div>
+
+              {/* Target Deadline Field (Mandatory) */}
+              <div className="form-control">
+                <label className="label pt-0 pb-1.5">
+                  <span className="label-text font-bold text-slate-600 text-xs uppercase tracking-wider flex items-center justify-between w-full">
+                    <span>
+                      Target Deadline (Tarikh Diperlukan) <span className="text-rose-500">*</span>
+                    </span>
+                    <span className="text-[10px] font-normal text-slate-400 lowercase">
+                      format: yyyy-mm-dd
+                    </span>
+                  </span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-semibold text-slate-800 pl-11"
+                  />
+                  <Calendar className="w-5 h-5 absolute left-3.5 top-3.5 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Interactive Deadline Proximity Alert */}
+                {isDeadlineAlertTriggered && (
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/90 shadow-xs flex items-start gap-3 mt-3 animate-in fade-in duration-200">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <div className="text-xs font-black uppercase text-amber-900 tracking-wider">
+                        {daysUntilDeadline === 0
+                          ? '⚡ Permohonan Hari Ini (Same-Day Request)'
+                          : daysUntilDeadline === 1
+                          ? '⚡ Permohonan 24 Jam (Next-Day Request)'
+                          : `⚡ Permohonan Tempoh Singkat (${daysUntilDeadline} Hari)`}
+                      </div>
+                      <p className="text-xs font-semibold text-amber-800 leading-relaxed">
+                        {renderedAlertMessage}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Unit Schema Fields */}

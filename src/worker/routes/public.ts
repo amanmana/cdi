@@ -33,13 +33,31 @@ publicApi.get('/units', async (c) => {
   return c.json(formatted);
 });
 
+// Get public settings (Deadline Alert configuration)
+publicApi.get('/settings', async (c) => {
+  const { results } = await c.env.DB
+    .prepare("SELECT key, value FROM system_settings WHERE key IN ('deadline_min_days', 'deadline_alert_message', 'deadline_alert_enabled')")
+    .all<any>();
+
+  const settings: Record<string, string> = {};
+  for (const r of results || []) {
+    settings[r.key] = r.value;
+  }
+
+  return c.json({
+    deadline_min_days: parseInt(settings.deadline_min_days || '2', 10),
+    deadline_alert_message: settings.deadline_alert_message || 'Perhatian: Tarikh sasaran siap (deadline) yang dipilih adalah dalam tempoh singkat (kurang daripada {days} hari). Permohonan segera/kecemasan tertakluk kepada kelulusan dan kelapangan jadual unit berkaitan.',
+    deadline_alert_enabled: settings.deadline_alert_enabled !== 'false',
+  });
+});
+
 // Submit a new job request (Public)
 publicApi.post('/job-requests', async (c) => {
   try {
-    const { client_name, client_email, title, description, unit, additional_data, turnstileToken } = await c.req.json();
+    const { client_name, client_email, title, description, deadline, unit, additional_data, turnstileToken } = await c.req.json();
 
-    if (!client_name || !client_email || !title || !unit || !turnstileToken) {
-      return c.json({ error: 'Please fill in full name, email, title, target unit, and complete the security verification.' }, 400);
+    if (!client_name || !client_email || !title || !unit || !deadline || !turnstileToken) {
+      return c.json({ error: 'Sila lengkapkan nama penuh, emel, tajuk, tarikh sasaran (deadline), unit sasaran, dan sahkan keselamatan.' }, 400);
     }
 
     // Verify Turnstile
@@ -89,8 +107,8 @@ publicApi.post('/job-requests', async (c) => {
 
     const res = await c.env.DB
       .prepare(
-        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, additional_data, unit, unit_id, department_id, status, current_step_name, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Manager Review', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, deadline, additional_data, unit, unit_id, department_id, status, current_step_name, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Manager Review', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
       .bind(
         ticketNo,
@@ -98,6 +116,7 @@ publicApi.post('/job-requests', async (c) => {
         client_email,
         title,
         description || '',
+        deadline,
         additional_data ? JSON.stringify(additional_data) : null,
         resolvedUnitName,
         unitId,
@@ -113,7 +132,7 @@ publicApi.post('/job-requests', async (c) => {
         `INSERT INTO workflow_logs (job_request_id, action, actor_name, from_step_name, to_step_name, comment)
          VALUES (?, 'SUBMIT', ?, 'Client Form', 'Manager Review', ?)`
       )
-      .bind(requestId, client_name, `Job request submitted by ${client_email}`)
+      .bind(requestId, client_name, `Job request submitted by ${client_email}. Target Deadline: ${deadline}`)
       .run();
 
     // Find Manager email for target unit/department
@@ -153,7 +172,8 @@ publicApi.post('/job-requests', async (c) => {
             <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #2563eb; font-weight: 800;">#${ticketNo}</span></p>
             <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Project Title:</strong> ${title}</p>
             <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Client:</strong> ${client_name} (${client_email})</p>
-            <p style="margin: 0; font-size: 13px;"><strong>Target Unit:</strong> ${unit}</p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Unit:</strong> ${unit}</p>
+            <p style="margin: 0; font-size: 13px;"><strong>Target Deadline:</strong> <span style="color: #dc2626; font-weight: 700;">${deadline}</span></p>
           </div>
 
           <div style="text-align: center; margin: 28px 0;">
@@ -203,6 +223,7 @@ publicApi.post('/job-requests', async (c) => {
               <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #2563eb; font-weight: 800;">#${ticketNo}</span></p>
               <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Project Title:</strong> ${title}</p>
               <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Unit:</strong> ${unit}</p>
+              <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Deadline:</strong> <span style="color: #dc2626; font-weight: 700;">${deadline}</span></p>
               <p style="margin: 0; font-size: 13px;"><strong>Initial Status:</strong> <span style="color: #d97706; font-weight: 700;">Manager Review</span></p>
             </div>
 
