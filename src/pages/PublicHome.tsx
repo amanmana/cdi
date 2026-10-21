@@ -210,7 +210,7 @@ export const PublicHome: React.FC = () => {
         <div className="text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 mb-3 shadow-2xs">
             <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            <span>Corporate Design & Innovation Portal</span>
+            <span>Corporate Communication & Identity Portal</span>
           </div>
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
             Submit a Job Request
