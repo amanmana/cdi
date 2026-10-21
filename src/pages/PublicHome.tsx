@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Check } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { Footer } from '../components/Footer';
 
 interface Unit {
   id: number;
@@ -448,10 +449,7 @@ export const PublicHome: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="text-center text-xs text-slate-400 font-medium space-y-1">
-          <div className="font-bold text-slate-600">CCI</div>
-          <div>Copyright © 2026 - All right reserved</div>
-        </div>
+        <Footer />
       </div>
     </div>
   );

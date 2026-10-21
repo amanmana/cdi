@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, FileText, Calendar, Users, FolderGit2, Settings, HardDrive, Shield, Globe } from 'lucide-react';
+import { LayoutDashboard, FileText, Calendar, Users, FolderGit2, Settings, HardDrive, Shield, Globe, GitBranch } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
   const { user } = useAuth();
@@ -52,6 +52,18 @@ export const Sidebar: React.FC = () => {
           >
             <Globe className="w-5 h-5" />
             <span>View Public Site</span>
+          </Link>
+        </li>
+        <li>
+          <Link
+            to="/changelogs"
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-all"
+          >
+            <GitBranch className="w-5 h-5 text-slate-400" />
+            <span>Changelogs</span>
+            <span className="ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
+              v1.6.0
+            </span>
           </Link>
         </li>
       </ul>

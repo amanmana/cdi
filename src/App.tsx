@@ -21,6 +21,8 @@ import { ProfilePage } from './pages/ProfilePage';
 import { DirectorDashboard } from './pages/DirectorDashboard';
 import { TermsPrivacyPage } from './pages/TermsPrivacyPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { ChangelogsPage } from './pages/ChangelogsPage';
+import { Footer } from './components/Footer';
 
 const AdminIndexRedirect: React.FC = () => {
   const { user } = useAuth();
@@ -51,10 +53,11 @@ const ProtectedLayout: React.FC = () => {
   return (
     <div className="flex min-h-[calc(100vh-4.25rem)] bg-slate-50">
       <Sidebar />
-      <main className="flex-1 p-6 md:p-10 bg-slate-50 overflow-y-auto min-h-[calc(100vh-4.25rem)]">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 p-6 md:p-10 bg-slate-50 overflow-y-auto min-h-[calc(100vh-4.25rem)] flex flex-col justify-between">
+        <div className="max-w-7xl mx-auto w-full flex-1">
           <Outlet />
         </div>
+        <Footer />
       </main>
     </div>
   );
@@ -77,6 +80,7 @@ export const App: React.FC = () => {
               <Route path="/terms" element={<TermsPrivacyPage />} />
               <Route path="/privacy" element={<TermsPrivacyPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/changelogs" element={<ChangelogsPage />} />
 
               {/* Protected Admin Routes */}
               <Route path="/portal" element={<ProtectedLayout />}>
@@ -94,6 +98,7 @@ export const App: React.FC = () => {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="backup" element={<BackupPage />} />
                 <Route path="profile" element={<ProfilePage />} />
+                <Route path="changelogs" element={<ChangelogsPage />} />
               </Route>
 
               {/* Fallback */}

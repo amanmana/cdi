@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { StatusBadge } from '../components/StatusBadge';
 import { CheckCircle2, Clock, Calendar, ArrowLeft, AlertCircle, Search, ListTodo } from 'lucide-react';
+import { Footer } from '../components/Footer';
 
 interface TicketData {
   request: {
@@ -293,10 +294,7 @@ export const TrackTicket: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="text-center text-xs text-slate-400 font-medium space-y-1 pt-6">
-          <div className="font-bold text-slate-600">CCI</div>
-          <div>Copyright © 2026 - All right reserved</div>
-        </div>
+        <Footer />
       </div>
     </div>
   );
