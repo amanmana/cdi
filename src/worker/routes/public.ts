@@ -46,7 +46,7 @@ publicApi.get('/settings', async (c) => {
 
   return c.json({
     deadline_min_days: parseInt(settings.deadline_min_days || '2', 10),
-    deadline_alert_message: settings.deadline_alert_message || 'Perhatian: Tarikh sasaran siap (deadline) yang dipilih adalah dalam tempoh singkat (kurang daripada {days} hari). Permohonan segera/kecemasan tertakluk kepada kelulusan dan kelapangan jadual unit berkaitan.',
+    deadline_alert_message: settings.deadline_alert_message || 'Notice: The selected target completion deadline is on short notice (within {days} days). Urgent requests are subject to approval and team schedule availability.',
     deadline_alert_enabled: settings.deadline_alert_enabled !== 'false',
   });
 });
@@ -57,7 +57,7 @@ publicApi.post('/job-requests', async (c) => {
     const { client_name, client_email, title, description, deadline, unit, additional_data, turnstileToken } = await c.req.json();
 
     if (!client_name || !client_email || !title || !unit || !deadline || !turnstileToken) {
-      return c.json({ error: 'Sila lengkapkan nama penuh, emel, tajuk, tarikh sasaran (deadline), unit sasaran, dan sahkan keselamatan.' }, 400);
+      return c.json({ error: 'Please complete all required fields: full name, email, job title, target deadline, target unit, and security verification.' }, 400);
     }
 
     // Verify Turnstile

@@ -79,8 +79,7 @@ export const App: React.FC = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/terms" element={<TermsPrivacyPage />} />
               <Route path="/privacy" element={<TermsPrivacyPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/changelogs" element={<ChangelogsPage />} />
+              <Route path="/changelogs" element={<Navigate to="/portal/changelogs" replace />} />
 
               {/* Protected Admin Routes */}
               <Route path="/portal" element={<ProtectedLayout />}>

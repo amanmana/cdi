@@ -14,7 +14,7 @@ export const SettingsPage: React.FC = () => {
   const [deadlineAlertEnabled, setDeadlineAlertEnabled] = useState(true);
   const [deadlineMinDays, setDeadlineMinDays] = useState(2);
   const [deadlineAlertMessage, setDeadlineAlertMessage] = useState(
-    'Perhatian: Tarikh sasaran siap (deadline) yang dipilih adalah dalam tempoh singkat (kurang daripada {days} hari). Permohonan segera/kecemasan tertakluk kepada kelulusan dan kelapangan jadual unit berkaitan.'
+    'Notice: The selected target completion deadline is on short notice (within {days} days). Urgent requests are subject to approval and team schedule availability.'
   );
   
   // Database maintenance state
@@ -259,7 +259,7 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
-                    <span>Deadline Notice Alert (Amaran Tempoh Siap)</span>
+                    <span>Deadline Notice Alert</span>
                     <span className={`badge border-none font-black text-[10px] uppercase px-2.5 py-1 rounded-lg ${
                       deadlineAlertEnabled ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-400 text-white'
                     }`}>
@@ -267,7 +267,7 @@ export const SettingsPage: React.FC = () => {
                     </span>
                   </h4>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Memaparkan amaran / notis kepada client sekiranya mereka memilih tarikh siap (deadline) dalam tempoh singkat.
+                    Displays a real-time notice banner to the client when they select a target completion deadline on short notice.
                   </p>
                 </div>
               </div>
@@ -303,7 +303,7 @@ export const SettingsPage: React.FC = () => {
                 {/* Minimum Days Threshold */}
                 <div className="form-control">
                   <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-1">
-                    Tempoh Ambang Amaran (Notice Days Threshold)
+                    Notice Days Threshold
                   </label>
                   <div className="flex items-center gap-3">
                     <input
@@ -315,41 +315,41 @@ export const SettingsPage: React.FC = () => {
                       className="input input-bordered input-sm bg-white border-slate-300 rounded-xl w-24 h-11 text-sm font-bold text-center focus:border-amber-600"
                     />
                     <span className="text-xs font-bold text-slate-600">
-                      Hari atau kurang dari tarikh permohonan dibuat.
+                      Days or less from the submission date.
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-medium mt-1">
-                    Contoh: Jika diset <strong>{deadlineMinDays}</strong> hari, permohonan yang dihantar hari ini dengan deadline {deadlineMinDays === 1 ? 'hari ini atau esok' : `dalam tempoh ${deadlineMinDays} hari`} akan mencetuskan amaran kepada client.
+                    Example: If set to <strong>{deadlineMinDays}</strong> days, any request submitted today with a deadline {deadlineMinDays === 1 ? 'today or tomorrow' : `within ${deadlineMinDays} days`} will trigger this alert.
                   </p>
                 </div>
 
                 {/* Custom Message to User */}
                 <div className="form-control">
                   <label className="label text-xs font-bold text-slate-700 uppercase tracking-wider py-1">
-                    Mesej Amaran Kepada Client (Custom Alert Message)
+                    Custom Alert Message
                   </label>
                   <textarea
                     rows={3}
                     value={deadlineAlertMessage}
                     onChange={(e) => setDeadlineAlertMessage(e.target.value)}
-                    placeholder="Masukkan mesej amaran untuk client..."
+                    placeholder="Enter custom alert message for clients..."
                     className="textarea textarea-bordered bg-white border-slate-300 rounded-xl text-xs font-medium focus:border-amber-600 leading-relaxed p-3.5"
                   ></textarea>
                   <p className="text-[11px] text-slate-400 font-medium mt-1">
-                    Petua: Gunakan tag <code className="bg-slate-200 px-1 py-0.5 rounded font-bold text-slate-700">&#123;days&#125;</code> untuk memasukkan bilangan hari ambang secara automatik.
+                    Tip: Use the <code className="bg-slate-200 px-1 py-0.5 rounded font-bold text-slate-700">&#123;days&#125;</code> tag to automatically inject the threshold days number.
                   </p>
                 </div>
 
                 {/* Live Preview for Admin */}
                 <div className="space-y-1.5 pt-1">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Live Preview (Rupa pada Borang Client):
+                    Live Preview (Client Form Appearance):
                   </span>
                   <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-amber-950 flex items-start gap-3 shadow-xs">
                     <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div className="space-y-0.5">
                       <div className="text-xs font-black uppercase text-amber-900 tracking-wide">
-                        PERMOHONAN TEMPOH SINGKAT ({deadlineMinDays} HARI)
+                        SHORT-NOTICE REQUEST ({deadlineMinDays} DAYS)
                       </div>
                       <p className="text-xs font-semibold text-amber-800 leading-relaxed">
                         {deadlineAlertMessage.replace('{days}', String(deadlineMinDays))}

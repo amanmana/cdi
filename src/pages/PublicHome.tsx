@@ -68,7 +68,7 @@ export const PublicHome: React.FC = () => {
   const [deadlineSettings, setDeadlineSettings] = useState({
     deadline_min_days: 2,
     deadline_alert_message:
-      'Perhatian: Tarikh sasaran siap (deadline) yang dipilih adalah dalam tempoh singkat (kurang daripada {days} hari). Permohonan segera/kecemasan tertakluk kepada kelulusan dan kelapangan jadual unit berkaitan.',
+      'Notice: The selected target completion deadline is on short notice (within {days} days). Urgent requests are subject to approval and team schedule availability.',
     deadline_alert_enabled: true,
   });
   const [dynamicFields, setDynamicFields] = useState<Record<string, string>>({});
@@ -153,17 +153,17 @@ export const PublicHome: React.FC = () => {
     });
 
     if (Object.keys(missing).length > 0) {
-      setError(`Sila isi maklumat wajib: ${Object.keys(missing).map(k => missing[k]).join(', ')}`);
+      setError(`Please complete all required unit specifications: ${Object.keys(missing).map(k => missing[k]).join(', ')}`);
       return;
     }
 
     if (!deadline) {
-      setError('Sila tetapkan tarikh sasaran siap (Target Deadline).');
+      setError('Please specify a target completion deadline.');
       return;
     }
 
     if (!turnstileToken) {
-      setError('Sila lengkapkan pengesahan keselamatan (Turnstile) terlebih dahulu.');
+      setError('Please complete the security verification (Turnstile) before submitting.');
       return;
     }
 
@@ -214,7 +214,7 @@ export const PublicHome: React.FC = () => {
             Submit a Job Request
           </h1>
           <p className="mt-3 text-slate-500 text-sm md:text-base leading-relaxed">
-            Sila lengkapkan butiran permohonan di bawah untuk tindakan pantas unit perkhidmatan kami.
+            Please complete the details below to request support from our service units.
           </p>
         </div>
 
@@ -241,9 +241,9 @@ export const PublicHome: React.FC = () => {
                   <div>
                     <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <User className="w-3.5 h-3.5 text-blue-600" />
-                      Maklumat Pemohon (Applicant Details)
+                      Applicant Information
                     </h2>
-                    <p className="text-[11px] text-slate-400 font-medium">Butiran untuk rujukan rasmi dan semakan status tiket</p>
+                    <p className="text-[11px] text-slate-400 font-medium">Official contact details for ticket updates and tracking</p>
                   </div>
                 </div>
 
@@ -251,13 +251,13 @@ export const PublicHome: React.FC = () => {
                   <div className="form-control">
                     <label className="label pt-0 pb-1.5">
                       <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
-                        Nama Penuh (Full Name) <span className="text-rose-500">*</span>
+                        Full Name <span className="text-rose-500">*</span>
                       </span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="cth: Ahmad Razali"
+                      placeholder="e.g. John Doe"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
                       className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
@@ -267,13 +267,13 @@ export const PublicHome: React.FC = () => {
                   <div className="form-control">
                     <label className="label pt-0 pb-1.5">
                       <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
-                        Alamat Emel (Email Address) <span className="text-rose-500">*</span>
+                        Email Address <span className="text-rose-500">*</span>
                       </span>
                     </label>
                     <input
                       type="email"
                       required
-                      placeholder="cth: pemohon@mimos.my"
+                      placeholder="e.g. client@organization.com"
                       value={clientEmail}
                       onChange={(e) => setClientEmail(e.target.value)}
                       className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
@@ -292,13 +292,13 @@ export const PublicHome: React.FC = () => {
                     <div>
                       <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                         <Layers className="w-3.5 h-3.5 text-blue-600" />
-                        Unit Sasaran (Target Service Unit) <span className="text-rose-500">*</span>
+                        Target Service Unit <span className="text-rose-500">*</span>
                       </h2>
-                      <p className="text-[11px] text-slate-400 font-medium">Pilih unit perkhidmatan yang bersesuaian dengan permohonan anda</p>
+                      <p className="text-[11px] text-slate-400 font-medium">Select the specialized service unit for your job request</p>
                     </div>
                   </div>
                   <span className="text-xs text-slate-400 font-semibold hidden md:inline">
-                    {units.length} Unit Perkhidmatan
+                    {units.length} Service Units
                   </span>
                 </div>
 
@@ -359,9 +359,9 @@ export const PublicHome: React.FC = () => {
                   <div>
                     <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <FileText className="w-3.5 h-3.5 text-blue-600" />
-                      Skop Permohonan & Garis Masa (Scope & Timeline)
+                      Scope & Timeline
                     </h2>
-                    <p className="text-[11px] text-slate-400 font-medium">Nyatakan tajuk, tarikh sasaran dan butiran terperinci tugasan</p>
+                    <p className="text-[11px] text-slate-400 font-medium">Specify the job title, target delivery deadline, and detailed project scope</p>
                   </div>
                 </div>
 
@@ -370,13 +370,13 @@ export const PublicHome: React.FC = () => {
                   <div className="form-control md:col-span-2">
                     <label className="label pt-0 pb-1.5">
                       <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
-                        Tajuk Permohonan (Title) <span className="text-rose-500">*</span>
+                        Job Title <span className="text-rose-500">*</span>
                       </span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="cth: Poster Kempen Kesedaran Keselamatan Siber 2026"
+                      placeholder="e.g. Corporate Awareness Campaign Poster Design"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
@@ -386,7 +386,7 @@ export const PublicHome: React.FC = () => {
                   <div className="form-control md:col-span-1">
                     <label className="label pt-0 pb-1.5">
                       <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center justify-between w-full">
-                        <span>Dateline <span className="text-rose-500">*</span></span>
+                        <span>Target Deadline <span className="text-rose-500">*</span></span>
                         <span className="text-[10px] font-normal text-slate-400 lowercase">yyyy-mm-dd</span>
                       </span>
                     </label>
@@ -411,10 +411,10 @@ export const PublicHome: React.FC = () => {
                     <div className="space-y-1">
                       <div className="text-xs font-black uppercase text-amber-900 tracking-wider">
                         {daysUntilDeadline === 0
-                          ? '⚡ Permohonan Hari Ini (Same-Day Request)'
+                          ? '⚡ Same-Day Request (Urgent)'
                           : daysUntilDeadline === 1
-                          ? '⚡ Permohonan 24 Jam (Next-Day Request)'
-                          : `⚡ Permohonan Tempoh Singkat (${daysUntilDeadline} Hari)`}
+                          ? '⚡ 24-Hour Request (Urgent)'
+                          : `⚡ Short-Notice Request (${daysUntilDeadline} Days)`}
                       </div>
                       <p className="text-xs font-semibold text-amber-800 leading-relaxed">
                         {renderedAlertMessage}
@@ -427,12 +427,12 @@ export const PublicHome: React.FC = () => {
                 <div className="form-control">
                   <label className="label pt-0 pb-1.5">
                     <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
-                      Penerangan Tugasan (Description)
+                      Job Description
                     </span>
                   </label>
                   <textarea
                     rows={4}
-                    placeholder="Nyatakan arahan, objektif, format output atau pautan bahan rujukan..."
+                    placeholder="Provide detailed instructions, project objectives, required dimensions/formats, or reference asset links..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-4"
@@ -445,9 +445,9 @@ export const PublicHome: React.FC = () => {
                 <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                   <div className="border-b border-slate-200/80 pb-2 flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Keperluan Tambahan: Unit {selectedUnit}
+                      Additional Requirements: {selectedUnit} Unit
                     </span>
-                    <span className="text-[11px] text-slate-400 font-medium">Borang Khusus Unit</span>
+                    <span className="text-[11px] text-slate-400 font-medium">Unit-Specific Specifications</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -579,13 +579,13 @@ export const PublicHome: React.FC = () => {
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    <span>Hantar Permohonan (Submit Request)</span>
+                    <span>Submit Job Request</span>
                   </>
                 )}
               </button>
 
               <p className="text-center text-xs text-slate-400 font-medium">
-                Dengan menghantar borang ini, anda bersetuju dengan terma perkhidmatan dan dasar privasi kami.
+                By submitting this form, you agree to our terms of service and privacy policy.
               </p>
             </form>
           </div>
