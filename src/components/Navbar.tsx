@@ -1,7 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Search, Shield, LayoutDashboard, PlusCircle, User, Bell, Check, Sparkles, Clock, AlertCircle } from 'lucide-react';
+import {
+  LogOut,
+  Search,
+  Shield,
+  LayoutDashboard,
+  PlusCircle,
+  User,
+  Bell,
+  Check,
+  Sparkles,
+  Clock,
+  AlertCircle,
+  Menu,
+  X,
+  FileText,
+  Users,
+  FolderGit2,
+  Settings,
+  HardDrive,
+  Globe,
+  GitBranch,
+} from 'lucide-react';
 
 interface NotificationItem {
   id: number;
@@ -18,10 +39,43 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [trackTicket, setTrackTicket] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   // Use SAME key as JobRequestsList + JobRequestDetail so read state is always in sync
   const [readIds, setReadIds] = useState<number[]>([]);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
+  // Portal sidebar links list (exact mirror of Sidebar.tsx)
+  const sidebarLinks = [
+    { to: '/portal/director-dashboard', label: 'Executive Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'director'] },
+    { to: '/portal/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'manager', 'client'] },
+    { to: '/portal/job-requests', label: user?.role === 'client' ? 'My Requests' : 'Job Requests', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'client', 'director'] },
+    { to: '/portal/reports', label: 'Weekly Reports', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'director'] },
+    { to: '/portal/team', label: 'Team Members', icon: <Users className="w-5 h-5" />, roles: ['admin', 'manager'] },
+    { to: '/portal/units', label: user?.role === 'manager' ? 'Form' : 'Units & Org', icon: <FolderGit2 className="w-5 h-5" />, roles: ['admin', 'manager'] },
+    { to: '/portal/users', label: 'User Management', icon: <Shield className="w-5 h-5" />, roles: ['admin'] },
+    { to: '/portal/settings', label: 'System Settings', icon: <Settings className="w-5 h-5" />, roles: ['admin'] },
+    { to: '/portal/backup', label: 'Backup & Restore', icon: <HardDrive className="w-5 h-5" />, roles: ['admin'] },
+  ];
+
+  const allowedSidebarLinks = sidebarLinks.filter((link) => user && link.roles.includes(user.role));
 
   // Re-load from localStorage once user.id is available (fixes async auth timing)
   useEffect(() => {
@@ -109,19 +163,30 @@ export const Navbar: React.FC = () => {
 
   return (
     <nav className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200/80 px-4 lg:px-8 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-3 group shrink-0">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/20 transform group-hover:rotate-6 transition-transform">
-            C
-          </div>
-          <span className="text-base font-black text-slate-800 tracking-tight uppercase hidden sm:inline">
-            Corporate Communication & Identity
-          </span>
-          <span className="text-base font-black text-slate-800 tracking-tight uppercase sm:hidden">
-            CCI
-          </span>
-        </Link>
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+        {/* Mobile Hamburger Toggle & Brand Logo */}
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="md:hidden p-2 -ml-1 text-slate-700 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-colors focus:outline-hidden"
+            aria-label="Open mobile navigation menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+
+          <Link to="/" className="flex items-center gap-3 group shrink-0">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/20 transform group-hover:rotate-6 transition-transform">
+              C
+            </div>
+            <span className="text-base font-black text-slate-800 tracking-tight uppercase hidden sm:inline">
+              Corporate Communication & Identity
+            </span>
+            <span className="text-base font-black text-slate-800 tracking-tight uppercase sm:hidden">
+              CCI
+            </span>
+          </Link>
+        </div>
 
         {/* Right Navigation Links matching Image 1 & 2 */}
         <div className="flex items-center gap-3 md:gap-4 shrink-0">
@@ -324,6 +389,206 @@ export const Navbar: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* MOBILE SLIDE-OVER DRAWER */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[100] md:hidden">
+          {/* Backdrop Overlay */}
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Drawer Panel */}
+          <aside
+            className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-2xl z-[101] flex flex-col justify-between overflow-y-auto transform transition-transform duration-300 ease-in-out"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile Navigation"
+          >
+            <div>
+              {/* Drawer Header */}
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                <Link
+                  to="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 group"
+                >
+                  <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/20">
+                    C
+                  </div>
+                  <span className="text-sm font-black text-slate-800 tracking-tight uppercase">
+                    CCI Portal
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+                  aria-label="Close navigation menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* User Profile Card in Drawer */}
+              {user ? (
+                <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-blue-600 text-white font-black text-base flex items-center justify-center shrink-0 overflow-hidden shadow-md">
+                    {user.avatar_url ? (
+                      <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      user.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-extrabold text-sm text-slate-900 truncate">{user.name}</div>
+                    <div className="text-xs text-slate-500 truncate">{user.email}</div>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      <span className="badge bg-blue-100 text-blue-800 border-none badge-xs uppercase font-extrabold text-[9px] px-2 py-1">
+                        {user.role} {user.is_acting_manager ? '(Acting Manager)' : ''}
+                      </span>
+                      {user.unit && (
+                        <span className="badge bg-slate-200 text-slate-700 border-none badge-xs font-bold text-[9px] px-2 py-1">
+                          {user.unit}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-blue-50/50 border-b border-blue-100">
+                  <p className="text-xs font-bold text-slate-600">Welcome to CCI Portal</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Please sign in to access your dashboard and request jobs.</p>
+                  <div className="mt-3 flex gap-2">
+                    <Link
+                      to="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="btn btn-sm btn-primary bg-blue-600 border-none text-white flex-1 rounded-xl text-xs font-bold"
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="btn btn-sm btn-outline text-slate-700 border-slate-300 flex-1 rounded-xl text-xs font-bold"
+                    >
+                      Register
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Portal Navigation Links */}
+              {user && (
+                <div className="p-4">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-2">
+                    Portal Navigation
+                  </div>
+                  <ul className="space-y-1">
+                    {allowedSidebarLinks.map((link) => (
+                      <li key={link.to}>
+                        <NavLink
+                          to={link.to}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                              isActive
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'
+                            }`
+                          }
+                        >
+                          {link.icon}
+                          <span>{link.label}</span>
+                        </NavLink>
+                      </li>
+                    ))}
+                    <li>
+                      <NavLink
+                        to="/portal/profile"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                              : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'
+                          }`
+                        }
+                      >
+                        <User className="w-5 h-5" />
+                        <span>My Profile</span>
+                      </NavLink>
+                    </li>
+                  </ul>
+                </div>
+              )}
+
+              {/* Quick Public Links */}
+              <div className="p-4 pt-0">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-2">
+                  General Links
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      to="/"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 hover:text-blue-600 transition-all"
+                    >
+                      <Globe className="w-5 h-5 text-slate-400" />
+                      <span>View Public Site</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/track"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 hover:text-blue-600 transition-all"
+                    >
+                      <Search className="w-5 h-5 text-slate-400" />
+                      <span>Track Job Request</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/changelogs"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 hover:text-blue-600 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <GitBranch className="w-5 h-5 text-slate-400" />
+                        <span>Changelogs</span>
+                      </div>
+                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
+                        v1.6.0
+                      </span>
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            {user && (
+              <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
     </nav>
   );
 };
