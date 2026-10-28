@@ -12,6 +12,23 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.8.0',
+    date: '2026-10-28',
+    items: [
+      'Responsive Mobile Navigation: Added full slide-over drawer navigation with hamburger toggle, rendered via React Portals to ensure seamless 100vh access across smartphones and tablets.',
+      'Mobile UX: Added quick profile cards, role badges, full role-based portal links, and one-tap sign out inside mobile navigation drawer.',
+      'Mobile Layout Optimization: Adjusted protected layout spacing to p-4 sm:p-6 md:p-10 for comfortable reading and table viewing on small touch screens.',
+      'Cloudflare R2 Media Integration: Connected media uploads to Cloudflare R2 bucket (cdi-media) with client-side image compression prior to upload.',
+      'User Avatar Support: User profile pictures / avatars are now rendered in navbar, dropdowns, and drawers replacing single-letter placeholders.',
+      'Workflow Clarification: Differentiated "Head Unit Approval" (distinct amber badge) for Inter-Unit requests versus "Manager Approval" for client job requests.',
+      'Role Permissions Fix: Restricted client job request approvals strictly to Managers, removing unauthorized approval actions from Head Unit views.',
+      'Reporting Cleanliness: Excluded System Admin task data from Manager and Director executive reports.',
+      'Public Request Form: Removed auto-selected default unit box so clients deliberately pick their intended service unit, and standardized unit subtitle labels.',
+      'Portal Branding: Updated official header branding to "Corporate Communication & Identity Portal".',
+      'System Cleanup: Removed obsolete DEV panel for a cleaner, production-ready environment.',
+    ],
+  },
+  {
     version: '1.7.0',
     date: '2026-10-21',
     items: [

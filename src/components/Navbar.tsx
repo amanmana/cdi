@@ -563,7 +563,7 @@ export const Navbar: React.FC = () => {
                         <span>Changelogs</span>
                       </div>
                       <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-                        v1.6.0
+                        v1.8.0
                       </span>
                     </Link>
                   </li>
