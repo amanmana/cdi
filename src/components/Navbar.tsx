@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -390,9 +391,9 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* MOBILE SLIDE-OVER DRAWER */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] md:hidden">
+      {/* MOBILE SLIDE-OVER DRAWER (Rendered into document.body to break free from backdrop-blur containing block) */}
+      {mobileMenuOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] md:hidden">
           {/* Backdrop Overlay */}
           <div
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300"
@@ -402,14 +403,14 @@ export const Navbar: React.FC = () => {
 
           {/* Drawer Panel */}
           <aside
-            className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-2xl z-[101] flex flex-col justify-between overflow-y-auto transform transition-transform duration-300 ease-in-out"
+            className="fixed inset-y-0 left-0 w-80 max-w-[85vw] h-screen bg-white shadow-2xl z-[100000] flex flex-col justify-between overflow-y-auto transform transition-transform duration-300 ease-in-out"
             role="dialog"
             aria-modal="true"
             aria-label="Mobile Navigation"
           >
-            <div>
+            <div className="flex-1 overflow-y-auto">
               {/* Drawer Header */}
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
                 <Link
                   to="/"
                   onClick={() => setMobileMenuOpen(false)}
@@ -587,7 +588,8 @@ export const Navbar: React.FC = () => {
               </div>
             )}
           </aside>
-        </div>
+        </div>,
+        document.body
       )}
     </nav>
   );
