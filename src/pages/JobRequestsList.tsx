@@ -361,10 +361,10 @@ export const JobRequestsList: React.FC = () => {
         body: JSON.stringify({
           title: newTitle.trim(),
           description: newDescription.trim(),
-          client_name: newClientName.trim() || 'Management Directive',
+          client_name: newClientName.trim() || 'Internal Work / Meeting',
           client_email: newClientEmail.trim() || user?.email || 'internal@cdi.app',
           unit: newUnit || user?.acting_manager_unit || user?.unit || 'Graphic & Web',
-          assigned_staff_ids: selectedStaffIds,
+          assigned_staff_ids: user?.id ? [user.id] : [],
           start_date: newStartDate || null,
           deadline: newDeadline || null,
         }),
@@ -952,61 +952,6 @@ export const JobRequestsList: React.FC = () => {
                       className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-blue-600"
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <UserCheck className="w-4 h-4 text-blue-600" />
-                      ASSIGN RESPONSIBLE STAFF
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-bold lowercase">
-                      ({selectedStaffIds.length} selected)
-                    </span>
-                  </label>
-                  {filteredStaffMembers.length === 0 ? (
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center text-xs text-slate-400 font-medium">
-                      No staff members available in this unit.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto p-1">
-                      {filteredStaffMembers.map((staff) => {
-                        const isSelected = selectedStaffIds.includes(staff.id);
-                        return (
-                          <div
-                            key={staff.id}
-                            onClick={() => handleToggleStaffSelect(staff.id)}
-                            className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
-                              isSelected
-                                ? 'bg-blue-50 border-blue-500 shadow-sm'
-                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 overflow-hidden ${
-                                isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
-                              }`}>
-                                {staff.avatar_url ? (
-                                  <img src={staff.avatar_url} alt={staff.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  staff.name.charAt(0).toUpperCase()
-                                )}
-                              </div>
-                              <div className="truncate">
-                                <div className="font-extrabold text-xs text-slate-900 truncate">{staff.name}</div>
-                                <div className="text-[10px] text-slate-400 truncate">{staff.email}</div>
-                              </div>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {}}
-                              className="checkbox checkbox-xs checkbox-primary rounded-md"
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">

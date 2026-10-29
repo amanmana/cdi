@@ -865,7 +865,9 @@ jobRequestsRouter.post('/create-internal', async (c) => {
     .first<{ id: number }>();
   const unitId = unitRow?.id || null;
 
-  const assignedStr = Array.isArray(assigned_staff_ids) ? assigned_staff_ids.join(',') : (assigned_staff_ids || '');
+  const assignedStr = Array.isArray(assigned_staff_ids) && assigned_staff_ids.length > 0
+    ? assigned_staff_ids.join(',')
+    : user.id.toString();
 
   const res = await db
     .prepare(
