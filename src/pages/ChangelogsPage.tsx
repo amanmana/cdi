@@ -12,6 +12,15 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.9.1',
+    date: '2026-10-29',
+    items: [
+      'Developer UX: Interactive All-Users Testing List on Sign In — Replaced static demo buttons with a dynamic, searchable, categorized list of all registered system users directly on the login page.',
+      'Role Badges & Filtering: Quick-filter tabs for Director, Admin, Manager, Head Unit, Staff, and Client with real-time user count indicators.',
+      'Live Search & Quick Fill: Instant search filter by staff name, email, role, or unit/department, with 1-click filling of credentials for seamless cross-role testing.',
+    ],
+  },
+  {
     version: '1.9.0',
     date: '2026-10-29',
     items: [
