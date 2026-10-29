@@ -1211,11 +1211,33 @@ jobRequestsRouter.get('/:id', async (c) => {
 
   const canAct = WorkflowEngine.canUserPerformAction(request, user);
 
+  // Look up Target Unit Head (especially useful for Inter-Unit jobs)
+  let targetUnitHead: { id: number; name: string; email: string; unit: string } | null = null;
+  if (request.unit || request.unit_id) {
+    const headRow = await db.prepare(`
+      SELECT id, name, email, unit FROM users
+      WHERE is_unit_head = 1
+        AND (
+          (? IS NOT NULL AND unit_id = ?)
+          OR (? IS NOT NULL AND LOWER(TRIM(unit)) = LOWER(TRIM(?)))
+        )
+      LIMIT 1
+    `).bind(
+      request.unit_id || null, request.unit_id || null,
+      request.unit || null, request.unit || null
+    ).first<{ id: number; name: string; email: string; unit: string }>();
+
+    if (headRow) {
+      targetUnitHead = headRow;
+    }
+  }
+
   return c.json({
     request: {
       ...request,
       additional_data: request.additional_data ? JSON.parse(request.additional_data) : null,
     },
+    targetUnitHead,
     staffDetails,
     tasks: tasks || [],
     history: history || [],
@@ -1273,7 +1295,11 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
   );
 
-  if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager && !isTargetUnitHead) {
+  if (isInterUnit) {
+    if (user.role !== 'admin' && !user.is_acting_manager && !isTargetUnitHead) {
+      return c.json({ error: 'Unauthorized. Inter-unit collaborations must be accepted and assigned by the Target Unit Head.' }, 403);
+    }
+  } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
     return c.json({ error: 'Unauthorized to approve this request.' }, 403);
   }
 
@@ -1317,7 +1343,11 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
   );
 
-  if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager && !isTargetUnitHead) {
+  if (isInterUnit) {
+    if (user.role !== 'admin' && !user.is_acting_manager && !isTargetUnitHead) {
+      return c.json({ error: 'Unauthorized. Inter-unit collaborations must be reviewed and rejected by the Target Unit Head.' }, 403);
+    }
+  } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
     return c.json({ error: 'Unauthorized to reject this request.' }, 403);
   }
 
@@ -1473,8 +1503,14 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
   );
 
-  if ((request.status === 'manager_approval' || request.status === 'pending') && !['admin', 'manager'].includes(user.role) && !user.is_acting_manager && !isTargetUnitHead) {
-    return c.json({ error: 'Unauthorized to approve and assign team to this request.' }, 403);
+  if (request.status === 'manager_approval' || request.status === 'pending') {
+    if (isInterUnit) {
+      if (user.role !== 'admin' && !user.is_acting_manager && !isTargetUnitHead) {
+        return c.json({ error: 'Unauthorized to assign team to this inter-unit request. Only the Target Unit Head may assign staff.' }, 403);
+      }
+    } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
+      return c.json({ error: 'Unauthorized to approve and assign team to this request.' }, 403);
+    }
   }
 
   const assignedStr = Array.isArray(staff_ids) ? staff_ids.join(',') : '';

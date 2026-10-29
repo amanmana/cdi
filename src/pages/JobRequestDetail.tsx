@@ -199,7 +199,7 @@ export const JobRequestDetail: React.FC = () => {
     );
   }
 
-  const { request, tasks, history, reports, canAct } = data;
+  const { request, targetUnitHead, tasks, history, reports, canAct } = data;
   const totalStaff = data.staffDetails?.length || 0;
   const completedStaff = data.staffDetails?.filter((s: any) => s.is_done).length || 0;
   const percent = request.status === 'completed' ? 100 : totalStaff > 0 ? Math.round((completedStaff / totalStaff) * 100) : 0;
@@ -576,9 +576,10 @@ export const JobRequestDetail: React.FC = () => {
   const renderStatusCapsule = (status: string) => {
     if (status === 'manager_approval') {
       if (isInterUnitJob) {
+        const headName = targetUnitHead?.name || request.additional_data?.target_unit_head_name;
         return (
           <span className="bg-teal-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm">
-            HEAD UNIT APPROVAL
+            {headName ? `HEAD UNIT (${headName}) APPROVAL` : 'HEAD UNIT APPROVAL'}
           </span>
         );
       }
@@ -706,9 +707,14 @@ export const JobRequestDetail: React.FC = () => {
                   <span className="text-[10px] font-black text-blue-200 uppercase tracking-wider block">Target Handling Unit</span>
                   <div className="font-extrabold text-white mt-0.5">
                     {request.unit}
+                    {(targetUnitHead?.name || request.additional_data?.target_unit_head_name) && (
+                      <span className="text-blue-100 font-semibold ml-1">
+                        ({targetUnitHead?.name || request.additional_data?.target_unit_head_name})
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] text-blue-200">
-                    Reviewer: <strong>Target Unit Head</strong>
+                    Reviewer: <strong>Target Unit Head{(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''}</strong>
                   </div>
                 </div>
               </div>
@@ -1150,8 +1156,16 @@ export const JobRequestDetail: React.FC = () => {
               (isInterUnitJob && user?.is_unit_head)
             ) && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-1 my-2">
-                <div className="text-xs font-bold text-slate-700">{isInterUnitJob ? 'Awaiting Head Unit Approval' : 'Awaiting Manager Approval'}</div>
-                <div className="text-[11px] text-slate-400 font-medium">{isInterUnitJob ? 'Inter-Unit collaboration requests are reviewed and accepted exclusively by the Target Unit Head.' : 'Online client job requests are reviewed and approved exclusively by Department Managers.'}</div>
+                <div className="text-xs font-bold text-slate-700">
+                  {isInterUnitJob
+                    ? `Awaiting Head Unit${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''} Approval`
+                    : 'Awaiting Manager Approval'}
+                </div>
+                <div className="text-[11px] text-slate-400 font-medium">
+                  {isInterUnitJob
+                    ? `Inter-Unit collaboration requests are reviewed and accepted exclusively by the Target Unit Head${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''}.`
+                    : 'Online client job requests are reviewed and approved exclusively by Department Managers.'}
+                </div>
               </div>
             )}
 
