@@ -15,6 +15,8 @@ const changelogsData: ChangelogEntry[] = [
     version: '1.9.1',
     date: '2026-10-29',
     items: [
+      'Fix: User Deletion Foreign Key Constraints — Fixed SQLite foreign key constraint failure during permanent staff/user deletion by cleanly unlinking child job tasks, unit head references, and comma-separated assignment lists.',
+      'Feature: Force Permanent Delete & Deactivated Accounts Tab — Added support for Force Hard Delete with full error banners, and dedicated "Deactivated" section in User Management with 1-click reactivation.',
       'Developer UX: Interactive All-Users Testing List on Sign In — Replaced static demo buttons with a dynamic, searchable, categorized list of all registered system users directly on the login page.',
       'Role Badges & Filtering: Quick-filter tabs for Director, Admin, Manager, Head Unit, Staff, and Client with real-time user count indicators.',
       'Live Search & Quick Fill: Instant search filter by staff name, email, role, or unit/department, with 1-click filling of credentials for seamless cross-role testing.',
