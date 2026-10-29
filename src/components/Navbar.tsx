@@ -164,7 +164,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <nav className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200/80 px-4 lg:px-8 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <div className="w-full flex items-center justify-between gap-3">
         {/* Mobile Hamburger Toggle & Brand Logo */}
         <div className="flex items-center gap-2.5">
           <button
