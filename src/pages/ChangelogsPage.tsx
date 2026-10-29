@@ -12,6 +12,21 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.9.0',
+    date: '2026-10-29',
+    items: [
+      'Feature: Mega Projects Architecture (Project-as-a-Base) — Unified cross-department workspace enabling Directors & Admins to launch organization-wide projects (e.g. #MTP2026) with collective progress monitoring.',
+      'Feature: Multi-Unit Automated Task Delegation — Instantly generates deliverables tickets for each selected unit upon project launch, routing work directly to Unit Heads and Managers.',
+      'Feature: Dynamic Progress Calculation (0% - 100%) — Collective project completion tracked automatically based on the ratio of finished unit tasks, with seamless recalculation when revision tasks are introduced.',
+      'Workflow: Executive Status Override & Notes — Directors, Admins, and Managers can set project status (Active, Pending Review, Completed, On Hold, Cancelled) and document third-party review notes (e.g. Finance budget approval).',
+      'UX: Executive Presentation View (/portal/projects/:id) — Clean, presentation-ready briefing screen showcasing macro KPI progress, unit-by-unit status breakdown, and deliverables registry for top management reporting.',
+      'UX: Direct Project Linking in Work Logs — Added "Link to Mega Project" combobox in both "+ Add My Task" and "Inter-Unit Request" modals to associate independent unit tasks directly to mega projects.',
+      'Integration: Director Dashboard Mega Projects Portfolio — Embedded live interactive project cards directly into the Director Executive Dashboard.',
+      'UX: Wide-Screen Desktop Layout Alignment — Adjusted main portal container to be comfortably left-aligned adjacent to the sidebar while maintaining an optimal max-w-7xl readable width without awkward center gaps.',
+      'Fix: D1 Database Preset Conflict — Fixed SQL syntax conflict in system_settings preset storage and added department_id resolution for self-initiated task logs.',
+    ],
+  },
+  {
     version: '1.8.0',
     date: '2026-10-28',
     items: [

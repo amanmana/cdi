@@ -63,7 +63,7 @@ export const Sidebar: React.FC = () => {
             <GitBranch className="w-5 h-5 text-slate-400" />
             <span>Changelogs</span>
             <span className="ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-              v1.8.0
+              v1.9.0
             </span>
           </Link>
         </li>
