@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle } from 'lucide-react';
+import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban } from 'lucide-react';
 
 export const JobRequestsList: React.FC = () => {
   const { token, user } = useAuth();
@@ -59,6 +59,7 @@ export const JobRequestsList: React.FC = () => {
   const [selfTitle, setSelfTitle] = useState('');
   const [selfClient, setSelfClient] = useState('');
   const [selfProject, setSelfProject] = useState('');
+  const [selfProjectId, setSelfProjectId] = useState<string>('');
   const [selfStartDate, setSelfStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [selfStatus, setSelfStatus] = useState('completed');
   const [selfDescription, setSelfDescription] = useState('');
@@ -73,8 +74,12 @@ export const JobRequestsList: React.FC = () => {
   const [interUnitStartDate, setInterUnitStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [interUnitDeadline, setInterUnitDeadline] = useState('');
   const [interUnitParentJobId, setInterUnitParentJobId] = useState('');
+  const [interUnitProjectId, setInterUnitProjectId] = useState<string>('');
   const [interUnitSubmitting, setInterUnitSubmitting] = useState(false);
   const [interUnitError, setInterUnitError] = useState('');
+
+  // Mega Projects List for Dropdowns
+  const [megaProjectsList, setMegaProjectsList] = useState<{ id: number; code: string; title: string; status: string }[]>([]);
 
   // Manage Presets State
   const [showManagePresetsModal, setShowManagePresetsModal] = useState(false);
@@ -100,8 +105,24 @@ export const JobRequestsList: React.FC = () => {
     }
   };
 
+  const fetchMegaProjects = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/projects', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.projects)) {
+        setMegaProjectsList(data.projects);
+      }
+    } catch (err) {
+      console.error('Failed to fetch mega projects list:', err);
+    }
+  };
+
   useEffect(() => {
     fetchPresets();
+    fetchMegaProjects();
   }, [token]);
 
   useEffect(() => {
@@ -171,6 +192,7 @@ export const JobRequestsList: React.FC = () => {
           description: selfDescription.trim(),
           client_name: selfClient.trim(),
           project_name: selfProject.trim(),
+          project_id: selfProjectId ? Number(selfProjectId) : null,
           status: selfStatus,
           start_date: selfStartDate,
         }),
@@ -181,6 +203,7 @@ export const JobRequestsList: React.FC = () => {
         setSelfTitle('');
         setSelfClient('');
         setSelfProject('');
+        setSelfProjectId('');
         setSelfDescription('');
         fetchRequests();
       } else {
@@ -218,6 +241,7 @@ export const JobRequestsList: React.FC = () => {
           start_date: interUnitStartDate,
           deadline: interUnitDeadline || null,
           parent_job_id: interUnitParentJobId ? Number(interUnitParentJobId) : null,
+          project_id: interUnitProjectId ? Number(interUnitProjectId) : null,
         }),
       });
       const data = await res.json();
@@ -227,6 +251,9 @@ export const JobRequestsList: React.FC = () => {
         setInterUnitDescription('');
         setInterUnitTargetUnit('');
         setInterUnitPriority('normal');
+        setInterUnitParentJobId('');
+        setInterUnitProjectId('');
+        fetchRequests();
         setInterUnitDeadline('');
         setInterUnitParentJobId('');
         fetchRequests();
@@ -681,6 +708,16 @@ export const JobRequestsList: React.FC = () => {
                               <span>INTER-UNIT</span>
                             </span>
                           )}
+                          {req.project_id && (
+                            <Link
+                              to={`/portal/projects/${req.project_id}`}
+                              title="Part of a Mega Project"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-black shrink-0 transition-colors"
+                            >
+                              <FolderKanban className="w-3 h-3 text-purple-600" />
+                              <span>MEGA PROJECT</span>
+                            </Link>
+                          )}
                         </div>
                         <Link
                           to={`/portal/job-requests/${req.id}`}
@@ -1111,6 +1148,26 @@ export const JobRequestsList: React.FC = () => {
                 </div>
               </div>
 
+              {/* TIE/LINK TO MEGA PROJECT (Optional) */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>LINK TO MEGA PROJECT (OPTIONAL)</span>
+                  <span className="text-[10px] text-purple-600 font-extrabold lowercase">contributes to collective progress</span>
+                </label>
+                <select
+                  value={selfProjectId}
+                  onChange={(e) => setSelfProjectId(e.target.value)}
+                  className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-purple-600"
+                >
+                  <option value="">-- None (Standalone Unit Work) --</option>
+                  {megaProjectsList.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      #{p.code} — {p.title} ({p.status.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* 4 & 5. EXECUTION DATE & TASK STATUS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1399,6 +1456,26 @@ export const JobRequestsList: React.FC = () => {
                     className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
                   />
                 </div>
+              </div>
+
+              {/* Optional Mega Project Link */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Link to Mega Project (Optional)</span>
+                  <span className="text-[10px] text-indigo-600 font-extrabold lowercase">contributes to collective progress</span>
+                </label>
+                <select
+                  value={interUnitProjectId}
+                  onChange={(e) => setInterUnitProjectId(e.target.value)}
+                  className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                >
+                  <option value="">-- None (Standalone Unit Work) --</option>
+                  {megaProjectsList.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      #{p.code} — {p.title} ({p.status.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Optional Parent Job Reference */}

@@ -921,7 +921,7 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
   const user = c.get('user');
 
   try {
-    const { title, description, client_name, project_name, status, start_date, deadline } = await c.req.json();
+    const { title, description, client_name, project_name, status, start_date, deadline, project_id } = await c.req.json();
 
     if (!title || !title.trim()) {
       return c.json({ error: 'Work title is required.' }, 400);
@@ -986,8 +986,8 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
 
     const res = await db
       .prepare(
-        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, unit, unit_id, department_id, status, current_step_name, assigned_staff_ids, start_date, deadline, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, unit, unit_id, department_id, status, current_step_name, assigned_staff_ids, start_date, deadline, project_id, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
       .bind(
         ticketNo,
@@ -1002,7 +1002,8 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
         stepName,
         assignedStr,
         start_date || new Date().toISOString().split('T')[0],
-        deadline || null
+        deadline || null,
+        project_id ? Number(project_id) : null
       )
       .run();
 
@@ -1065,6 +1066,7 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
     deadline,
     parent_job_id,
     parent_ticket_no,
+    project_id,
   } = await c.req.json();
 
   if (!title || !title.trim()) {
@@ -1106,8 +1108,8 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
       `INSERT INTO job_requests (
         ticket_no, client_name, client_email, title, description,
         unit, unit_id, department_id, status, current_step_name,
-        start_date, deadline, additional_data, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Unit Head Review & Acceptance', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        start_date, deadline, project_id, additional_data, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Unit Head Review & Acceptance', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     )
     .bind(
       ticketNo,
@@ -1120,6 +1122,7 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
       unitRow.department_id || null,
       start_date || new Date().toISOString().split('T')[0],
       deadline || null,
+      project_id ? Number(project_id) : null,
       additionalData
     )
     .run();

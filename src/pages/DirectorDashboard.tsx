@@ -25,7 +25,8 @@ import {
   Mail,
   Phone,
   PauseCircle,
-  XCircle
+  XCircle,
+  FolderKanban,
 } from 'lucide-react';
 
 interface ExecutiveKPIs {
@@ -116,6 +117,7 @@ export const DirectorDashboard: React.FC = () => {
     active_count: 0,
   });
   const [clientDemand, setClientDemand] = useState<ClientDemandItem[]>([]);
+  const [megaProjects, setMegaProjects] = useState<any[]>([]);
 
   // Timeframe Filter State (Default: 2026 / All Months)
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -144,6 +146,15 @@ export const DirectorDashboard: React.FC = () => {
       if (data.status_distribution) setStatusDist(data.status_distribution);
       if (data.sla_health) setSlaHealth(data.sla_health);
       if (data.client_demand) setClientDemand(data.client_demand);
+
+      // Fetch Mega Projects summary
+      const projRes = await fetch('/api/projects', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const projData = await projRes.json();
+      if (projData.success && Array.isArray(projData.projects)) {
+        setMegaProjects(projData.projects);
+      }
     } catch (err) {
       console.error('Error loading director stats:', err);
     } finally {
@@ -542,6 +553,103 @@ export const DirectorDashboard: React.FC = () => {
             ></div>
           </div>
         </div>
+      </div>
+
+      {/* ACTIVE MEGA PROJECTS EXECUTIVE OVERVIEW */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 space-y-5">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                <FolderKanban className="w-4.5 h-4.5" />
+              </div>
+              <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                Active Mega Projects Portfolio
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Collective cross-unit projects tracking for management presentation & executive review.
+            </p>
+          </div>
+
+          <Link
+            to="/portal/projects"
+            className="btn btn-sm btn-outline text-indigo-600 border-indigo-200 hover:bg-indigo-50 rounded-xl text-xs font-bold uppercase tracking-wider gap-1"
+          >
+            <span>Manage All Projects</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {megaProjects.length === 0 ? (
+          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200/60 text-slate-400 text-xs italic space-y-2">
+            <p>No active Mega Projects initiated yet.</p>
+            <Link
+              to="/portal/projects"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:underline"
+            >
+              <span>+ Launch First Mega Project</span>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {megaProjects.slice(0, 6).map((proj: any) => (
+              <Link
+                key={proj.id}
+                to={`/portal/projects/${proj.id}`}
+                className="bg-slate-50/70 hover:bg-white rounded-2xl p-5 border border-slate-200/70 hover:border-indigo-300 hover:shadow-lg transition-all flex flex-col justify-between group space-y-4"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                      #{proj.code}
+                    </span>
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      proj.status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : proj.status === 'pending'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {proj.status}
+                    </span>
+                  </div>
+
+                  <h3 className="font-extrabold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                    {proj.title}
+                  </h3>
+
+                  {proj.status_note && (
+                    <p className="text-[11px] text-amber-800 font-medium line-clamp-1 bg-amber-50/80 px-2 py-1 rounded-md border border-amber-200/60">
+                      Note: {proj.status_note}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t border-slate-200/60">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-slate-500">Progress</span>
+                    <span className="font-mono text-slate-900 font-black">{proj.progress_percent}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        proj.progress_percent === 100
+                          ? 'bg-emerald-500'
+                          : 'bg-indigo-600'
+                      }`}
+                      style={{ width: `${proj.progress_percent}%` }}
+                    />
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-semibold flex items-center justify-between pt-1">
+                    <span>{proj.completed_jobs} / {proj.total_jobs} tasks done</span>
+                    <span className="text-indigo-600 font-bold group-hover:underline">Details &rarr;</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* MULTI-UNIT OVERVIEW GRID */}

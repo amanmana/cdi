@@ -22,6 +22,8 @@ import { DirectorDashboard } from './pages/DirectorDashboard';
 import { TermsPrivacyPage } from './pages/TermsPrivacyPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ChangelogsPage } from './pages/ChangelogsPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { Footer } from './components/Footer';
 
 const AdminIndexRedirect: React.FC = () => {
@@ -86,6 +88,8 @@ export const App: React.FC = () => {
                 <Route index element={<AdminIndexRedirect />} />
                 <Route path="director-dashboard" element={<DirectorDashboard />} />
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="projects" element={<ProjectsPage />} />
+                <Route path="projects/:id" element={<ProjectDetailPage />} />
                 <Route path="job-requests" element={<JobRequestsList />} />
                 <Route path="job-requests/:id" element={<JobRequestDetail />} />
                 <Route path="reports" element={<ReportsPage />} />

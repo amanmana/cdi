@@ -10,6 +10,7 @@ import staffReportsRoutes from './routes/staffReports';
 import adminRoutes from './routes/admin';
 import directorRoutes from './routes/director';
 import { notificationsRouter } from './routes/notifications';
+import projectsRoutes from './routes/projects';
 
 type Env = {
   Bindings: {
@@ -59,6 +60,7 @@ app.route('/api/reports', staffReportsRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/director', directorRoutes);
 app.route('/api/notifications', notificationsRouter);
+app.route('/api/projects', projectsRoutes);
 
 // Health check
 app.get('/api/health', (c) => {
