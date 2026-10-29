@@ -54,10 +54,10 @@ const ProtectedLayout: React.FC = () => {
     <div className="flex min-h-[calc(100vh-4.25rem)] bg-slate-50">
       <Sidebar />
       <main className="flex-1 p-4 sm:p-6 md:p-8 bg-slate-50 overflow-y-auto min-h-[calc(100vh-4.25rem)] flex flex-col justify-between">
-        <div className="w-full flex-1">
+        <div className="max-w-7xl w-full flex-1">
           <Outlet />
         </div>
-        <Footer className="w-full" />
+        <Footer className="max-w-7xl w-full" />
       </main>
     </div>
   );
