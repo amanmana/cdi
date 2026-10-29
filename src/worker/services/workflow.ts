@@ -24,7 +24,9 @@ export class WorkflowEngine {
           (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||
           (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
         );
-        return user.role === 'manager' || user.role === 'admin' || Boolean((user as any).is_acting_manager) || isTargetUnitHead;
+        // Inter-Unit jobs: ONLY admin, target unit head, or acting manager can Accept/Reject
+        // Regular managers are excluded — this is a Head Unit to Head Unit collaboration
+        return user.role === 'admin' || Boolean((user as any).is_acting_manager) || isTargetUnitHead;
       }
 
       // Online client requests: ONLY Manager, Admin, or Acting Manager has approval authority

@@ -1127,7 +1127,12 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
             {!(request.status === 'staff_processing' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) &&
-             !(request.status === 'manager_approval' && !(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || (isInterUnitJob && user?.is_unit_head))) && (
+             !(request.status === 'manager_approval' && !(
+               user?.role === 'admin' ||
+               (user?.role === 'manager' && !isInterUnitJob) ||
+               user?.is_acting_manager ||
+               (isInterUnitJob && user?.is_unit_head)
+             )) && (
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-slate-100"></div>
                 <span className="flex-shrink mx-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
@@ -1138,17 +1143,27 @@ export const JobRequestDetail: React.FC = () => {
             )}
 
             {/* Notice for Unit Heads & Staff viewing requests awaiting Manager Approval */}
-            {request.status === 'manager_approval' && !(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || (isInterUnitJob && user?.is_unit_head)) && (
+            {request.status === 'manager_approval' && !(
+              user?.role === 'admin' ||
+              (user?.role === 'manager' && !isInterUnitJob) ||
+              user?.is_acting_manager ||
+              (isInterUnitJob && user?.is_unit_head)
+            ) && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-1 my-2">
-                <div className="text-xs font-bold text-slate-700">Awaiting Manager Approval</div>
-                <div className="text-[11px] text-slate-400 font-medium">Online client job requests are reviewed and approved exclusively by Department Managers.</div>
+                <div className="text-xs font-bold text-slate-700">{isInterUnitJob ? 'Awaiting Head Unit Approval' : 'Awaiting Manager Approval'}</div>
+                <div className="text-[11px] text-slate-400 font-medium">{isInterUnitJob ? 'Inter-Unit collaboration requests are reviewed and accepted exclusively by the Target Unit Head.' : 'Online client job requests are reviewed and approved exclusively by Department Managers.'}</div>
               </div>
             )}
 
             {/* Action Buttons based on Role & Status */}
             {canAct && (
               <div className="space-y-2">
-                {request.status === 'manager_approval' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || (isInterUnitJob && user?.is_unit_head)) && (
+                {request.status === 'manager_approval' && (
+                  user?.role === 'admin' ||
+                  (user?.role === 'manager' && !isInterUnitJob) ||
+                  user?.is_acting_manager ||
+                  (isInterUnitJob && user?.is_unit_head)
+                ) && (
                   <>
                     <button
                       onClick={handleOpenApproveModal}
