@@ -1,8 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, AlertCircle, Eye, EyeOff, Lock, X, KeyRound, Mail, CheckCircle2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Eye, EyeOff, Lock, X, KeyRound, Mail, CheckCircle2, ExternalLink, Search, Users, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
+
+interface DemoUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  is_unit_head?: number | boolean;
+  avatar_url?: string;
+  unit?: string;
+}
+
+const FALLBACK_DEMO_USERS: DemoUser[] = [
+  { id: 101, name: 'Executive Director', email: 'director@example.com', role: 'director', unit: 'Executive Office' },
+  { id: 102, name: 'System Admin', email: 'admin@example.com', role: 'admin', unit: 'IT Support' },
+  { id: 103, name: 'Hazmi (Manager)', email: 'manager@example.com', role: 'manager', unit: 'Management' },
+  { id: 104, name: 'Safari (Head of Design)', email: 'safari@example.com', role: 'staff', is_unit_head: 1, unit: 'Graphic' },
+  { id: 105, name: 'Azni (Head of Web)', email: 'azni@example.com', role: 'staff', is_unit_head: 1, unit: 'Web' },
+  { id: 106, name: 'Akmal (Staff)', email: 'staff@example.com', role: 'staff', is_unit_head: 0, unit: 'Design' },
+  { id: 107, name: 'Client Garang', email: 'client@example.com', role: 'client', unit: 'Client' },
+];
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -14,6 +34,36 @@ export const Login: React.FC = () => {
   const [turnstileToken, setTurnstileToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Developer quick login list state
+  const [demoUsers, setDemoUsers] = useState<DemoUser[]>(FALLBACK_DEMO_USERS);
+  const [loadingDemoUsers, setLoadingDemoUsers] = useState(false);
+  const [demoSearch, setDemoSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'director' | 'admin' | 'manager' | 'head_unit' | 'staff' | 'client'>('all');
+  const [isDemoSectionOpen, setIsDemoSectionOpen] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDemoUsers = async () => {
+      setLoadingDemoUsers(true);
+      try {
+        const res = await fetch('/api/public/demo-users');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.users) && data.users.length > 0) {
+            if (isMounted) setDemoUsers(data.users);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch demo users list:', err);
+      } finally {
+        if (isMounted) setLoadingDemoUsers(false);
+      }
+    };
+    fetchDemoUsers();
+    return () => { isMounted = false; };
+  }, []);
 
   // Forgot password modal state
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
@@ -106,7 +156,71 @@ export const Login: React.FC = () => {
   const handleDemoLogin = (demoEmail: string) => {
     setEmail(demoEmail);
     setPassword('password123');
+    if (!turnstileToken) {
+      setTurnstileToken('demo_turnstile_pass_token');
+    }
+    setError('');
   };
+
+  const getRoleBadgeInfo = (u: DemoUser) => {
+    if (u.role === 'director') {
+      return {
+        label: 'DIRECTOR',
+        badgeClass: 'bg-purple-100 text-purple-700 border-purple-200',
+      };
+    }
+    if (u.role === 'admin') {
+      return {
+        label: 'ADMIN',
+        badgeClass: 'bg-slate-800 text-slate-100 border-slate-700',
+      };
+    }
+    if (u.role === 'manager') {
+      return {
+        label: 'MANAGER',
+        badgeClass: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+      };
+    }
+    if (Boolean(u.is_unit_head) || u.role === 'head_unit') {
+      return {
+        label: 'HEAD UNIT',
+        badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+      };
+    }
+    if (u.role === 'staff') {
+      return {
+        label: 'STAFF',
+        badgeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+      };
+    }
+    if (u.role === 'client') {
+      return {
+        label: 'CLIENT',
+        badgeClass: 'bg-sky-100 text-sky-700 border-sky-200',
+      };
+    }
+    return {
+      label: (u.role || 'USER').toUpperCase(),
+      badgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+    };
+  };
+
+  const filteredDemoUsers = demoUsers.filter((u) => {
+    const q = demoSearch.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      u.name?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q) ||
+      u.role?.toLowerCase().includes(q) ||
+      (u.unit && u.unit.toLowerCase().includes(q));
+
+    if (!matchesSearch) return false;
+
+    if (roleFilter === 'all') return true;
+    if (roleFilter === 'head_unit') return Boolean(u.is_unit_head) || u.role === 'head_unit';
+    if (roleFilter === 'staff') return u.role === 'staff' && !u.is_unit_head;
+    return u.role === roleFilter;
+  });
 
   const handleSendResetLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,53 +377,164 @@ export const Login: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Fill Demo Credentials */}
+          {/* Quick Fill Demo Credentials (Developer / Testing Interactive List) */}
           <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-3">
-              DEMO ACCOUNTS (1-CLICK FILL)
-            </p>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <p className="text-slate-600 text-[11px] font-bold uppercase tracking-wider">
+                  Developer Testing Users ({demoUsers.length})
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => handleDemoLogin('admin@example.com')}
-                className="btn btn-outline btn-xs h-auto py-1.5 border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 rounded-lg flex flex-col px-1"
+                onClick={() => setIsDemoSectionOpen(!isDemoSectionOpen)}
+                className="text-[11px] text-blue-600 hover:text-blue-700 flex items-center gap-1 font-semibold transition-colors"
               >
-                <span className="font-bold text-[9px] text-blue-600">ADMIN</span>
-                <span className="text-[8px] text-slate-400 font-normal">admin@...</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('manager@example.com')}
-                className="btn btn-outline btn-xs h-auto py-1.5 border-slate-200 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 rounded-lg flex flex-col px-1"
-              >
-                <span className="font-bold text-[9px] text-indigo-600">MANAGER</span>
-                <span className="text-[8px] text-slate-400 font-normal">manager@...</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('staff@example.com')}
-                className="btn btn-outline btn-xs h-auto py-1.5 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-600 rounded-lg flex flex-col px-1"
-              >
-                <span className="font-bold text-[9px] text-emerald-600">STAFF</span>
-                <span className="text-[8px] text-slate-400 font-normal">staff@...</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('client@example.com')}
-                className="btn btn-outline btn-xs h-auto py-1.5 border-slate-200 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 rounded-lg flex flex-col px-1"
-              >
-                <span className="font-bold text-[9px] text-amber-600">CLIENT</span>
-                <span className="text-[8px] text-slate-400 font-normal">client@...</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('director@example.com')}
-                className="btn btn-outline btn-xs h-auto py-1.5 border-slate-200 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-600 rounded-lg flex flex-col px-1"
-              >
-                <span className="font-bold text-[9px] text-purple-600">DIRECTOR</span>
-                <span className="text-[8px] text-slate-400 font-normal">director@...</span>
+                {isDemoSectionOpen ? (
+                  <>
+                    <span>Tutup</span>
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </>
+                ) : (
+                  <>
+                    <span>Papar Senarai</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </>
+                )}
               </button>
             </div>
+
+            {isDemoSectionOpen && (
+              <div className="space-y-2.5 bg-slate-50/80 p-3 rounded-2xl border border-slate-200">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={demoSearch}
+                    onChange={(e) => setDemoSearch(e.target.value)}
+                    placeholder="Cari nama, role, atau unit..."
+                    className="w-full text-xs pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                  />
+                  {demoSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setDemoSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Role Filter Tabs */}
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'director', label: 'Director' },
+                    { id: 'admin', label: 'Admin' },
+                    { id: 'manager', label: 'Manager' },
+                    { id: 'head_unit', label: 'Head Unit' },
+                    { id: 'staff', label: 'Staff' },
+                    { id: 'client', label: 'Client' },
+                  ].map((tab) => {
+                    const count = tab.id === 'all'
+                      ? demoUsers.length
+                      : tab.id === 'head_unit'
+                      ? demoUsers.filter(u => Boolean(u.is_unit_head) || u.role === 'head_unit').length
+                      : tab.id === 'staff'
+                      ? demoUsers.filter(u => u.role === 'staff' && !u.is_unit_head).length
+                      : demoUsers.filter(u => u.role === tab.id).length;
+
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setRoleFilter(tab.id as any)}
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-medium transition-colors ${
+                          roleFilter === tab.id
+                            ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {tab.label} {count > 0 && <span className="opacity-75 font-normal">({count})</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Scrollable Clickable User List */}
+                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100">
+                  {loadingDemoUsers && demoUsers.length === 0 ? (
+                    <div className="text-center py-4 text-xs text-slate-400">
+                      <span className="loading loading-spinner loading-xs mr-2"></span>
+                      Memuatkan senarai pengguna...
+                    </div>
+                  ) : filteredDemoUsers.length === 0 ? (
+                    <div className="text-center py-4 text-xs text-slate-400">
+                      Tiada pengguna sepadan carian "{demoSearch}"
+                    </div>
+                  ) : (
+                    filteredDemoUsers.map((u) => {
+                      const badge = getRoleBadgeInfo(u);
+                      const isSelected = email.toLowerCase() === u.email.toLowerCase();
+
+                      return (
+                        <button
+                          key={`${u.id}-${u.email}`}
+                          type="button"
+                          onClick={() => handleDemoLogin(u.email)}
+                          className={`w-full text-left p-2 rounded-xl transition-all border flex items-center justify-between gap-2 group ${
+                            isSelected
+                              ? 'bg-blue-50/90 border-blue-400 shadow-sm ring-1 ring-blue-300'
+                              : 'bg-white border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/40 shadow-xs'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-slate-800 truncate group-hover:text-blue-700">
+                                {u.name}
+                              </span>
+                              <span
+                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded border leading-none ${badge.badgeClass}`}
+                              >
+                                {badge.label}
+                              </span>
+                              {u.unit && (
+                                <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded leading-none">
+                                  {u.unit}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                              {u.email}
+                            </div>
+                          </div>
+
+                          <div className="flex-shrink-0">
+                            {isSelected ? (
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-blue-600 bg-blue-100/70 px-2 py-0.5 rounded-md">
+                                <Check className="w-3 h-3" />
+                                <span>Dipilih</span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-medium group-hover:text-blue-600 transition-colors">
+                                Pilih &rarr;
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="text-center text-[10px] text-slate-400 font-medium pt-1 border-t border-slate-200/50">
+                  Klik mana-mana akaun untuk auto-isi e-mel & kata laluan (<span className="font-semibold text-slate-600">password123</span>).
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 text-center">

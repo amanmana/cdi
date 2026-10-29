@@ -324,4 +324,33 @@ publicApi.get('/track/:ticket', async (c) => {
   });
 });
 
+// GET /api/public/demo-users - List all system users for quick developer / demo testing
+publicApi.get('/demo-users', async (c) => {
+  const db = c.env.DB;
+  try {
+    const { results: users } = await db
+      .prepare(`
+        SELECT u.id, u.name, u.email, u.role, u.is_unit_head, u.avatar_url,
+               COALESCE(un.name, u.unit) as unit
+        FROM users u
+        LEFT JOIN units un ON u.unit_id = un.id
+        ORDER BY 
+          CASE u.role
+            WHEN 'director' THEN 1
+            WHEN 'admin' THEN 2
+            WHEN 'manager' THEN 3
+            WHEN 'staff' THEN 4
+            ELSE 5
+          END,
+          u.is_unit_head DESC,
+          u.name ASC
+      `)
+      .all();
+    return c.json({ success: true, users: users || [] });
+  } catch (err: any) {
+    console.error('Error fetching demo users:', err);
+    return c.json({ error: err.message }, 500);
+  }
+});
+
 export default publicApi;
