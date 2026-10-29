@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Plus, Edit2, Trash2, Users, Building2, UserCircle2, ExternalLink, ShieldAlert, AlertTriangle, X } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, Users, Building2, UserCircle2, ExternalLink, ShieldAlert, AlertTriangle, AlertCircle, X, RotateCcw } from 'lucide-react';
 
 export const UsersManagement: React.FC = () => {
   const { token, user } = useAuth();
@@ -15,9 +15,10 @@ export const UsersManagement: React.FC = () => {
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
   const [userHasJobLinks, setUserHasJobLinks] = useState<boolean | null>(null); // null = loading
+  const [deleteError, setDeleteError] = useState('');
 
-  // Main section tab: 'staff' | 'clients'
-  const [mainTab, setMainTab] = useState<'staff' | 'clients'>('staff');
+  // Main section tab: 'staff' | 'clients' | 'archived'
+  const [mainTab, setMainTab] = useState<'staff' | 'clients' | 'archived'>('staff');
   // Unit sub-tab for internal staff
   const [activeUnitTab, setActiveUnitTab] = useState<string>('all');
 
@@ -48,9 +49,10 @@ export const UsersManagement: React.FC = () => {
 
   useEffect(() => { fetchUsers(); }, [token]);
 
-  // Separate internal staff vs clients
-  const internalUsers = users.filter((u) => u.role !== 'client');
+  // Separate internal staff vs clients vs archived
+  const internalUsers = users.filter((u) => u.role !== 'client' && u.role !== 'archived');
   const clientUsers = users.filter((u) => u.role === 'client');
+  const archivedUsers = users.filter((u) => u.role === 'archived');
 
   // Unit groups derived from the `units` table — shows ALL units, even empty ones
   const unitGroups = units.map((u) => u.name).sort();
@@ -157,15 +159,13 @@ export const UsersManagement: React.FC = () => {
   const handlePromptDeleteUser = async (u: any) => {
     setUserToDelete(u);
     setUserHasJobLinks(null); // loading
+    setDeleteError('');
     try {
-      // Check job links on backend by calling a pre-check
-      const [jobRes, logRes, reportRes] = await Promise.all([
-        fetch(`/api/admin/users/${u.id}/job-links`, { headers: { Authorization: `Bearer ${token}` } }),
-        Promise.resolve(null), // placeholder
-        Promise.resolve(null),
-      ]);
-      if (jobRes.ok) {
-        const data = await jobRes.json() as { hasJobLinks: boolean };
+      const res = await fetch(`/api/admin/users/${u.id}/job-links`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (res.ok) {
+        const data = await res.json() as { hasJobLinks: boolean };
         setUserHasJobLinks(data.hasJobLinks);
       } else {
         setUserHasJobLinks(false);
@@ -175,19 +175,47 @@ export const UsersManagement: React.FC = () => {
     }
   };
 
-  const confirmDeleteUser = async () => {
+  const confirmDeleteUser = async (mode: 'permanent' | 'soft' = 'soft') => {
     if (!userToDelete) return;
     setDeletingUser(true);
+    setDeleteError('');
     try {
-      const res = await fetch(`/api/admin/users/${userToDelete.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json() as { success?: boolean; type?: string };
-      setUserToDelete(null);
-      setUserHasJobLinks(null);
-      fetchUsers();
-    } catch (err) {
+      const res = await fetch(`/api/admin/users/${userToDelete.id}?mode=${mode}`, { 
+        method: 'DELETE', 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      const data = await res.json() as { success?: boolean; type?: string; error?: string; message?: string };
+      if (res.ok && data.success) {
+        setUserToDelete(null);
+        setUserHasJobLinks(null);
+        setDeleteError('');
+        fetchUsers();
+      } else {
+        setDeleteError(data.error || 'Failed to delete user.');
+      }
+    } catch (err: any) {
       console.error(err);
+      setDeleteError(err.message || 'Connection error while deleting user.');
     } finally {
       setDeletingUser(false);
+    }
+  };
+
+  const handleReactivateUser = async (u: any) => {
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role: 'staff' }),
+      });
+      if (res.ok) {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -273,6 +301,18 @@ export const UsersManagement: React.FC = () => {
             {clientUsers.length}
           </span>
         </button>
+        {archivedUsers.length > 0 && (
+          <button
+            onClick={() => setMainTab('archived')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${mainTab === 'archived' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <ShieldAlert className="w-4 h-4 text-slate-400" />
+            Deactivated
+            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${mainTab === 'archived' ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-500'}`}>
+              {archivedUsers.length}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* ── INTERNAL STAFF SECTION ── */}
@@ -430,6 +470,69 @@ export const UsersManagement: React.FC = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── ARCHIVED / DEACTIVATED SECTION ── */}
+      {mainTab === 'archived' && (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
+          <div className="flex items-center justify-between mb-6 pb-5 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Deactivated Accounts</h2>
+                <p className="text-xs text-slate-400 font-medium">Inactive or archived user accounts with preserved historical logs.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="table w-full">
+              <thead>
+                <tr className="border-b border-slate-100 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                  <th className="bg-transparent pl-4">ID</th>
+                  <th className="bg-transparent">Full Name</th>
+                  <th className="bg-transparent">Email Address</th>
+                  <th className="bg-transparent">Unit / Dept</th>
+                  <th className="bg-transparent text-right pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {archivedUsers.map((u) => (
+                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="pl-4 font-mono text-xs text-slate-400 font-bold">#{u.id}</td>
+                    <td>
+                      <div className="font-extrabold text-slate-800 text-sm">{u.name}</div>
+                    </td>
+                    <td className="font-medium text-slate-500 text-xs">{u.email}</td>
+                    <td>
+                      <span className="text-xs text-slate-500 font-medium">{u.unit || u.department_name || '—'}</span>
+                    </td>
+                    <td className="pr-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleReactivateUser(u)}
+                          className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 font-bold gap-1 rounded-lg"
+                          title="Reactivate Account"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" /> Reactivate
+                        </button>
+                        <button
+                          onClick={() => handlePromptDeleteUser(u)}
+                          className="btn btn-ghost btn-xs text-rose-500 hover:bg-rose-50 font-bold rounded-lg"
+                          title="Delete Permanently"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -652,37 +755,73 @@ export const UsersManagement: React.FC = () => {
                 </div>
               )}
 
+              {deleteError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => { setUserToDelete(null); setUserHasJobLinks(null); }}
-                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
+                  onClick={() => { setUserToDelete(null); setUserHasJobLinks(null); setDeleteError(''); }}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4 w-full sm:w-auto"
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={confirmDeleteUser}
-                  disabled={deletingUser || userHasJobLinks === null}
-                  className={`btn font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md transition-all gap-2 ${
-                    userHasJobLinks === false
-                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20'
-                      : 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20'
-                  }`}
-                >
-                  {deletingUser ? (
-                    <>
-                      <span className="loading loading-spinner loading-xs"></span>
-                      <span>{userHasJobLinks === false ? 'Deleting...' : 'Deactivating...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldAlert className={`w-4 h-4 ${userHasJobLinks === false ? 'text-white' : 'text-amber-400'}`} />
-                      <span>{userHasJobLinks === false ? 'Delete Permanently' : 'Deactivate User'}</span>
-                    </>
-                  )}
-                </button>
+
+                {userHasJobLinks === false ? (
+                  <button
+                    type="button"
+                    onClick={() => confirmDeleteUser('permanent')}
+                    disabled={deletingUser}
+                    className="btn font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md transition-all gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20 w-full sm:w-auto"
+                  >
+                    {deletingUser ? (
+                      <>
+                        <span className="loading loading-spinner loading-xs"></span>
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldAlert className="w-4 h-4 text-white" />
+                        <span>Delete Permanently</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                      type="button"
+                      onClick={() => confirmDeleteUser('permanent')}
+                      disabled={deletingUser}
+                      className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 font-bold"
+                      title="Force delete user and clean up dummy tasks"
+                    >
+                      Force Hard Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => confirmDeleteUser('soft')}
+                      disabled={deletingUser}
+                      className="btn font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md transition-all gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20"
+                    >
+                      {deletingUser ? (
+                        <>
+                          <span className="loading loading-spinner loading-xs"></span>
+                          <span>Deactivating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldAlert className="w-4 h-4 text-amber-400" />
+                          <span>Deactivate User</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

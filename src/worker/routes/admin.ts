@@ -603,106 +603,180 @@ admin.get('/users/:id/job-links', async (c) => {
   }
 
   try {
-    // Fetch the user's role — admins & managers are always soft-deleted to preserve accountability
-    const userRecord = await db.prepare('SELECT role FROM users WHERE id = ?').bind(userId).first<{ role: string }>();
-    if (userRecord && (userRecord.role === 'admin' || userRecord.role === 'manager')) {
-      return c.json({ hasJobLinks: true, reason: 'role' });
+    // Fetch the user's role and email
+    const userRecord = await db.prepare('SELECT id, name, email, role FROM users WHERE id = ?').bind(userId).first<{ id: number; name: string; email: string; role: string }>();
+    if (!userRecord) {
+      return c.json({ hasJobLinks: false });
     }
 
-    // Check assigned_staff_ids in job_requests (comma-separated)
-    const jobCheck = await db.prepare(
-      `SELECT COUNT(*) as count FROM job_requests WHERE INSTR(',' || assigned_staff_ids || ',', ',' || ? || ',') > 0`
-    ).bind(userId).first<{ count: number }>();
+    if (userRecord.role === 'admin' || userRecord.role === 'manager' || userRecord.role === 'director') {
+      return c.json({ hasJobLinks: true, reason: 'role', details: { role: userRecord.role } });
+    }
 
-    // Check workflow_logs as actor (captures any action: approve, assign, status change, etc.)
+    const userEmail = userRecord.email ? userRecord.email.toLowerCase().trim() : '';
+
+    // 1. Check assigned_staff_ids and client_email in job_requests
+    const jobCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM job_requests 
+       WHERE INSTR(',' || COALESCE(assigned_staff_ids, '') || ',', ',' || ? || ',') > 0
+          OR LOWER(TRIM(client_email)) = ?`
+    ).bind(String(userId), userEmail).first<{ count: number }>();
+
+    // 2. Check job_tasks (assigned_to_user_id or assigned_by_user_id)
+    const taskCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM job_tasks WHERE assigned_to_user_id = ? OR assigned_by_user_id = ?`
+    ).bind(userId, userId).first<{ count: number }>();
+
+    // 3. Check workflow_logs as actor
     const logCheck = await db.prepare(
       `SELECT COUNT(*) as count FROM workflow_logs WHERE actor_id = ?`
     ).bind(userId).first<{ count: number }>();
 
-    // Check staff_reports
+    // 4. Check staff_reports
     const reportCheck = await db.prepare(
       `SELECT COUNT(*) as count FROM staff_reports WHERE staff_id = ?`
     ).bind(userId).first<{ count: number }>();
 
-    // Check delegations (as manager or as delegate)
+    // 5. Check delegations (as manager or as delegate)
     const delegationCheck = await db.prepare(
       `SELECT COUNT(*) as count FROM delegations WHERE manager_id = ? OR delegate_id = ?`
     ).bind(userId, userId).first<{ count: number }>();
 
-    const hasJobLinks =
-      (jobCheck?.count ?? 0) > 0 ||
-      (logCheck?.count ?? 0) > 0 ||
-      (reportCheck?.count ?? 0) > 0 ||
-      (delegationCheck?.count ?? 0) > 0;
+    // 6. Check projects (created_by_user_id)
+    const projectCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM projects WHERE created_by_user_id = ?`
+    ).bind(userId).first<{ count: number }>();
 
-    return c.json({ hasJobLinks });
+    const jobCount = jobCheck?.count ?? 0;
+    const taskCount = taskCheck?.count ?? 0;
+    const logCount = logCheck?.count ?? 0;
+    const reportCount = reportCheck?.count ?? 0;
+    const delegationCount = delegationCheck?.count ?? 0;
+    const projectCount = projectCheck?.count ?? 0;
+
+    const hasJobLinks =
+      jobCount > 0 ||
+      taskCount > 0 ||
+      logCount > 0 ||
+      reportCount > 0 ||
+      delegationCount > 0 ||
+      projectCount > 0;
+
+    return c.json({
+      hasJobLinks,
+      counts: {
+        jobs: jobCount,
+        tasks: taskCount,
+        logs: logCount,
+        reports: reportCount,
+        delegations: delegationCount,
+        projects: projectCount,
+      }
+    });
   } catch (err: any) {
-    return c.json({ hasJobLinks: false });
+    console.error('Error in job-links check:', err);
+    return c.json({ hasJobLinks: false, error: err.message });
   }
 });
 
-// Deactivate / Soft Delete User (Preserves historical audit logs, job ties, and staff reports)
+// Deactivate / Delete User (Handles clean foreign key cleanup and safe hard/soft delete)
 admin.delete('/users/:id', async (c) => {
   const db = c.env.DB;
   const idParam = c.req.param('id');
   const numId = parseInt(idParam, 10);
+  const userId = !isNaN(numId) ? numId : null;
+  const modeParam = c.req.query('mode'); // 'permanent' or 'soft'
+
+  if (userId === null) {
+    return c.json({ error: 'Invalid user ID' }, 400);
+  }
 
   try {
-    // Check if user has any linked job records across all relevant tables
-    const userId = !isNaN(numId) ? numId : null;
-
-    let hasJobLinks = false;
-
-    if (userId !== null) {
-      // Fetch role — admins & managers are always soft-deleted
-      const userRecord = await db.prepare('SELECT role FROM users WHERE id = ?').bind(userId).first<{ role: string }>();
-      if (userRecord && (userRecord.role === 'admin' || userRecord.role === 'manager')) {
-        hasJobLinks = true;
-      } else {
-        // Check assigned_staff_ids in job_requests (comma-separated)
-        const jobCheck = await db.prepare(
-          `SELECT COUNT(*) as count FROM job_requests WHERE INSTR(',' || assigned_staff_ids || ',', ',' || ? || ',') > 0`
-        ).bind(userId).first<{ count: number }>();
-
-        // Check workflow_logs as actor
-        const logCheck = await db.prepare(
-          `SELECT COUNT(*) as count FROM workflow_logs WHERE actor_id = ?`
-        ).bind(userId).first<{ count: number }>();
-
-        // Check staff_reports
-        const reportCheck = await db.prepare(
-          `SELECT COUNT(*) as count FROM staff_reports WHERE staff_id = ?`
-        ).bind(userId).first<{ count: number }>();
-
-        // Check delegations (as manager or as delegate)
-        const delegationCheck = await db.prepare(
-          `SELECT COUNT(*) as count FROM delegations WHERE manager_id = ? OR delegate_id = ?`
-        ).bind(userId, userId).first<{ count: number }>();
-
-        hasJobLinks =
-          (jobCheck?.count ?? 0) > 0 ||
-          (logCheck?.count ?? 0) > 0 ||
-          (reportCheck?.count ?? 0) > 0 ||
-          (delegationCheck?.count ?? 0) > 0;
-      }
+    // 1. Fetch user to check role and existence
+    const userRecord = await db.prepare('SELECT id, name, email, role FROM users WHERE id = ?').bind(userId).first<any>();
+    if (!userRecord) {
+      return c.json({ error: 'User not found' }, 404);
     }
 
-    if (hasJobLinks) {
-      // Soft delete — preserve all historical data
-      if (userId !== null) {
-        await db.prepare("UPDATE users SET role = 'archived' WHERE id = ?").bind(userId).run();
-      } else {
-        await db.prepare("UPDATE users SET role = 'archived' WHERE CAST(id AS TEXT) = ?").bind(idParam).run();
+    // Admins cannot delete the root System Admin account (id 1)
+    if (userRecord.role === 'admin' && userRecord.id === 1) {
+      return c.json({ error: 'Root System Admin account cannot be deleted.' }, 400);
+    }
+
+    const userEmail = userRecord.email ? userRecord.email.toLowerCase().trim() : '';
+
+    // 2. Check linked records across all tables
+    const jobCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM job_requests 
+       WHERE INSTR(',' || COALESCE(assigned_staff_ids, '') || ',', ',' || ? || ',') > 0
+          OR LOWER(TRIM(client_email)) = ?`
+    ).bind(String(userId), userEmail).first<{ count: number }>();
+
+    const taskCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM job_tasks WHERE assigned_to_user_id = ? OR assigned_by_user_id = ?`
+    ).bind(userId, userId).first<{ count: number }>();
+
+    const logCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM workflow_logs WHERE actor_id = ?`
+    ).bind(userId).first<{ count: number }>();
+
+    const reportCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM staff_reports WHERE staff_id = ?`
+    ).bind(userId).first<{ count: number }>();
+
+    const delegationCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM delegations WHERE manager_id = ? OR delegate_id = ?`
+    ).bind(userId, userId).first<{ count: number }>();
+
+    const projectCheck = await db.prepare(
+      `SELECT COUNT(*) as count FROM projects WHERE created_by_user_id = ?`
+    ).bind(userId).first<{ count: number }>();
+
+    const hasJobLinks =
+      (jobCheck?.count ?? 0) > 0 ||
+      (taskCheck?.count ?? 0) > 0 ||
+      (logCheck?.count ?? 0) > 0 ||
+      (reportCheck?.count ?? 0) > 0 ||
+      (delegationCheck?.count ?? 0) > 0 ||
+      (projectCheck?.count ?? 0) > 0;
+
+    const isPermanent = modeParam === 'permanent' || (!hasJobLinks && modeParam !== 'soft');
+
+    if (isPermanent) {
+      // Clean up foreign keys in child tables so SQLite constraint never blocks deletion:
+      await db.prepare('DELETE FROM job_tasks WHERE assigned_to_user_id = ? OR assigned_by_user_id = ?').bind(userId, userId).run();
+      await db.prepare('DELETE FROM staff_reports WHERE staff_id = ?').bind(userId).run();
+      await db.prepare('UPDATE units SET head_id = NULL WHERE head_id = ?').bind(userId).run();
+      await db.prepare('UPDATE departments SET manager_id = NULL WHERE manager_id = ?').bind(userId).run();
+      await db.prepare('DELETE FROM delegations WHERE manager_id = ? OR delegate_id = ?').bind(userId, userId).run();
+
+      // Clean up assigned_staff_ids in job_requests
+      const jobsWithStaff = await db.prepare(
+        `SELECT id, assigned_staff_ids FROM job_requests 
+         WHERE INSTR(',' || COALESCE(assigned_staff_ids, '') || ',', ',' || ? || ',') > 0`
+      ).bind(String(userId)).all<{ id: number; assigned_staff_ids: string }>();
+
+      if (jobsWithStaff.results && jobsWithStaff.results.length > 0) {
+        for (const job of jobsWithStaff.results) {
+          const currentIds = (job.assigned_staff_ids || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+          const updatedIds = currentIds.filter((id: string) => id !== String(userId)).join(',');
+          await db.prepare('UPDATE job_requests SET assigned_staff_ids = ? WHERE id = ?')
+            .bind(updatedIds || null, job.id)
+            .run();
+        }
       }
-      return c.json({ success: true, type: 'soft', message: 'User deactivated. All job history, audit logs & reports are preserved.' });
+
+      // Reassign or clear user-created projects to root admin (id 1)
+      await db.prepare('UPDATE projects SET created_by_user_id = 1 WHERE created_by_user_id = ?').bind(userId).run();
+
+      // Finally, delete user from users table
+      await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
+
+      return c.json({ success: true, type: 'hard', message: `User "${userRecord.name}" has been permanently deleted from the database.` });
     } else {
-      // Hard delete — no records, safe to remove permanently
-      if (userId !== null) {
-        await db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
-      } else {
-        await db.prepare("DELETE FROM users WHERE CAST(id AS TEXT) = ?").bind(idParam).run();
-      }
-      return c.json({ success: true, type: 'hard', message: 'User permanently deleted from the database.' });
+      // Soft delete / Deactivate
+      await db.prepare("UPDATE users SET role = 'archived' WHERE id = ?").bind(userId).run();
+      return c.json({ success: true, type: 'soft', message: `User "${userRecord.name}" has been deactivated. Historical records and audit logs are preserved.` });
     }
   } catch (err: any) {
     console.error('Failed to delete user:', err);
