@@ -167,16 +167,16 @@ export const JobRequestsList: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          title: selfTitle,
-          description: selfDescription,
-          client_name: selfClient,
-          project_name: selfProject,
+          title: selfTitle.trim(),
+          description: selfDescription.trim(),
+          client_name: selfClient.trim(),
+          project_name: selfProject.trim(),
           status: selfStatus,
           start_date: selfStartDate,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setShowSelfModal(false);
         setSelfTitle('');
         setSelfClient('');
@@ -184,11 +184,11 @@ export const JobRequestsList: React.FC = () => {
         setSelfDescription('');
         fetchRequests();
       } else {
-        alert(data.error || 'Failed to record task log.');
+        alert(data.error || `Server responded with status ${res.status}. Please try again.`);
       }
-    } catch (err) {
-      console.error(err);
-      alert('Network error while connecting to server.');
+    } catch (err: any) {
+      console.error('Error submitting self-initiated task:', err);
+      alert(err?.message || 'Network error while connecting to server.');
     } finally {
       setSubmittingSelf(false);
     }

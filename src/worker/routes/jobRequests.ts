@@ -920,118 +920,131 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
 
-  const { title, description, client_name, project_name, status, start_date, deadline } = await c.req.json();
+  try {
+    const { title, description, client_name, project_name, status, start_date, deadline } = await c.req.json();
 
-  if (!title) {
-    return c.json({ error: 'Work title is required.' }, 400);
-  }
-
-  const targetUnit = user.acting_manager_unit || user.unit || 'IT Support & Technical';
-  const numbers = Math.floor(100000 + Math.random() * 900000).toString();
-  const ticketNo = 'SELF' + numbers;
-
-  const unitRow = await db
-    .prepare('SELECT id FROM units WHERE name = ?')
-    .bind(targetUnit)
-    .first<{ id: number }>();
-  const unitId = unitRow?.id || null;
-
-  const finalStatus = status === 'completed' ? 'completed' : 'staff_processing';
-  const stepName = finalStatus === 'completed' ? 'Completed' : 'Staff Processing';
-  const assignedStr = user.id.toString();
-
-  const clientNameVal = client_name?.trim() || `Self-Initiated (${user.name})`;
-  const fullDescription = `${description || ''}${project_name ? `\n\n[PROJECT: ${project_name}]` : ''}`.trim();
-
-  // Save typed client_name & project_name to user's custom presets if provided
-  if (client_name && client_name.trim()) {
-    const cVal = client_name.trim();
-    const customClientsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_custom_clients_${user.id}`).first<{ value: string }>();
-    let list: string[] = [];
-    if (customClientsRow?.value) {
-      try { list = JSON.parse(customClientsRow.value); } catch (e) {}
+    if (!title || !title.trim()) {
+      return c.json({ error: 'Work title is required.' }, 400);
     }
-    if (!list.includes(cVal)) {
-      list.push(cVal);
-      await db.prepare(`
-        INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-      `).bind(`preset_custom_clients_${user.id}`, JSON.stringify(list)).run();
+
+    const targetUnit = user.acting_manager_unit || user.unit || 'Graphic Design';
+    const numbers = Math.floor(100000 + Math.random() * 900000).toString();
+    const ticketNo = 'SELF' + numbers;
+
+    const unitRow = await db
+      .prepare('SELECT id, department_id FROM units WHERE name = ?')
+      .bind(targetUnit)
+      .first<{ id: number; department_id: number | null }>();
+    const unitId = unitRow?.id || null;
+    const departmentId = unitRow?.department_id || null;
+
+    const finalStatus = status === 'completed' ? 'completed' : 'staff_processing';
+    const stepName = finalStatus === 'completed' ? 'Completed' : 'Staff Processing';
+    const assignedStr = user.id.toString();
+
+    const clientNameVal = client_name?.trim() || `Self-Initiated (${user.name})`;
+    const fullDescription = `${description || ''}${project_name ? `\n\n[PROJECT: ${project_name}]` : ''}`.trim();
+
+    // Save typed client_name & project_name to user's custom presets if provided
+    if (client_name && client_name.trim()) {
+      try {
+        const cVal = client_name.trim();
+        const customClientsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_custom_clients_${user.id}`).first<{ value: string }>();
+        let list: string[] = [];
+        if (customClientsRow?.value) {
+          try { list = JSON.parse(customClientsRow.value); } catch (e) {}
+        }
+        if (!list.includes(cVal)) {
+          list.push(cVal);
+          await db.prepare(`
+            INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)
+          `).bind(`preset_custom_clients_${user.id}`, JSON.stringify(list)).run();
+        }
+      } catch (e) {
+        console.error('Error updating custom clients preset:', e);
+      }
     }
-  }
 
-  if (project_name && project_name.trim()) {
-    const pVal = project_name.trim();
-    const customProjectsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_custom_projects_${user.id}`).first<{ value: string }>();
-    let list: string[] = [];
-    if (customProjectsRow?.value) {
-      try { list = JSON.parse(customProjectsRow.value); } catch (e) {}
+    if (project_name && project_name.trim()) {
+      try {
+        const pVal = project_name.trim();
+        const customProjectsRow = await db.prepare("SELECT value FROM system_settings WHERE key = ?").bind(`preset_custom_projects_${user.id}`).first<{ value: string }>();
+        let list: string[] = [];
+        if (customProjectsRow?.value) {
+          try { list = JSON.parse(customProjectsRow.value); } catch (e) {}
+        }
+        if (!list.includes(pVal)) {
+          list.push(pVal);
+          await db.prepare(`
+            INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)
+          `).bind(`preset_custom_projects_${user.id}`, JSON.stringify(list)).run();
+        }
+      } catch (e) {
+        console.error('Error updating custom projects preset:', e);
+      }
     }
-    if (!list.includes(pVal)) {
-      list.push(pVal);
-      await db.prepare(`
-        INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-      `).bind(`preset_custom_projects_${user.id}`, JSON.stringify(list)).run();
-    }
-  }
 
-  const res = await db
-    .prepare(
-      `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, unit, unit_id, status, current_step_name, assigned_staff_ids, start_date, deadline, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-    )
-    .bind(
-      ticketNo,
-      clientNameVal,
-      user.email || 'staff@cdi.app',
-      title,
-      fullDescription,
-      targetUnit,
-      unitId,
-      finalStatus,
-      stepName,
-      assignedStr,
-      start_date || new Date().toISOString().split('T')[0],
-      deadline || null
-    )
-    .run();
+    const res = await db
+      .prepare(
+        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, unit, unit_id, department_id, status, current_step_name, assigned_staff_ids, start_date, deadline, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      )
+      .bind(
+        ticketNo,
+        clientNameVal,
+        user.email || 'staff@cdi.app',
+        title.trim(),
+        fullDescription,
+        targetUnit,
+        unitId,
+        departmentId,
+        finalStatus,
+        stepName,
+        assignedStr,
+        start_date || new Date().toISOString().split('T')[0],
+        deadline || null
+      )
+      .run();
 
-  const requestId = res.meta.last_row_id as number;
-
-  await db
-    .prepare(
-      `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
-       VALUES (?, 'SELF_TASK_CREATED', ?, ?, 'Staff Initiative', ?, ?)`
-    )
-    .bind(requestId, user.id, user.name, stepName, `Self-initiated task created for client "${clientNameVal}"`).run();
-
-  if (finalStatus === 'completed') {
-    try {
-      await db
-        .prepare(
-          `INSERT INTO staff_reports (job_request_id, staff_id, report_text)
-           VALUES (?, ?, ?)`
-        )
-        .bind(requestId, user.id, `Self-initiated task "${title}" completed. ${description || ''}`).run();
-    } catch (e) {
-      console.error('Error inserting staff_reports:', e);
-    }
+    const requestId = res.meta.last_row_id as number;
 
     await db
       .prepare(
         `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
-         VALUES (?, 'STAFF_DONE', ?, ?, 'Staff Processing', 'Completed', 'Completed self-initiated task')`
+         VALUES (?, 'SELF_TASK_CREATED', ?, ?, 'Staff Initiative', ?, ?)`
       )
-      .bind(requestId, user.id, user.name).run();
-  }
+      .bind(requestId, user.id, user.name, stepName, `Self-initiated task created for client "${clientNameVal}"`).run();
 
-  return c.json({
-    success: true,
-    message: 'Self-initiated task recorded successfully.',
-    request_id: requestId,
-    ticket_no: ticketNo,
-  });
+    if (finalStatus === 'completed') {
+      try {
+        await db
+          .prepare(
+            `INSERT INTO staff_reports (job_request_id, staff_id, report_text)
+             VALUES (?, ?, ?)`
+          )
+          .bind(requestId, user.id, `Self-initiated task "${title.trim()}" completed. ${description || ''}`).run();
+      } catch (e) {
+        console.error('Error inserting staff_reports:', e);
+      }
+
+      await db
+        .prepare(
+          `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+           VALUES (?, 'STAFF_DONE', ?, ?, 'Staff Processing', 'Completed', 'Completed self-initiated task')`
+        )
+        .bind(requestId, user.id, user.name).run();
+    }
+
+    return c.json({
+      success: true,
+      message: 'Self-initiated task recorded successfully.',
+      request_id: requestId,
+      ticket_no: ticketNo,
+    });
+  } catch (err: any) {
+    console.error('Error in /self-initiated handler:', err);
+    return c.json({ error: err.message || 'Failed to record self-initiated task.' }, 500);
+  }
 });
 
 // POST /api/job-requests/inter-unit - Unit Head direct Inter-Unit Job Request
