@@ -356,7 +356,9 @@ jobRequestsRouter.get('/', async (c) => {
       )`;
       params.push(String(user.id), user.unit_id || 0, user.unit || '', user.unit || '', user.email, user.id);
     } else {
-      query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 AND j.status != 'manager_approval'`;
+      // Regular staff: See jobs where assigned. Allow inter-unit jobs even if pending manager/head approval so assigned origin staff can track progress
+      query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 
+                 AND (j.status != 'manager_approval' OR j.ticket_no LIKE 'IU%' OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = 1 OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = true)`;
       params.push(String(user.id));
     }
   } else if (user && user.role === 'client') {
