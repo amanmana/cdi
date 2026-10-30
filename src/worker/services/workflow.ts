@@ -39,7 +39,7 @@ export class WorkflowEngine {
     }
 
     if (request.status === 'staff_processing') {
-      return user.role === 'staff' || user.role === 'manager' || user.role === 'admin';
+      return user.role === 'staff' || user.role === 'manager' || user.role === 'admin' || user.role === 'director';
     }
 
     return true;

@@ -1345,8 +1345,8 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             )}
 
-            {/* Action Buttons based on Role & Status */}
-            {canAct && (
+            {/* Action Buttons & Oversight based on Role & Status */}
+            {(canAct || user?.role === 'director' || user?.is_unit_head) && (
               <div className="space-y-2">
                 {request.status === 'manager_approval' && (
                   user?.role === 'admin' ||
