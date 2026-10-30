@@ -85,8 +85,9 @@ export const JobRequestDetail: React.FC = () => {
   // Per-staff assigned task map state
   const [staffTasks, setStaffTasks] = useState<{ [staffId: number]: string }>({});
 
-  // Unit filter tab state for modals
-  const [staffUnitFilter, setStaffUnitFilter] = useState<string>('All');
+  // Unit filter tab state for modals: default to 'Head' for managers/admins, 'All' for staff
+  const isManagerOrAdminUser = user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager;
+  const [staffUnitFilter, setStaffUnitFilter] = useState<string>(isManagerOrAdminUser ? 'Head' : 'All');
 
   // Accessible staff for the current user and job request
   const accessibleTeamMembers = useMemo(() => {
@@ -148,6 +149,10 @@ export const JobRequestDetail: React.FC = () => {
 
   // Filtered staff list based on active unit filter tab
   const filteredModalStaff = useMemo(() => {
+    if (staffUnitFilter === 'Head') {
+      const heads = accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head));
+      return heads.length > 0 ? heads : accessibleTeamMembers;
+    }
     if (staffUnitFilter === 'All') return accessibleTeamMembers;
     return accessibleTeamMembers.filter((m) => m.unit?.trim().toLowerCase() === staffUnitFilter.trim().toLowerCase());
   }, [accessibleTeamMembers, staffUnitFilter]);
@@ -241,6 +246,9 @@ export const JobRequestDetail: React.FC = () => {
   const handleOpenApproveModal = () => {
     if (!startDate) {
       setStartDate(new Date().toISOString().split('T')[0]);
+    }
+    if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
+      setStaffUnitFilter('Head');
     }
     setShowApproveModal(true);
   };
@@ -943,6 +951,11 @@ export const JobRequestDetail: React.FC = () => {
                     onClick={() => {
                       if (request.assigned_staff_ids) {
                         setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
+                      }
+                      if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
+                        setStaffUnitFilter('Head');
+                      } else {
+                        setStaffUnitFilter('All');
                       }
                       setShowManageTeamModal(true);
                     }}
@@ -1942,8 +1955,37 @@ export const JobRequestDetail: React.FC = () => {
               </label>
 
               {/* Unit Filter Tabs - Wrapped and directly visible */}
-              {availableModalUnits.length > 1 && (
+              {(availableModalUnits.length > 1 || accessibleTeamMembers.some((m) => Boolean(m.is_unit_head))) && (
                 <div className="flex flex-wrap items-center gap-1.5 pb-1">
+                  {/* Head Tab (Default for Manager) */}
+                  <button
+                    type="button"
+                    onClick={() => setStaffUnitFilter('Head')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                      staffUnitFilter === 'Head'
+                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                    }`}
+                  >
+                    <span>Head</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                        staffUnitFilter === 'Head' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head)).length}
+                    </span>
+                    {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head) && selectedStaff.includes(m.id)).length > 0 && (
+                      <span
+                        className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${
+                          staffUnitFilter === 'Head' ? 'bg-emerald-400 text-slate-900' : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head) && selectedStaff.includes(m.id)).length}
+                      </span>
+                    )}
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setStaffUnitFilter('All')}
@@ -2333,8 +2375,37 @@ export const JobRequestDetail: React.FC = () => {
             </div>
 
             {/* Unit Filter Tabs - Directly visible and wrapped */}
-            {availableModalUnits.length > 1 && (
+            {(availableModalUnits.length > 1 || accessibleTeamMembers.some((m) => Boolean(m.is_unit_head))) && (
               <div className="flex flex-wrap items-center gap-1.5 pb-1">
+                {/* Head Tab (Default for Manager) */}
+                <button
+                  type="button"
+                  onClick={() => setStaffUnitFilter('Head')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                    staffUnitFilter === 'Head'
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                  }`}
+                >
+                  <span>Head</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                      staffUnitFilter === 'Head' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head)).length}
+                  </span>
+                  {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head) && selectedStaff.includes(m.id)).length > 0 && (
+                    <span
+                      className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${
+                        staffUnitFilter === 'Head' ? 'bg-emerald-400 text-slate-900' : 'bg-blue-100 text-blue-700'
+                      }`}
+                    >
+                      {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head) && selectedStaff.includes(m.id)).length}
+                    </span>
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setStaffUnitFilter('All')}
