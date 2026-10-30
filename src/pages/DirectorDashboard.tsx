@@ -119,8 +119,21 @@ export const DirectorDashboard: React.FC = () => {
   const [clientDemand, setClientDemand] = useState<ClientDemandItem[]>([]);
   const [megaProjects, setMegaProjects] = useState<any[]>([]);
 
-  // Timeframe Filter State (Default: 2026 / All Months)
-  const [selectedYear, setSelectedYear] = useState('2026');
+  // Timeframe Filter State (Default: Current Year / All Months)
+  const currentYear = new Date().getFullYear().toString();
+  const currentMonthNum = String(new Date().getMonth() + 1).padStart(2, '0');
+  const currentMonthName = new Date().toLocaleString('en-US', { month: 'long' });
+
+  const getMonthDisplayName = (m: string) => {
+    const months: Record<string, string> = {
+      '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+      '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+      '09': 'September', '10': 'October', '11': 'November', '12': 'December',
+    };
+    return months[m] || `Month ${m}`;
+  };
+
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState('all');
 
   // Drill Deep Modal State
@@ -297,7 +310,7 @@ export const DirectorDashboard: React.FC = () => {
               Executive Timeframe Filter
             </h3>
             <span className="text-[10px] text-slate-400 font-medium">
-              Showing data for {selectedYear === 'all' ? 'All Years' : `Year ${selectedYear}`} {selectedMonth !== 'all' ? `(Month ${selectedMonth})` : ''}
+              Showing data for {selectedYear === 'all' ? 'All Years' : `Year ${selectedYear}`} {selectedMonth !== 'all' ? `(${getMonthDisplayName(selectedMonth)})` : ''}
             </span>
           </div>
         </div>
@@ -307,25 +320,25 @@ export const DirectorDashboard: React.FC = () => {
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
-              onClick={() => { setSelectedYear('2026'); setSelectedMonth('all'); }}
+              onClick={() => { setSelectedYear(currentYear); setSelectedMonth('all'); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                selectedYear === '2026' && selectedMonth === 'all'
+                selectedYear === currentYear && selectedMonth === 'all'
                   ? 'bg-purple-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Tahun Ini (2026)
+              This Year ({currentYear})
             </button>
             <button
               type="button"
-              onClick={() => { setSelectedYear('2026'); setSelectedMonth('07'); }}
+              onClick={() => { setSelectedYear(currentYear); setSelectedMonth(currentMonthNum); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                selectedYear === '2026' && selectedMonth === '07'
+                selectedYear === currentYear && selectedMonth === currentMonthNum
                   ? 'bg-purple-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Bulan Ini (Julai)
+              This Month ({currentMonthName})
             </button>
             <button
               type="button"
@@ -336,7 +349,7 @@ export const DirectorDashboard: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Keseluruhan (All Time)
+              All Time
             </button>
           </div>
 
