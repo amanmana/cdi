@@ -2190,13 +2190,13 @@ jobRequestsRouter.post('/:id/handoff', async (c) => {
       WHERE id = ?
     `).bind(updatedAdditionalDataStr, request.id).run();
 
-    // If revision was requested, reset target staff's STAFF_DONE log so they can complete or pass again
-    if (isRevision) {
-      await db.prepare(`
-        DELETE FROM workflow_logs
-        WHERE job_request_id = ? AND action = 'STAFF_DONE' AND actor_id = ?
-      `).bind(request.id, targetUser.id).run();
-    }
+    // Whenever work is handed over or revision requested to a collaborator,
+    // reset target staff's STAFF_DONE log so their status returns to OPEN/PENDING
+    // and they can view the action buttons, work on it, and mark completed again.
+    await db.prepare(`
+      DELETE FROM workflow_logs
+      WHERE job_request_id = ? AND action = 'STAFF_DONE' AND actor_id = ?
+    `).bind(request.id, targetUser.id).run();
 
     // Record workflow log
     const logAction = isRevision ? 'COLLAB_REVISION_REQUEST' : 'COLLAB_HANDOFF';
