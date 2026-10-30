@@ -1672,7 +1672,7 @@ export const JobRequestDetail: React.FC = () => {
                               ) : null}
 
                               {/* Collaborative Action Buttons - Clean, spacious & designer-ready */}
-                              {isUserTurn && (
+                              {isUserTurn ? (
                                 <div className="space-y-2 pt-1">
                                   {collaboratorCompletedNotice ? (
                                     <>
@@ -1733,7 +1733,21 @@ export const JobRequestDetail: React.FC = () => {
                                     </>
                                   )}
                                 </div>
-                              )}
+                              ) : !isCurrentUserDone ? (
+                                /* Parallel work completion: Allow collaborator to finalize their part even if someone else holds the primary drafting turn */
+                                <div className="pt-2 border-t border-slate-200/60 space-y-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowMarkDoneModal(true)}
+                                    disabled={actionLoading}
+                                    className="w-full bg-white hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800 border border-emerald-200/90 font-bold text-xs py-2.5 px-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xs"
+                                    title="Already finished your portion? Finalize directly without waiting for others."
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                    <span>Completed Your Part? Finalize Now</span>
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
                           );
                         })()}
