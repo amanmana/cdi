@@ -718,10 +718,47 @@ export const JobRequestDetail: React.FC = () => {
   const renderStatusCapsule = (status: string) => {
     if (status === 'manager_approval') {
       if (isInterUnitJob) {
+        // Multi-Unit Live Badges
+        if (multiTargetUnits.length > 1) {
+          const unitAssignments = request.additional_data?.unit_assignments || {};
+          return (
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              {multiTargetUnits.map((uName: string) => {
+                const uMeta = unitAssignments[uName];
+                const matchingHead = (data?.targetUnitHeads || []).find(
+                  (h: any) => h.unit?.toLowerCase().trim() === uName.toLowerCase().trim()
+                ) || (targetUnitHead?.unit?.toLowerCase().trim() === uName.toLowerCase().trim() ? targetUnitHead : null);
+                const headDisplayName = matchingHead?.name || uMeta?.head_name || 'Head';
+                const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
+
+                return (
+                  <span
+                    key={uName}
+                    className={`inline-flex items-center gap-1.5 font-black uppercase text-[11px] px-3 py-1.5 rounded-xl tracking-wider shadow-xs border transition-all ${
+                      isAccepted
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                        : 'bg-teal-700 text-white border-teal-600'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isAccepted ? 'bg-emerald-500' : 'bg-teal-300 animate-pulse'}`} />
+                    <span>{uName}</span>
+                    <span className="opacity-75 font-semibold text-[10px]">({headDisplayName})</span>
+                    <span className="text-[9px] font-black uppercase opacity-90 pl-0.5">
+                      {isAccepted ? '✓ READY' : 'APPROVAL'}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          );
+        }
+
+        // Single Unit Badge
         const headName = targetUnitHead?.name || request.additional_data?.target_unit_head_name;
         return (
-          <span className="bg-teal-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm">
-            {headName ? `HEAD UNIT (${headName}) APPROVAL` : 'HEAD UNIT APPROVAL'}
+          <span className="bg-teal-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-teal-300 animate-pulse" />
+            <span>{headName ? `HEAD UNIT (${headName}) APPROVAL` : 'HEAD UNIT APPROVAL'}</span>
           </span>
         );
       }
