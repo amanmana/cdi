@@ -425,11 +425,16 @@ admin.put('/units/:id', async (c) => {
   // Sync unit head status
   if (head_id !== undefined && head_id !== oldHeadId) {
     if (oldHeadId) {
-      await db.prepare('UPDATE users SET is_unit_head = 0 WHERE id = ?').bind(oldHeadId).run();
+      // Check if oldHeadId is still head of any other unit
+      const otherUnits = await db.prepare('SELECT COUNT(*) as count FROM units WHERE head_id = ? AND id != ?')
+        .bind(oldHeadId, numId).first<{ count: number }>();
+      if (!otherUnits || otherUnits.count === 0) {
+        await db.prepare('UPDATE users SET is_unit_head = 0 WHERE id = ?').bind(oldHeadId).run();
+      }
     }
     if (head_id) {
-      await db.prepare('UPDATE users SET is_unit_head = 1, unit_id = ?, department_id = COALESCE(?, department_id) WHERE id = ?')
-        .bind(numId, department_id || null, head_id)
+      await db.prepare('UPDATE users SET is_unit_head = 1, department_id = COALESCE(department_id, ?) WHERE id = ?')
+        .bind(department_id || null, head_id)
         .run();
     }
   }
@@ -490,6 +495,7 @@ admin.get('/users', async (c) => {
            COALESCE(u.department_id, d.id, dept.id) as department_id,
            u.is_unit_head, u.created_at,
            COALESCE(d.name, dept.name) as department_name,
+           (SELECT GROUP_CONCAT(name, ', ') FROM units WHERE head_id = u.id) as head_of_units,
            (SELECT COUNT(*) FROM job_requests j WHERE j.client_email = u.email OR LOWER(TRIM(j.client_name)) = LOWER(TRIM(u.name))) as project_count
     FROM users u
     LEFT JOIN departments d ON u.department_id = d.id

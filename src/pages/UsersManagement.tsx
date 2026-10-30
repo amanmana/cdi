@@ -376,8 +376,11 @@ export const UsersManagement: React.FC = () => {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span>{u.unit || '-'}</span>
                               {Boolean(u.is_unit_head) && (
-                                <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold uppercase">
-                                  Head
+                                <span
+                                  className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold uppercase"
+                                  title={(u as any).head_of_units ? `Head of: ${(u as any).head_of_units}` : 'Unit Head'}
+                                >
+                                  {(u as any).head_of_units ? `Head: ${(u as any).head_of_units}` : 'Head'}
                                 </span>
                               )}
                               {u.department_name && (

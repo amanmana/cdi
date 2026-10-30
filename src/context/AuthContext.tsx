@@ -11,6 +11,8 @@ export interface User {
   department_name?: string | null;
   managed_department_id?: number | null;
   is_unit_head?: boolean | number;
+  managed_units?: string[];
+  managed_unit_ids?: number[];
   phone?: string | null;
   is_acting_manager?: boolean;
   acting_manager_unit?: string | null;

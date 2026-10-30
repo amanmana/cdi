@@ -92,21 +92,44 @@ export const JobRequestDetail: React.FC = () => {
   const accessibleTeamMembers = useMemo(() => {
     if (!teamMembers || teamMembers.length === 0) return [];
     return teamMembers.filter((m: any) => {
+      // 1. Superusers (Admin and Director) see all staff
       if (user?.role === 'admin' || user?.role === 'director') return true;
-      const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
-      const reqDeptId = data?.request?.department_id;
 
-      // 1. Department ID match
-      if (userDeptId && m.department_id && String(m.department_id) === String(userDeptId)) return true;
-      if (reqDeptId && m.department_id && String(m.department_id) === String(reqDeptId)) return true;
+      // 2. Managers and Acting Managers have department-wide visibility
+      if (user?.role === 'manager' || user?.is_acting_manager) {
+        const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+        const reqDeptId = data?.request?.department_id;
 
-      // 2. Department Name match
-      if (user?.department_name && m.department_name && user.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
-      if (data?.request?.department_name && m.department_name && data.request.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+        // Department ID match
+        if (userDeptId && m.department_id && String(m.department_id) === String(userDeptId)) return true;
+        if (reqDeptId && m.department_id && String(m.department_id) === String(reqDeptId)) return true;
 
-      // 3. Unit Name match
-      if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) return true;
-      if (data?.request?.unit && m.unit?.toLowerCase().trim() === data.request.unit?.toLowerCase().trim()) return true;
+        // Department Name match
+        if (user?.department_name && m.department_name && user.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+        if (data?.request?.department_name && m.department_name && data.request.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+
+        // Fallback Unit match
+        if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) return true;
+        if (data?.request?.unit && m.unit?.toLowerCase().trim() === data.request.unit?.toLowerCase().trim()) return true;
+
+        return false;
+      }
+
+      // 3. Staff & Unit Heads: Strictly scoped to their managed unit(s) or own unit
+      const managedUnits: string[] = (user as any)?.managed_units || [];
+      const userUnit = user?.unit?.toLowerCase().trim();
+
+      // Check if member belongs to any unit managed by this user
+      if (managedUnits.length > 0) {
+        if (m.unit && managedUnits.some((u: string) => u.toLowerCase().trim() === m.unit.toLowerCase().trim())) {
+          return true;
+        }
+      }
+
+      // Check if member belongs to user's own unit
+      if (userUnit && m.unit?.toLowerCase().trim() === userUnit) {
+        return true;
+      }
 
       return false;
     });
@@ -653,6 +676,22 @@ export const JobRequestDetail: React.FC = () => {
     request?.request_type === 'inter_unit' ||
     request?.additional_data?.is_inter_unit
   );
+
+  const isTargetUnitHead = useMemo(() => {
+    if (!isInterUnitJob || !user?.is_unit_head) return false;
+    const managedUnits: string[] = (user as any)?.managed_units || [];
+    const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
+    const reqUnit = request?.unit?.toLowerCase().trim();
+    const reqUnitId = request?.unit_id ? Number(request.unit_id) : null;
+    const userUnit = user?.unit?.toLowerCase().trim();
+    const userUnitId = user?.unit_id ? Number(user.unit_id) : null;
+
+    if (reqUnitId && managedUnitIds.includes(reqUnitId)) return true;
+    if (reqUnit && managedUnits.some((u) => u.toLowerCase().trim() === reqUnit)) return true;
+    if (reqUnitId && userUnitId && reqUnitId === userUnitId) return true;
+    if (reqUnit && userUnit && reqUnit === userUnit) return true;
+    return false;
+  }, [isInterUnitJob, user, request]);
 
   const renderStatusCapsule = (status: string) => {
     if (status === 'manager_approval') {
@@ -1218,7 +1257,7 @@ export const JobRequestDetail: React.FC = () => {
                user?.role === 'admin' ||
                (user?.role === 'manager' && !isInterUnitJob) ||
                user?.is_acting_manager ||
-               (isInterUnitJob && user?.is_unit_head)
+               (isInterUnitJob && isTargetUnitHead)
              )) && (
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-slate-100"></div>
@@ -1234,7 +1273,7 @@ export const JobRequestDetail: React.FC = () => {
               user?.role === 'admin' ||
               (user?.role === 'manager' && !isInterUnitJob) ||
               user?.is_acting_manager ||
-              (isInterUnitJob && user?.is_unit_head)
+              (isInterUnitJob && isTargetUnitHead)
             ) && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-1 my-2">
                 <div className="text-xs font-bold text-slate-700">
@@ -1257,7 +1296,7 @@ export const JobRequestDetail: React.FC = () => {
                   user?.role === 'admin' ||
                   (user?.role === 'manager' && !isInterUnitJob) ||
                   user?.is_acting_manager ||
-                  (isInterUnitJob && user?.is_unit_head)
+                  (isInterUnitJob && isTargetUnitHead)
                 ) && (
                   <>
                     <button

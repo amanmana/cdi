@@ -88,6 +88,30 @@ auth.post('/login', async (c) => {
     .bind(user.id, today, today)
     .first<any>();
 
+  // Fetch all units where user is designated as Unit Head
+  let managedUnits: string[] = [];
+  let managedUnitIds: number[] = [];
+  try {
+    const headUnits = await c.env.DB
+      .prepare('SELECT id, name FROM units WHERE head_id = ?')
+      .bind(user.id)
+      .all<any>();
+    if (headUnits && headUnits.results) {
+      managedUnits = headUnits.results.map((u: any) => u.name);
+      managedUnitIds = headUnits.results.map((u: any) => u.id);
+    }
+    if (user.is_unit_head && user.unit && !managedUnits.includes(user.unit)) {
+      managedUnits.push(user.unit);
+    }
+    if (user.is_unit_head && user.unit_id && !managedUnitIds.includes(user.unit_id)) {
+      managedUnitIds.push(user.unit_id);
+    }
+  } catch (err) {
+    console.error('Error fetching managed units:', err);
+  }
+
+  const isUnitHead = Boolean(user.is_unit_head || managedUnits.length > 0);
+
   const fullUser = {
     id: user.id,
     name: user.name,
@@ -100,7 +124,9 @@ auth.post('/login', async (c) => {
     department_id: user.department_id || (delegation ? delegation.manager_department_id : null),
     department_name: user.department_name,
     managed_department_id: user.managed_department_id,
-    is_unit_head: Boolean(user.is_unit_head),
+    is_unit_head: isUnitHead,
+    managed_units: managedUnits,
+    managed_unit_ids: managedUnitIds,
     is_acting_manager: !!delegation,
     acting_manager_unit: delegation ? delegation.manager_unit : null,
     acting_manager_department_id: delegation ? delegation.manager_department_id : null,
@@ -238,9 +264,36 @@ auth.get('/me', async (c) => {
     .bind(user.id, today, today)
     .first<any>();
 
+  // Fetch all units where user is designated as Unit Head
+  let managedUnits: string[] = [];
+  let managedUnitIds: number[] = [];
+  try {
+    const headUnits = await c.env.DB
+      .prepare('SELECT id, name FROM units WHERE head_id = ?')
+      .bind(user.id)
+      .all<any>();
+    if (headUnits && headUnits.results) {
+      managedUnits = headUnits.results.map((u: any) => u.name);
+      managedUnitIds = headUnits.results.map((u: any) => u.id);
+    }
+    if (user.is_unit_head && user.unit && !managedUnits.includes(user.unit)) {
+      managedUnits.push(user.unit);
+    }
+    if (user.is_unit_head && user.unit_id && !managedUnitIds.includes(user.unit_id)) {
+      managedUnitIds.push(user.unit_id);
+    }
+  } catch (err) {
+    console.error('Error fetching managed units in /me:', err);
+  }
+
+  const isUnitHead = Boolean(user.is_unit_head || managedUnits.length > 0);
+
   return c.json({
     user: {
       ...user,
+      is_unit_head: isUnitHead,
+      managed_units: managedUnits,
+      managed_unit_ids: managedUnitIds,
       is_acting_manager: !!delegation,
       acting_manager_unit: delegation ? delegation.manager_unit : null,
       acting_manager_department_id: delegation ? delegation.manager_department_id : null,

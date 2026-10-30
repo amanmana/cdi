@@ -286,8 +286,32 @@ jobRequestsRouter.use('*', async (c, next) => {
       .bind(freshUser.id, today, today)
       .first<any>();
 
+    let managedUnits: string[] = [];
+    let managedUnitIds: number[] = [];
+    try {
+      const headUnits = await c.env.DB
+        .prepare('SELECT id, name FROM units WHERE head_id = ?')
+        .bind(freshUser.id)
+        .all<any>();
+      if (headUnits && headUnits.results) {
+        managedUnits = headUnits.results.map((u: any) => u.name);
+        managedUnitIds = headUnits.results.map((u: any) => u.id);
+      }
+      if (freshUser.is_unit_head && freshUser.unit && !managedUnits.includes(freshUser.unit)) {
+        managedUnits.push(freshUser.unit);
+      }
+      if (freshUser.is_unit_head && freshUser.unit_id && !managedUnitIds.includes(freshUser.unit_id)) {
+        managedUnitIds.push(freshUser.unit_id);
+      }
+    } catch (err) {
+      console.error('Error fetching managed units in jobRequests middleware:', err);
+    }
+
     c.set('user', {
       ...freshUser,
+      is_unit_head: Boolean(freshUser.is_unit_head || managedUnits.length > 0),
+      managed_units: managedUnits,
+      managed_unit_ids: managedUnitIds,
       department_id: freshUser.department_id || (delegation ? delegation.manager_department_id : null),
       is_acting_manager: !!delegation,
       acting_manager_unit_id: delegation ? delegation.manager_unit_id : null,
@@ -351,10 +375,12 @@ jobRequestsRouter.get('/', async (c) => {
         OR j.unit_id = ?
         OR j.unit = ?
         OR un.name = ?
+        OR j.unit_id IN (SELECT id FROM units WHERE head_id = ?)
+        OR j.unit IN (SELECT name FROM units WHERE head_id = ?)
         OR j.client_email = ?
         OR JSON_EXTRACT(j.additional_data, '$.requester_id') = ?
       )`;
-      params.push(String(user.id), user.unit_id || 0, user.unit || '', user.unit || '', user.email, user.id);
+      params.push(String(user.id), user.unit_id || 0, user.unit || '', user.unit || '', user.id, user.id, user.email, user.id);
     } else {
       // Regular staff: See jobs where assigned. Allow inter-unit jobs even if pending manager/head approval so assigned origin staff can track progress
       query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 
@@ -1240,14 +1266,21 @@ jobRequestsRouter.get('/:id', async (c) => {
   let targetUnitHead: { id: number; name: string; email: string; unit: string } | null = null;
   if (request.unit || request.unit_id) {
     const headRow = await db.prepare(`
-      SELECT id, name, email, unit FROM users
-      WHERE is_unit_head = 1
-        AND (
-          (? IS NOT NULL AND unit_id = ?)
-          OR (? IS NOT NULL AND LOWER(TRIM(unit)) = LOWER(TRIM(?)))
+      SELECT u.id, u.name, u.email, COALESCE(un.name, u.unit) as unit
+      FROM users u
+      LEFT JOIN units un ON un.head_id = u.id
+      WHERE (
+        (un.id = ? OR LOWER(TRIM(un.name)) = LOWER(TRIM(?)))
+        OR (
+          u.is_unit_head = 1 AND (
+            (? IS NOT NULL AND u.unit_id = ?)
+            OR (? IS NOT NULL AND LOWER(TRIM(u.unit)) = LOWER(TRIM(?)))
+          )
         )
+      )
       LIMIT 1
     `).bind(
+      request.unit_id || null, request.unit || null,
       request.unit_id || null, request.unit_id || null,
       request.unit || null, request.unit || null
     ).first<{ id: number; name: string; email: string; unit: string }>();
@@ -1315,7 +1348,12 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
   );
 
+  const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
+  const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
+
   const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
+    (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
+    (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
   );
@@ -1363,7 +1401,12 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
     (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
   );
 
+  const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
+  const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
+
   const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
+    (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
+    (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
   );
@@ -1523,7 +1566,12 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
   );
 
+  const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
+  const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
+
   const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
+    (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
+    (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
   );

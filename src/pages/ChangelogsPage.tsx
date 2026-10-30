@@ -12,6 +12,18 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.11.0',
+    date: '2026-10-30',
+    items: [
+      'Feature: Strict Head Unit Scoping — Head Units are now strictly scoped to their respective units when assigning staff to jobs. A Head Unit (e.g. Jimmy - Rapid Prototyping Lab) only sees and assigns staff within their unit (Rohaizam & Jimmy), avoiding clutter from other department units.',
+      'Architecture: Multi-Unit Head Support — Added support for a single Head of Unit managing multiple service units simultaneously (e.g. Safari heading both Graphic and Web units) without altering relational schema.',
+      'Admin: Shared Head Unit Configuration — System Administrators can now assign Safari (or any unit head) as Head of Unit across multiple units in Configure Unit Settings without overwriting the user\'s primary unit membership.',
+      'Workflow & Authorization: Multi-Unit Head Permissions — Unit heads managing multiple units can review, accept, reject, and assign team members for all units under their purview, including Inter-Unit collaboration requests.',
+      'UX: Multi-Unit Badges & Profile Indicators — Enhanced user management badges and profile pages to clearly reflect all units headed by each user (e.g. "Head: Graphic, Web").',
+      'Preserved Manager & Superuser Oversight — Full department-wide visibility is preserved for Department Managers, Acting Managers, Directors, and System Administrators.',
+    ],
+  },
+  {
     version: '1.10.0',
     date: '2026-10-30',
     items: [

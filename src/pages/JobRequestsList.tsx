@@ -1399,7 +1399,13 @@ export const JobRequestsList: React.FC = () => {
                 >
                   <option value="">-- Select Target Unit --</option>
                   {unitsList
-                    .filter((u: any) => !user?.unit || u.name?.toLowerCase().trim() !== user.unit.toLowerCase().trim())
+                    .filter((u: any) => {
+                      const managedUnits: string[] = (user as any)?.managed_units || [];
+                      if (managedUnits.length > 0) {
+                        return !managedUnits.some((mu: string) => mu.toLowerCase().trim() === u.name?.toLowerCase().trim());
+                      }
+                      return !user?.unit || u.name?.toLowerCase().trim() !== user.unit.toLowerCase().trim();
+                    })
                     .map((u: any) => (
                       <option key={u.id} value={u.name}>
                         {u.name}
@@ -1414,7 +1420,7 @@ export const JobRequestsList: React.FC = () => {
               {/* Origin Unit Staff Selection (Staff under requester's unit, e.g. Azuin under Pat) */}
               <div>
                 <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                  <span>Assigned Staff from Your Unit ({user?.unit || 'Your Unit'})</span>
+                  <span>Assigned Staff from Your Unit ({user?.managed_units && user.managed_units.length > 1 ? user.managed_units.join(', ') : (user?.unit || 'Your Unit')})</span>
                   <span className="text-[10px] text-slate-400 font-semibold lowercase">colleague handling this side</span>
                 </label>
                 <select
@@ -1425,6 +1431,10 @@ export const JobRequestsList: React.FC = () => {
                   <option value="">-- Select Staff from Your Unit (Optional / or Self) --</option>
                   {staffMembers
                     .filter((m: any) => {
+                      const managedUnits: string[] = (user as any)?.managed_units || [];
+                      if (managedUnits.length > 0) {
+                        return m.unit && managedUnits.some((mu: string) => mu.toLowerCase().trim() === m.unit.toLowerCase().trim());
+                      }
                       if (!user?.unit) return true;
                       return m.unit?.toLowerCase().trim() === user.unit.toLowerCase().trim();
                     })

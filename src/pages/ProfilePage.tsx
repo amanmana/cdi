@@ -320,8 +320,12 @@ export const ProfilePage: React.FC = () => {
 
             {user.unit && (
               <div className="bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-slate-100 flex flex-col items-start gap-0.5">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Unit</span>
-                <span className="text-xs font-bold text-slate-700">{user.unit}</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  {user.managed_units && user.managed_units.length > 1 ? 'Managed Units' : 'Unit'}
+                </span>
+                <span className="text-xs font-bold text-slate-700">
+                  {user.managed_units && user.managed_units.length > 1 ? user.managed_units.join(', ') : user.unit}
+                </span>
               </div>
             )}
 

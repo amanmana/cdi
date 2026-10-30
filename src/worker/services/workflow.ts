@@ -20,7 +20,12 @@ export class WorkflowEngine {
       );
 
       if (isInterUnit) {
+        const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
+        const userManagedUnitIds: number[] = (user as any).managed_unit_ids || ((user as any).unit_id ? [(user as any).unit_id] : []);
+
         const isTargetUnitHead = Boolean((user as any).is_unit_head) && (
+          (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
+          (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
           (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||
           (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
         );
