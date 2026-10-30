@@ -1123,18 +1123,39 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Additional Form Data Fields (Filter out objects like staff_tasks) */}
+                {/* Additional Form Data Fields (Filter out technical IDs, internal flags, and objects) */}
                 {request.additional_data &&
                   Object.entries(request.additional_data)
-                    .filter(([k, v]) => k !== 'staff_tasks' && typeof v !== 'object')
-                    .map(([k, v]) => (
-                      <div key={k} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                          {k.replace('_', ' ')}
-                        </span>
-                        <span className="text-sm font-extrabold text-slate-900">{String(v)}</span>
-                      </div>
-                    ))}
+                    .filter(([k, v]) => {
+                      if (v === null || v === undefined || v === '' || typeof v === 'object') return false;
+                      const lower = k.toLowerCase();
+                      // Hide raw database IDs
+                      if (lower.endsWith('_id') || lower === 'id' || lower.endsWith('_ids')) return false;
+                      // Hide internal routing/type flags
+                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice'].includes(lower)) return false;
+                      return true;
+                    })
+                    .map(([k, v]) => {
+                      const labelMap: Record<string, string> = {
+                        requester_name: 'REQUESTER (HEAD UNIT)',
+                        requester_unit: 'ORIGIN UNIT',
+                        origin_staff_name: 'ASSIGNED ORIGIN STAFF',
+                        priority: 'PRIORITY',
+                        parent_ticket_no: 'PARENT JOB TICKET',
+                      };
+                      const displayLabel = labelMap[k] || k.replace(/_/g, ' ').toUpperCase();
+
+                      return (
+                        <div key={k} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                            {displayLabel}
+                          </span>
+                          <span className="text-sm font-extrabold text-slate-900">
+                            {k === 'priority' ? String(v).toUpperCase() : String(v)}
+                          </span>
+                        </div>
+                      );
+                    })}
 
                 {/* Detailed Description Field */}
                 <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm sm:col-span-2">
