@@ -1248,7 +1248,7 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
         requestId,
         user.id,
         user.name,
-        `Submitted Inter-Unit Job Request from ${user.unit || 'Unit Head'} to ${unitRow.name}. Priority: ${(priority || 'normal').toUpperCase()}`
+        `Submitted Inter-Unit Job Request from ${user.unit || 'Unit Head'} to ${targetUnitNames.join(', ')}. Priority: ${(priority || 'normal').toUpperCase()}`
       )
       .run();
 
