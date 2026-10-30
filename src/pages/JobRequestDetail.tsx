@@ -1275,9 +1275,9 @@ export const JobRequestDetail: React.FC = () => {
 
         {/* RIGHT COLUMN (1 Column Wide) matching Reference Image 2 */}
         <div className="space-y-6">
-          {/* Workflow Actions Card (Hidden for Client, Director, Rejected requests, and when completed) */}
+          {/* Workflow Actions Card (Hidden for Client, Director (unless inter-unit in-progress), Rejected requests, and when completed) */}
           {user?.role !== 'client' &&
-            user?.role !== 'director' &&
+            (user?.role !== 'director' || (isInterUnitJob && request.status === 'staff_processing')) &&
             request.status !== 'rejected' &&
             !(user?.role === 'staff' && !user?.is_unit_head && (
               data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ||
@@ -1613,9 +1613,9 @@ export const JobRequestDetail: React.FC = () => {
                       </div>
                     )}
 
-                    {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || user?.is_unit_head) && (
+                    {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || user?.is_unit_head || user?.role === 'director') && (
                       isInterUnitJob ? (
-                        /* Inter-Unit Collaboration Oversight Card for Managers & Unit Heads */
+                        /* Inter-Unit Collaboration Oversight Card for Managers, Unit Heads & Director */
                         (() => {
                           const handoff = request.additional_data?.handoff;
                           const originStaffId = request.additional_data?.origin_staff_id;
