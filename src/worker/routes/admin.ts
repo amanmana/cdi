@@ -94,11 +94,37 @@ admin.get('/dashboard-stats', async (c) => {
           OR j.unit IN (SELECT name FROM units WHERE department_id = ?)
           OR j.unit_id = ? 
           OR j.unit = ?
+          OR JSON_EXTRACT(j.additional_data, '$.requester_unit_id') IN (SELECT id FROM units WHERE department_id = ?)
+          OR JSON_EXTRACT(j.additional_data, '$.requester_unit') IN (SELECT name FROM units WHERE department_id = ?)
+          OR JSON_EXTRACT(j.additional_data, '$.requester_id') IN (SELECT id FROM users WHERE department_id = ?)
+          OR JSON_EXTRACT(j.additional_data, '$.origin_staff_id') IN (SELECT id FROM users WHERE department_id = ?)
+          OR EXISTS (
+            SELECT 1 FROM users u 
+            WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || u.id || ',') > 0 
+              AND (u.department_id = ? OR u.unit_id IN (SELECT id FROM units WHERE department_id = ?))
+          )
         )`;
-        params.push(managerDeptId, managerDeptId, managerDeptId, managerUnitId || 0, managerUnit || '');
+        params.push(
+          managerDeptId, managerDeptId, managerDeptId, managerUnitId || 0, managerUnit || '',
+          managerDeptId, managerDeptId, managerDeptId, managerDeptId, managerDeptId, managerDeptId
+        );
       } else if (managerUnitId || managerUnit) {
-        whereClause = ' WHERE (j.unit_id = ? OR j.unit = ? OR j.unit_id IN (SELECT id FROM units WHERE name = ?))';
-        params.push(managerUnitId || 0, managerUnit || '', managerUnit || '');
+        whereClause = ` WHERE (
+          j.unit_id = ? 
+          OR j.unit = ? 
+          OR j.unit_id IN (SELECT id FROM units WHERE name = ?)
+          OR JSON_EXTRACT(j.additional_data, '$.requester_unit') = ?
+          OR JSON_EXTRACT(j.additional_data, '$.requester_unit_id') IN (SELECT id FROM units WHERE name = ?)
+          OR EXISTS (
+            SELECT 1 FROM users u 
+            WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || u.id || ',') > 0 
+              AND (u.unit = ? OR u.unit_id IN (SELECT id FROM units WHERE name = ?))
+          )
+        )`;
+        params.push(
+          managerUnitId || 0, managerUnit || '', managerUnit || '',
+          managerUnit || '', managerUnit || '', managerUnit || '', managerUnit || ''
+        );
       }
     }
 
