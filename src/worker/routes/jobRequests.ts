@@ -379,8 +379,25 @@ jobRequestsRouter.get('/', async (c) => {
         OR j.unit IN (SELECT name FROM units WHERE head_id = ?)
         OR j.client_email = ?
         OR JSON_EXTRACT(j.additional_data, '$.requester_id') = ?
+        OR INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), ?) > 0
+        OR EXISTS (
+          SELECT 1 FROM units u_target 
+          WHERE u_target.head_id = ? 
+            AND INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), u_target.name) > 0
+        )
       )`;
-      params.push(String(user.id), user.unit_id || 0, user.unit || '', user.unit || '', user.id, user.id, user.email, user.id);
+      params.push(
+        String(user.id),
+        user.unit_id || 0,
+        user.unit || '',
+        user.unit || '',
+        user.id,
+        user.id,
+        user.email,
+        user.id,
+        user.unit || '',
+        user.id
+      );
     } else {
       // Regular staff: See jobs where assigned. Allow inter-unit jobs even if pending manager/head approval so assigned origin staff can track progress
       query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 
