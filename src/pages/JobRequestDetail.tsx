@@ -1596,39 +1596,201 @@ export const JobRequestDetail: React.FC = () => {
                     )}
 
                     {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
-                      <div className="space-y-2.5 mt-3 pt-3 border-t border-slate-100">
-                        <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
-                          MANAGER STATUS CONTROLS
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleComplete}
-                          disabled={actionLoading}
-                          className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-indigo-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
-                        >
-                          <ShieldCheck className="w-4 h-4" /> MARK PROJECT COMPLETED
-                        </button>
+                      isInterUnitJob ? (
+                        /* Inter-Unit Collaboration Oversight Card for Managers & Unit Heads */
+                        (() => {
+                          const handoff = request.additional_data?.handoff;
+                          const originStaffId = request.additional_data?.origin_staff_id;
+                          const originStaffName = request.additional_data?.origin_staff_name || request.additional_data?.requester_name;
+                          const originStaffUnit = request.additional_data?.requester_unit || 'Origin Unit';
 
-                        <div className="grid grid-cols-2 gap-2">
+                          let holderId = handoff?.current_holder_id
+                            ? Number(handoff.current_holder_id)
+                            : (originStaffId ? Number(originStaffId) : null);
+                          let holderName = handoff?.current_holder_name || originStaffName || 'Origin Staff';
+                          let holderUnit = handoff?.current_holder_unit || originStaffUnit;
+
+                          const finishedCollaborators = (data?.staffDetails || []).filter((s: any) => s.is_done);
+                          const pendingCollaborators = (data?.staffDetails || []).filter((s: any) => !s.is_done);
+                          const isHolderFinished = finishedCollaborators.some((s: any) => Number(s.id) === holderId);
+
+                          if (isHolderFinished && pendingCollaborators.length > 0) {
+                            holderId = Number(pendingCollaborators[0].id);
+                            holderName = pendingCollaborators[0].name;
+                            holderUnit = pendingCollaborators[0].unit || '';
+                          }
+
+                          return (
+                            <div className="space-y-3 pt-1">
+                              {/* Live Status Container */}
+                              <div className="bg-gradient-to-br from-indigo-50/70 via-white to-slate-50/60 border border-indigo-100/90 rounded-3xl p-4.5 space-y-3.5 shadow-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+                                    <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
+                                    Live Collaboration Status
+                                  </span>
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200/80">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    In Progress
+                                  </span>
+                                </div>
+
+                                {/* Active Holder Card */}
+                                <div className="bg-white rounded-2xl p-3.5 border border-indigo-100/80 shadow-xs space-y-1.5">
+                                  <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                                    Sedang Diuruskan Oleh
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center shadow-xs">
+                                        {holderName.charAt(0).toUpperCase()}
+                                      </div>
+                                      <div>
+                                        <div className="text-sm font-black text-slate-900 leading-tight">
+                                          {holderName}
+                                        </div>
+                                        {holderUnit && (
+                                          <div className="text-[10px] font-bold text-indigo-600">
+                                            Unit: {holderUnit}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-2 py-0.5 rounded-full">
+                                      Active Turn
+                                    </span>
+                                  </div>
+
+                                  {handoff?.last_note && (
+                                    <div className="text-[11px] text-slate-600 font-medium bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 mt-2 space-y-1">
+                                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                        Nota Serahan Terkini:
+                                      </div>
+                                      <p className="italic text-slate-700">"{handoff.last_note}"</p>
+                                    </div>
+                                  )}
+
+                                  {handoff?.last_draft_url && (
+                                    <div className="pt-1">
+                                      <a
+                                        href={handoff.last_draft_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                      >
+                                        <ExternalLink className="w-3 h-3" /> Lihat Pautan Draf
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Assigned Collaborators Quick Summary */}
+                                <div className="space-y-1.5 pt-0.5">
+                                  <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                                    Status Pasukan Projek
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    {(data?.staffDetails || []).map((staff: any) => {
+                                      const isHolder = Number(staff.id) === holderId;
+                                      const isDone = staff.is_done;
+                                      return (
+                                        <div
+                                          key={staff.id}
+                                          className={`flex items-center justify-between p-2 rounded-xl border text-xs ${
+                                            isDone
+                                              ? 'bg-emerald-50/60 border-emerald-200/70 text-emerald-800'
+                                              : isHolder
+                                              ? 'bg-indigo-50/50 border-indigo-200/70 text-indigo-900 font-bold'
+                                              : 'bg-white border-slate-100 text-slate-600'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <span
+                                              className="w-2 h-2 rounded-full shrink-0"
+                                              style={{
+                                                backgroundColor: isDone ? '#10b981' : isHolder ? '#6366f1' : '#94a3b8',
+                                              }}
+                                            />
+                                            <span className="font-bold">{staff.name}</span>
+                                            {staff.unit && (
+                                              <span className="text-[10px] text-slate-400">({staff.unit})</span>
+                                            )}
+                                          </div>
+                                          <span className="text-[10px] font-extrabold uppercase">
+                                            {isDone ? '✓ Selesai' : isHolder ? '⚡ Sedang Bertugas' : '⏳ Menunggu'}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic border-t border-indigo-100/60 pt-2">
+                                  ℹ️ Projek ini akan bertukar ke status COMPLETED secara automatik sebaik sahaja semua staf selesai menekan "Finalize My Part".
+                                </p>
+                              </div>
+
+                              {/* Subtle secondary administrative controls for manager (Pending / Cancel) */}
+                              <div className="flex items-center justify-between px-1 pt-1 text-[11px]">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  Tindakan Luar Jangka:
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
+                                    className="font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 border border-amber-200/70 shadow-2xs"
+                                  >
+                                    <Clock className="w-3 h-3 text-amber-600" /> Pending
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
+                                    className="font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 border border-rose-200/70 shadow-2xs"
+                                  >
+                                    <XCircle className="w-3 h-3 text-rose-500" /> Batal
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        /* Standard non-inter-unit Manager Controls */
+                        <div className="space-y-2.5 mt-3 pt-3 border-t border-slate-100">
+                          <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
+                            MANAGER STATUS CONTROLS
+                          </div>
                           <button
                             type="button"
-                            onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
+                            onClick={handleComplete}
                             disabled={actionLoading}
-                            className="btn bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
+                            className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-indigo-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
                           >
-                            <Clock className="w-3.5 h-3.5 text-amber-600" /> PENDING
+                            <ShieldCheck className="w-4 h-4" /> MARK PROJECT COMPLETED
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
-                            disabled={actionLoading}
-                            className="btn bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
-                          >
-                            <XCircle className="w-3.5 h-3.5 text-rose-600" /> CANCEL
-                          </button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
+                              disabled={actionLoading}
+                              className="btn bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
+                            >
+                              <Clock className="w-3.5 h-3.5 text-amber-600" /> PENDING
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
+                              disabled={actionLoading}
+                              className="btn bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
+                            >
+                              <XCircle className="w-3.5 h-3.5 text-rose-600" /> CANCEL
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )
                     )}
                   </>
                 )}
