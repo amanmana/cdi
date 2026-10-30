@@ -1759,6 +1759,98 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
   return c.json({ success: true, message: 'Part marked as done.' });
 });
 
+// POST /api/job-requests/:id/handoff - Staff collaborative handoff & revision request
+jobRequestsRouter.post('/:id/handoff', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const idParam = c.req.param('id');
+  const { action_type, target_staff_id, note, draft_url } = await c.req.json();
+
+  if (!action_type || !target_staff_id) {
+    return c.json({ error: 'Action type and target collaborator staff member are required.' }, 400);
+  }
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) return c.json({ error: 'Job request not found' }, 404);
+
+  // Check target user exists
+  const targetUser = await db.prepare(
+    'SELECT id, name, email, unit FROM users WHERE id = ?'
+  ).bind(Number(target_staff_id)).first<{ id: number; name: string; email: string; unit: string }>();
+
+  if (!targetUser) {
+    return c.json({ error: 'Target collaborator not found.' }, 404);
+  }
+
+  // Parse additional_data
+  let additionalDataObj: any = {};
+  if (request.additional_data) {
+    try {
+      additionalDataObj = JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+
+  const nowIso = new Date().toISOString();
+  const isRevision = action_type === 'request_revision';
+
+  // Update handoff state
+  additionalDataObj.handoff = {
+    current_holder_id: targetUser.id,
+    current_holder_name: targetUser.name,
+    current_holder_unit: targetUser.unit,
+    last_action: isRevision ? 'REVISION_REQUESTED' : 'HANDOFF_PASSED',
+    last_actor_id: user.id,
+    last_actor_name: user.name,
+    last_actor_unit: user.unit,
+    last_note: note ? String(note).trim() : '',
+    last_draft_url: draft_url ? String(draft_url).trim() : '',
+    last_updated_at: nowIso,
+  };
+
+  const updatedAdditionalDataStr = JSON.stringify(additionalDataObj);
+
+  // Ensure request is in staff_processing
+  await db.prepare(`
+    UPDATE job_requests
+    SET additional_data = ?,
+        status = 'staff_processing',
+        current_step_name = 'Staff Processing',
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(updatedAdditionalDataStr, request.id).run();
+
+  // If revision was requested, reset target staff's STAFF_DONE log so they can complete or pass again
+  if (isRevision) {
+    await db.prepare(`
+      DELETE FROM workflow_logs
+      WHERE job_request_id = ? AND action = 'STAFF_DONE' AND actor_id = ?
+    `).bind(request.id, targetUser.id).run();
+  }
+
+  // Record workflow log
+  const logAction = isRevision ? 'COLLAB_REVISION_REQUEST' : 'COLLAB_HANDOFF';
+  const actionLabel = isRevision
+    ? `${user.name} (${user.unit || 'Staff'}) requested revisions/review from ${targetUser.name} (${targetUser.unit || 'Collaborator'})`
+    : `${user.name} (${user.unit || 'Staff'}) handed over work to ${targetUser.name} (${targetUser.unit || 'Collaborator'})`;
+
+  const fullComment = note && note.trim()
+    ? `${actionLabel} — Note: "${note.trim()}"${draft_url ? ` | Draft/Reference: ${draft_url.trim()}` : ''}`
+    : `${actionLabel}${draft_url ? ` — Draft/Reference: ${draft_url.trim()}` : ''}`;
+
+  await db.prepare(`
+    INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment, created_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now', '+8 hours'))
+  `).bind(request.id, logAction, user.id, user.name, fullComment).run();
+
+  return c.json({
+    success: true,
+    message: isRevision
+      ? `Revision request sent to ${targetUser.name}.`
+      : `Work handed over to ${targetUser.name}.`,
+    handoff: additionalDataObj.handoff,
+  });
+});
+
 // POST /api/job-requests/:id/reset-dev - Dev reset request to Pending Approval
 jobRequestsRouter.post('/:id/reset-dev', async (c) => {
   const db = c.env.DB;

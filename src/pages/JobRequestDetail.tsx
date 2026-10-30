@@ -58,6 +58,13 @@ export const JobRequestDetail: React.FC = () => {
   // Manage Team Modal State
   const [showManageTeamModal, setShowManageTeamModal] = useState(false);
 
+  // Inter-Unit Collaborative Handoff Modal State
+  const [showHandoffModal, setShowHandoffModal] = useState(false);
+  const [handoffType, setHandoffType] = useState<'pass' | 'request_revision'>('pass');
+  const [handoffTargetStaffId, setHandoffTargetStaffId] = useState<number | ''>('');
+  const [handoffNote, setHandoffNote] = useState('');
+  const [handoffDraftUrl, setHandoffDraftUrl] = useState('');
+
   // View Notes Modal State for Completed Staff
   const [showViewNotesModal, setShowViewNotesModal] = useState(false);
 
@@ -397,6 +404,58 @@ export const JobRequestDetail: React.FC = () => {
         setShowManageTeamModal(false);
         fetchDetail();
       }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleOpenHandoffModal = (type: 'pass' | 'request_revision') => {
+    setHandoffType(type);
+    setHandoffNote('');
+    setHandoffDraftUrl('');
+
+    // Pre-select first eligible other collaborator if any
+    const otherCollaborators = (data?.staffDetails || []).filter(
+      (s: any) => Number(s.id) !== Number(user?.id)
+    );
+    if (otherCollaborators.length > 0) {
+      setHandoffTargetStaffId(Number(otherCollaborators[0].id));
+    } else {
+      setHandoffTargetStaffId('');
+    }
+    setShowHandoffModal(true);
+  };
+
+  const handleHandoffSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!handoffTargetStaffId) {
+      alert('Please select a collaborator to hand over or request revision from.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/job-requests/${id}/handoff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action_type: handoffType,
+          target_staff_id: handoffTargetStaffId,
+          note: handoffNote,
+          draft_url: handoffDraftUrl,
+        }),
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setShowHandoffModal(false);
+        setHandoffNote('');
+        setHandoffDraftUrl('');
+        fetchDetail();
+      } else {
+        alert(resData.error || 'Failed to submit handoff.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error submitting handoff.');
     } finally {
       setActionLoading(false);
     }
@@ -1199,30 +1258,93 @@ export const JobRequestDetail: React.FC = () => {
                 {request.status === 'staff_processing' && (
                   <>
                     {selectedStaff.map(Number).includes(Number(user?.id)) && (
-                      data.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ? (
-                        /* PART COMPLETED Box matching Reference Image 1 & 2 */
-                        <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-3xl p-6 text-center space-y-2 my-2">
-                          <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
-                            <CheckCircle2 className="w-5.5 h-5.5 stroke-[2.5]" />
+                      <div className="space-y-2">
+                        {/* If Inter-Unit Collaboration, show the Agile Turn Indicator & Handoff Controls */}
+                        {isInterUnitJob && (
+                          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-left mb-2">
+                            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
+                              <span className="text-slate-500 flex items-center gap-1.5">
+                                <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
+                                Inter-Unit Turn
+                              </span>
+                              {request.additional_data?.handoff?.current_holder_id ? (
+                                Number(request.additional_data?.handoff?.current_holder_id) === Number(user?.id) ? (
+                                  <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">
+                                    Your Turn
+                                  </span>
+                                ) : (
+                                  <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md font-bold">
+                                    With {request.additional_data?.handoff?.current_holder_name}
+                                  </span>
+                                )
+                              ) : (
+                                <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-bold">
+                                  Shared Active
+                                </span>
+                              )}
+                            </div>
+
+                            {request.additional_data?.handoff?.last_note && (
+                              <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs space-y-1">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase">
+                                  Latest Handoff / Request Note
+                                </div>
+                                <div className="text-slate-700 font-medium italic">
+                                  "{request.additional_data.handoff.last_note}"
+                                </div>
+                                <div className="text-[10px] text-slate-400">
+                                  By {request.additional_data.handoff.last_actor_name} ({request.additional_data.handoff.last_actor_unit || 'Unit'})
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Collaborative Action Buttons */}
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenHandoffModal('pass')}
+                                disabled={actionLoading}
+                                className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] rounded-xl border-none shadow-sm gap-1.5 normal-case"
+                              >
+                                <ArrowLeftRight className="w-3.5 h-3.5" /> Hand Over
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenHandoffModal('request_revision')}
+                                disabled={actionLoading}
+                                className="btn btn-sm bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                              >
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Request Check
+                              </button>
+                            </div>
                           </div>
-                          <div className="text-xs font-black text-emerald-800 tracking-wider uppercase">
-                            PART COMPLETED
+                        )}
+
+                        {data.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ? (
+                          /* PART COMPLETED Box matching Reference Image 1 & 2 */
+                          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-3xl p-6 text-center space-y-2 my-2">
+                            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
+                              <CheckCircle2 className="w-5.5 h-5.5 stroke-[2.5]" />
+                            </div>
+                            <div className="text-xs font-black text-emerald-800 tracking-wider uppercase">
+                              PART COMPLETED
+                            </div>
+                            <div className="text-xs font-semibold text-emerald-600 leading-relaxed">
+                              You have finalized your work for this project.
+                            </div>
                           </div>
-                          <div className="text-xs font-semibold text-emerald-600 leading-relaxed">
-                            You have finalized your work for this project.
-                          </div>
-                        </div>
-                      ) : (
-                        /* Bright Cyan MARK MY PART AS DONE button for Staff */
-                        <button
-                          type="button"
-                          onClick={() => setShowMarkDoneModal(true)}
-                          disabled={actionLoading}
-                          className="btn w-full bg-sky-400 hover:bg-sky-500 border-none text-white font-extrabold text-xs rounded-2xl h-12 uppercase tracking-wider shadow-lg shadow-sky-400/25 gap-2"
-                        >
-                          <CheckCircle2 className="w-4.5 h-4.5" /> MARK MY PART AS DONE
-                        </button>
-                      )
+                        ) : (
+                          /* Bright Cyan MARK MY PART AS DONE button for Staff */
+                          <button
+                            type="button"
+                            onClick={() => setShowMarkDoneModal(true)}
+                            disabled={actionLoading}
+                            className="btn w-full bg-sky-400 hover:bg-sky-500 border-none text-white font-extrabold text-xs rounded-2xl h-12 uppercase tracking-wider shadow-lg shadow-sky-400/25 gap-2"
+                          >
+                            <CheckCircle2 className="w-4.5 h-4.5" /> MARK MY PART AS DONE
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
@@ -2461,6 +2583,147 @@ export const JobRequestDetail: React.FC = () => {
                 {actionLoading ? <span className="loading loading-spinner"></span> : 'SAVE TIMELINE'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTER-UNIT COLLABORATIVE HANDOFF MODAL */}
+      {showHandoffModal && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden my-auto">
+            {/* Modal Header */}
+            <div className={`p-6 text-white flex items-center justify-between ${
+              handoffType === 'request_revision'
+                ? 'bg-gradient-to-r from-amber-600 to-amber-700'
+                : 'bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-700'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
+                  {handoffType === 'request_revision' ? (
+                    <AlertCircle className="w-5 h-5" />
+                  ) : (
+                    <ArrowLeftRight className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">
+                    {handoffType === 'request_revision'
+                      ? 'Request Cross-Check / Revision'
+                      : 'Hand Over Work to Collaborator'}
+                  </h3>
+                  <p className="text-[11px] text-white/80 font-medium">
+                    {handoffType === 'request_revision'
+                      ? 'Send draft back to peer for updates or copywriting review'
+                      : 'Pass the baton to the next assigned collaborator'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHandoffModal(false)}
+                className="btn btn-sm btn-ghost btn-circle text-white/80 hover:text-white hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleHandoffSubmit} className="p-6 md:p-8 space-y-4">
+              {/* Target Collaborator Selection */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  Select Collaborator <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  required
+                  value={handoffTargetStaffId}
+                  onChange={(e) => setHandoffTargetStaffId(Number(e.target.value))}
+                  className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                >
+                  <option value="">-- Choose Collaborator --</option>
+                  {(data?.staffDetails || [])
+                    .filter((s: any) => Number(s.id) !== Number(user?.id))
+                    .map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.unit || 'Assigned Staff'})
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-slate-400 font-medium mt-1">
+                  The selected colleague will receive an action notification on their Dashboard under this project.
+                </p>
+              </div>
+
+              {/* Note / Instructions */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  {handoffType === 'request_revision'
+                    ? 'Revision Note / Feedback'
+                    : 'Handoff Note / Context'}
+                  <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder={
+                    handoffType === 'request_revision'
+                      ? 'e.g. Please trim heading text to fit 1 line, or check spelling on banner draft...'
+                      : 'e.g. Copywriting drafted and approved on my end. Ready for your layout/design phase...'
+                  }
+                  value={handoffNote}
+                  onChange={(e) => setHandoffNote(e.target.value)}
+                  className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-indigo-600 resize-none"
+                ></textarea>
+              </div>
+
+              {/* Draft / Staging Link (Optional) */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  Draft URL / File Link (Optional)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/... or Figma link"
+                  value={handoffDraftUrl}
+                  onChange={(e) => setHandoffDraftUrl(e.target.value)}
+                  className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowHandoffModal(false)}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading || !handoffTargetStaffId || !handoffNote.trim()}
+                  className={`btn text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md transition-all gap-2 ${
+                    handoffType === 'request_revision'
+                      ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                      : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
+                  }`}
+                >
+                  {actionLoading ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : handoffType === 'request_revision' ? (
+                    <>
+                      <AlertCircle className="w-4 h-4" />
+                      <span>Send Revision Request</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowLeftRight className="w-4 h-4" />
+                      <span>Confirm Hand Over</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -740,6 +740,28 @@ export const JobRequestsList: React.FC = () => {
                             <>{req.client_name} <span className="mx-1">•</span> {req.client_email}</>
                           )}
                         </div>
+                        {/* Handoff Turn indicator for Inter-Unit jobs in progress */}
+                        {req.additional_data?.handoff && req.status === 'staff_processing' && (
+                          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                            {Number(req.additional_data.handoff.current_holder_id) === Number(user?.id) ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black animate-pulse">
+                                <span>⚡ YOUR ACTION REQUIRED</span>
+                                {req.additional_data.handoff.last_action === 'REVISION_REQUESTED' && (
+                                  <span className="bg-emerald-600 text-white text-[9px] px-1 rounded">Revision</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold">
+                                <span>Turn: {req.additional_data.handoff.current_holder_name} ({req.additional_data.handoff.current_holder_unit || 'Unit'})</span>
+                              </span>
+                            )}
+                            {req.additional_data.handoff.last_note && (
+                              <span className="text-[10px] text-slate-400 italic truncate max-w-xs" title={req.additional_data.handoff.last_note}>
+                                "{req.additional_data.handoff.last_note}"
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 px-4 align-top">
                         {renderStatusBadge(req.status, req.current_step_name, isInterUnitJob(req))}
