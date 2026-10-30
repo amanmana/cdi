@@ -2070,9 +2070,27 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
   );
 
   if (allDone && !isInterUnitManagerApproval) {
-    await db.prepare(`
-      UPDATE job_requests SET status = 'completed', current_step_name = 'Completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(request.id).run();
+    let additionalDataObj: any = null;
+    if (request.additional_data) {
+      try {
+        additionalDataObj = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
+        if (additionalDataObj.handoff) {
+          additionalDataObj.handoff.current_holder_id = null;
+          additionalDataObj.handoff.last_action = 'COMPLETED';
+          additionalDataObj.handoff.last_updated_at = new Date().toISOString();
+        }
+      } catch (e) {}
+    }
+
+    if (additionalDataObj) {
+      await db.prepare(`
+        UPDATE job_requests SET status = 'completed', current_step_name = 'Completed', additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `).bind(JSON.stringify(additionalDataObj), request.id).run();
+    } else {
+      await db.prepare(`
+        UPDATE job_requests SET status = 'completed', current_step_name = 'Completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `).bind(request.id).run();
+    }
   } else {
     // If this is an Inter-Unit job, automatically advance the active turn to the remaining pending collaborator
     const isInterUnit = Boolean(

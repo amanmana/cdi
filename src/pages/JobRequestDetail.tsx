@@ -2207,9 +2207,9 @@ export const JobRequestDetail: React.FC = () => {
 
 
           {/* PART COMPLETED CARD WITH VIEW NOTE BUTTON (For completed Staff) */}
-          {user?.role === 'staff' && !user?.is_acting_manager &&
+          {(user?.role === 'staff' && !user?.is_acting_manager || isCurrentUserOriginStaff) &&
             data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) &&
-            (!isInterUnitJob || Number(request.additional_data?.handoff?.current_holder_id) !== Number(user?.id)) && (
+            (request.status === 'completed' || !isInterUnitJob || Number(request.additional_data?.handoff?.current_holder_id) !== Number(user?.id)) && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 text-center">
               <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
                 <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
