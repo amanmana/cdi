@@ -1536,7 +1536,13 @@ export const JobRequestDetail: React.FC = () => {
                       </div>
                     )}
 
-                    {selectedStaff.map(Number).includes(Number(user?.id)) && (
+                    {(Boolean(
+                      (request?.assigned_staff_ids && request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).includes(Number(user?.id))) ||
+                      (data?.staffDetails && data.staffDetails.some((s: any) => Number(s.id) === Number(user?.id))) ||
+                      (selectedStaff && selectedStaff.map(Number).includes(Number(user?.id))) ||
+                      (request?.additional_data?.origin_staff_id && Number(request.additional_data.origin_staff_id) === Number(user?.id)) ||
+                      (request?.additional_data?.handoff?.current_holder_id && Number(request.additional_data.handoff.current_holder_id) === Number(user?.id))
+                    )) && (
                       <div className="space-y-2">
                         {/* If Inter-Unit Collaboration, show the Agile Turn Indicator & Handoff Controls */}
                         {isInterUnitJob && (() => {
@@ -1555,21 +1561,21 @@ export const JobRequestDetail: React.FC = () => {
                           const finishedCollaborators = (data?.staffDetails || []).filter((s: any) => s.is_done);
                           const pendingCollaborators = (data?.staffDetails || []).filter((s: any) => !s.is_done);
                           const isHolderFinished = finishedCollaborators.some((s: any) => Number(s.id) === holderId);
+                          const isCurrentUserDone = finishedCollaborators.some((s: any) => Number(s.id) === Number(user?.id));
 
-                          // If the designated holder has already completed their part (e.g. Johan completed),
-                          // the active turn naturally passes back to the pending collaborator(s) (e.g. Azuin)
-                          let collaboratorCompletedNotice = false;
+                          // If the designated holder has already completed their part,
+                          // the active turn naturally passes to the pending collaborator(s)
                           if (isHolderFinished && pendingCollaborators.length > 0) {
-                            collaboratorCompletedNotice = true;
-                            // Set holder to current user if they are among pending collaborators
-                            if (pendingCollaborators.some((s: any) => Number(s.id) === Number(user?.id))) {
-                              holderId = Number(user?.id);
-                              holderName = user?.name || 'You';
-                              holderUnit = user?.unit || '';
-                            }
+                            holderId = Number(pendingCollaborators[0].id);
+                            holderName = pendingCollaborators[0].name;
+                            holderUnit = pendingCollaborators[0].unit || '';
                           }
 
-                          const isUserTurn = !holderId || Number(user?.id) === holderId;
+                          // Collaborator finalized notification is only relevant for pending collaborators waiting to finalize
+                          const collaboratorCompletedNotice = finishedCollaborators.length > 0 && !isCurrentUserDone;
+
+                          // Active turn is only held if user has NOT finished their part yet
+                          const isUserTurn = !isCurrentUserDone && (!holderId || Number(user?.id) === holderId);
 
                           return (
                             <div className="bg-slate-50/70 border border-slate-200/90 rounded-3xl p-4 space-y-3.5 text-left mb-3 shadow-xs">

@@ -2040,6 +2040,56 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
     await db.prepare(`
       UPDATE job_requests SET status = 'completed', current_step_name = 'Completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(request.id).run();
+  } else {
+    // If this is an Inter-Unit job, automatically advance the active turn to the remaining pending collaborator
+    const isInterUnit = Boolean(
+      request.ticket_no?.startsWith('IU') ||
+      request.request_type === 'inter_unit' ||
+      (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
+    );
+
+    if (isInterUnit && request.assigned_staff_ids) {
+      const assignedStaffIds = request.assigned_staff_ids.split(',').map((id: string) => Number(id.trim())).filter((n: number) => !isNaN(n));
+      const { results: doneLogs } = await db.prepare(`
+        SELECT DISTINCT actor_id FROM workflow_logs 
+        WHERE job_request_id = ? AND action = 'STAFF_DONE'
+      `).bind(request.id).all();
+      const doneStaffIds = (doneLogs || []).map((r: any) => Number(r.actor_id));
+      const pendingStaffIds = assignedStaffIds.filter((sid: number) => !doneStaffIds.includes(sid));
+
+      if (pendingStaffIds.length > 0) {
+        const nextStaffId = pendingStaffIds[0];
+        const nextStaff = await db.prepare(
+          'SELECT id, name, unit FROM users WHERE id = ?'
+        ).bind(nextStaffId).first<{ id: number; name: string; unit: string }>();
+
+        if (nextStaff) {
+          let additionalDataObj: any = {};
+          if (request.additional_data) {
+            try {
+              additionalDataObj = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
+            } catch (e) {}
+          }
+
+          additionalDataObj.handoff = {
+            current_holder_id: nextStaff.id,
+            current_holder_name: nextStaff.name,
+            current_holder_unit: nextStaff.unit || '',
+            last_action: 'COLLABORATOR_FINALIZED',
+            last_actor_id: user.id,
+            last_actor_name: user.name,
+            last_actor_unit: user.unit || '',
+            last_note: `${user.name} has finalized their portion of the project. Turn passed to ${nextStaff.name}.`,
+            last_draft_url: additionalDataObj.handoff?.last_draft_url || '',
+            last_updated_at: new Date().toISOString(),
+          };
+
+          await db.prepare(`
+            UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+          `).bind(JSON.stringify(additionalDataObj), request.id).run();
+        }
+      }
+    }
   }
 
   return c.json({ success: true, message: 'Part marked as done.' });
