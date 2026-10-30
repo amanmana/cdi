@@ -402,7 +402,7 @@ export const ProjectDetailPage: React.FC = () => {
 
           <Link
             to="/portal/job-requests"
-            className="btn btn-sm btn-outline text-blue-600 border-blue-200 hover:bg-blue-50 rounded-xl text-xs font-bold"
+            className="btn btn-sm bg-white hover:bg-blue-600 text-blue-600 hover:text-white border border-blue-200 hover:border-blue-600 rounded-xl text-xs font-bold transition-all shadow-2xs"
           >
             + Link / Create Task
           </Link>
