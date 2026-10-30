@@ -748,8 +748,8 @@ export const JobRequestsList: React.FC = () => {
                             <>{req.client_name} <span className="mx-1">•</span> {req.client_email}</>
                           )}
                         </div>
-                        {/* Handoff Turn indicator for Inter-Unit jobs in progress */}
-                        {(req.additional_data?.is_inter_unit || req.ticket_no?.startsWith("IU")) && (
+                        {/* Handoff Turn indicator for Inter-Unit jobs actively in progress */}
+                        {(req.additional_data?.is_inter_unit || req.ticket_no?.startsWith("IU")) && req.status === 'staff_processing' && (
                           <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                             {(() => {
                               const handoff = req.additional_data?.handoff;
