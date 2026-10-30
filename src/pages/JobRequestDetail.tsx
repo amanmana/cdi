@@ -677,21 +677,23 @@ export const JobRequestDetail: React.FC = () => {
     request?.additional_data?.is_inter_unit
   );
 
-  const isTargetUnitHead = useMemo(() => {
-    if (!isInterUnitJob || !user?.is_unit_head) return false;
-    const managedUnits: string[] = (user as any)?.managed_units || [];
-    const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
-    const reqUnit = request?.unit?.toLowerCase().trim();
-    const reqUnitId = request?.unit_id ? Number(request.unit_id) : null;
-    const userUnit = user?.unit?.toLowerCase().trim();
-    const userUnitId = user?.unit_id ? Number(user.unit_id) : null;
+  const managedUnits: string[] = (user as any)?.managed_units || [];
+  const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
+  const reqUnit = request?.unit?.toLowerCase().trim();
+  const reqUnitId = request?.unit_id ? Number(request.unit_id) : null;
+  const userUnit = user?.unit?.toLowerCase().trim();
+  const userUnitId = user?.unit_id ? Number(user.unit_id) : null;
 
-    if (reqUnitId && managedUnitIds.includes(reqUnitId)) return true;
-    if (reqUnit && managedUnits.some((u) => u.toLowerCase().trim() === reqUnit)) return true;
-    if (reqUnitId && userUnitId && reqUnitId === userUnitId) return true;
-    if (reqUnit && userUnit && reqUnit === userUnit) return true;
-    return false;
-  }, [isInterUnitJob, user, request]);
+  const isTargetUnitHead = Boolean(
+    isInterUnitJob &&
+    user?.is_unit_head &&
+    (
+      (reqUnitId && managedUnitIds.includes(reqUnitId)) ||
+      (reqUnit && managedUnits.some((u) => u.toLowerCase().trim() === reqUnit)) ||
+      (reqUnitId && userUnitId && reqUnitId === userUnitId) ||
+      (reqUnit && userUnit && reqUnit === userUnit)
+    )
+  );
 
   const renderStatusCapsule = (status: string) => {
     if (status === 'manager_approval') {
