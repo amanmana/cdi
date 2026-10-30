@@ -1613,7 +1613,7 @@ export const JobRequestDetail: React.FC = () => {
                       </div>
                     )}
 
-                    {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+                    {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || user?.is_unit_head) && (
                       isInterUnitJob ? (
                         /* Inter-Unit Collaboration Oversight Card for Managers & Unit Heads */
                         (() => {
@@ -1637,6 +1637,8 @@ export const JobRequestDetail: React.FC = () => {
                             holderName = pendingCollaborators[0].name;
                             holderUnit = pendingCollaborators[0].unit || '';
                           }
+
+                          const isManagerUser = user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager;
 
                           return (
                             <div className="space-y-4 pt-1">
@@ -1747,67 +1749,71 @@ export const JobRequestDetail: React.FC = () => {
                                 </span>
                               </div>
 
-                              {/* Clean Project Controls (Pending / Cancel) */}
-                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                  Tindakan Luar Jangka
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
-                                    className="font-bold text-[11px] text-slate-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
-                                  >
-                                    <Clock className="w-3 h-3 text-amber-500" /> Pending
-                                  </button>
-                                  <span className="text-slate-200">|</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
-                                    className="font-bold text-[11px] text-slate-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
-                                  >
-                                    <XCircle className="w-3 h-3 text-rose-500" /> Batal
-                                  </button>
+                              {/* Clean Project Controls (Pending / Cancel) - Exclusively for Managers & Admins */}
+                              {isManagerUser && (
+                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    Tindakan Luar Jangka
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
+                                      className="font-bold text-[11px] text-slate-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
+                                    >
+                                      <Clock className="w-3 h-3 text-amber-500" /> Pending
+                                    </button>
+                                    <span className="text-slate-200">|</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
+                                      className="font-bold text-[11px] text-slate-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
+                                    >
+                                      <XCircle className="w-3 h-3 text-rose-500" /> Batal
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
                           );
                         })()
                       ) : (
                         /* Standard non-inter-unit Manager Controls */
-                        <div className="space-y-2.5 mt-3 pt-3 border-t border-slate-100">
-                          <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
-                            MANAGER STATUS CONTROLS
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleComplete}
-                            disabled={actionLoading}
-                            className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-indigo-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
-                          >
-                            <ShieldCheck className="w-4 h-4" /> MARK PROJECT COMPLETED
-                          </button>
-
-                          <div className="grid grid-cols-2 gap-2">
+                        (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+                          <div className="space-y-2.5 mt-3 pt-3 border-t border-slate-100">
+                            <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
+                              MANAGER STATUS CONTROLS
+                            </div>
                             <button
                               type="button"
-                              onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
+                              onClick={handleComplete}
                               disabled={actionLoading}
-                              className="btn bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
+                              className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-indigo-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
                             >
-                              <Clock className="w-3.5 h-3.5 text-amber-600" /> PENDING
+                              <ShieldCheck className="w-4 h-4" /> MARK PROJECT COMPLETED
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
-                              disabled={actionLoading}
-                              className="btn bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
-                            >
-                              <XCircle className="w-3.5 h-3.5 text-rose-600" /> CANCEL
-                            </button>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
+                                disabled={actionLoading}
+                                className="btn bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
+                              >
+                                <Clock className="w-3.5 h-3.5 text-amber-600" /> PENDING
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
+                                disabled={actionLoading}
+                                className="btn bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-extrabold text-[11px] rounded-xl h-10 uppercase tracking-wider gap-1.5"
+                              >
+                                <XCircle className="w-3.5 h-3.5 text-rose-600" /> CANCEL
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        )
                       )
                     )}
                   </>
