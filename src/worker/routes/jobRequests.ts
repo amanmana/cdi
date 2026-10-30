@@ -1118,6 +1118,7 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
       title,
       description,
       target_unit,
+      target_units,
       priority,
       start_date,
       deadline,
@@ -1130,21 +1131,52 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
     if (!title || !title.trim()) {
       return c.json({ error: 'Title is required.' }, 400);
     }
-    if (!target_unit || !target_unit.trim()) {
-      return c.json({ error: 'Target unit is required.' }, 400);
+
+    const requestedUnitsList: string[] = Array.isArray(target_units) && target_units.length > 0
+      ? target_units.map((u: string) => u.trim()).filter(Boolean)
+      : (target_unit && target_unit.trim() ? [target_unit.trim()] : []);
+
+    if (requestedUnitsList.length === 0) {
+      return c.json({ error: 'At least one target unit is required.' }, 400);
     }
 
-    // Lookup target unit
-    const unitRow = await db
-      .prepare('SELECT id, department_id, name, head_id FROM units WHERE name = ? OR CAST(id AS TEXT) = ?')
-      .bind(target_unit.trim(), target_unit.trim())
-      .first<any>();
+    // Lookup all target units and their designated heads
+    const targetUnitRows: any[] = [];
+    const unitAssignments: { [unitName: string]: { unit_id: number; head_id: number | null; head_name: string | null; status: string; assigned_staff_ids: number[] } } = {};
 
-    if (!unitRow) {
-      return c.json({ error: 'Target unit not found.' }, 400);
+    for (const uName of requestedUnitsList) {
+      const uRow = await db
+        .prepare(`
+          SELECT u.id, u.department_id, u.name, u.head_id, h.name as head_name
+          FROM units u
+          LEFT JOIN users h ON h.id = u.head_id
+          WHERE u.name = ? OR CAST(u.id AS TEXT) = ?
+        `)
+        .bind(uName, uName)
+        .first<any>();
+
+      if (uRow) {
+        targetUnitRows.push(uRow);
+        unitAssignments[uRow.name] = {
+          unit_id: uRow.id,
+          head_id: uRow.head_id || null,
+          head_name: uRow.head_name || null,
+          status: 'pending',
+          assigned_staff_ids: [],
+        };
+      }
     }
 
-    // Lookup origin staff if selected (e.g. Azuin selected by Pat)
+    if (targetUnitRows.length === 0) {
+      return c.json({ error: 'None of the selected target units were found.' }, 400);
+    }
+
+    // Primary unit row for base table columns
+    const primaryUnitRow = targetUnitRows[0];
+    const targetUnitNames = targetUnitRows.map(u => u.name);
+    const targetUnitIds = targetUnitRows.map(u => u.id);
+
+    // Lookup origin staff if selected (e.g. Jana selected by Azni)
     let originStaffName = '';
     let initialAssignedStaffIds: string | null = null;
     if (origin_staff_id) {
@@ -1164,6 +1196,9 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
     const additionalData = JSON.stringify({
       is_inter_unit: true,
       request_type: 'inter_unit',
+      target_units: targetUnitNames,
+      target_unit_ids: targetUnitIds,
+      unit_assignments: unitAssignments,
       requester_id: user.id,
       requester_name: user.name,
       requester_unit: user.unit,
@@ -1191,9 +1226,9 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
         user.email,
         title.trim(),
         description || '',
-        unitRow.name,
-        unitRow.id,
-        unitRow.department_id || null,
+        primaryUnitRow.name,
+        primaryUnitRow.id,
+        primaryUnitRow.department_id || null,
         initialAssignedStaffIds,
         start_date || new Date().toISOString().split('T')[0],
         deadline || null,
@@ -1288,40 +1323,48 @@ jobRequestsRouter.get('/:id', async (c) => {
 
   const canAct = WorkflowEngine.canUserPerformAction(request, user);
 
-  // Look up Target Unit Head (especially useful for Inter-Unit jobs)
+  // Look up Target Unit Head(s) (supports both single and multi-unit Inter-Unit jobs)
   let targetUnitHead: { id: number; name: string; email: string; unit: string } | null = null;
-  if (request.unit || request.unit_id) {
+  const targetUnitHeads: { id: number; name: string; email: string; unit: string }[] = [];
+
+  let addDataObj: any = null;
+  if (request.additional_data) {
+    try {
+      addDataObj = JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+
+  const multiUnits: string[] = Array.isArray(addDataObj?.target_units) && addDataObj.target_units.length > 0
+    ? addDataObj.target_units
+    : (request.unit ? [request.unit] : []);
+
+  for (const uName of multiUnits) {
     const headRow = await db.prepare(`
       SELECT u.id, u.name, u.email, COALESCE(un.name, u.unit) as unit
       FROM users u
       LEFT JOIN units un ON un.head_id = u.id
       WHERE (
-        (un.id = ? OR LOWER(TRIM(un.name)) = LOWER(TRIM(?)))
+        LOWER(TRIM(un.name)) = LOWER(TRIM(?))
         OR (
-          u.is_unit_head = 1 AND (
-            (? IS NOT NULL AND u.unit_id = ?)
-            OR (? IS NOT NULL AND LOWER(TRIM(u.unit)) = LOWER(TRIM(?)))
-          )
+          u.is_unit_head = 1 AND LOWER(TRIM(u.unit)) = LOWER(TRIM(?))
         )
       )
       LIMIT 1
-    `).bind(
-      request.unit_id || null, request.unit || null,
-      request.unit_id || null, request.unit_id || null,
-      request.unit || null, request.unit || null
-    ).first<{ id: number; name: string; email: string; unit: string }>();
+    `).bind(uName, uName).first<{ id: number; name: string; email: string; unit: string }>();
 
-    if (headRow) {
-      targetUnitHead = headRow;
+    if (headRow && !targetUnitHeads.some(h => h.id === headRow.id)) {
+      targetUnitHeads.push(headRow);
+      if (!targetUnitHead) targetUnitHead = headRow;
     }
   }
 
   return c.json({
     request: {
       ...request,
-      additional_data: request.additional_data ? JSON.parse(request.additional_data) : null,
+      additional_data: addDataObj,
     },
     targetUnitHead,
+    targetUnitHeads,
     staffDetails,
     tasks: tasks || [],
     history: history || [],
@@ -1595,11 +1638,23 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
   const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
 
+  let additionalDataObj: any = {};
+  if (request.additional_data) {
+    try {
+      additionalDataObj = JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+
+  const targetUnits: string[] = Array.isArray(additionalDataObj?.target_units) ? additionalDataObj.target_units : (request.unit ? [request.unit] : []);
+  const targetUnitIds: number[] = Array.isArray(additionalDataObj?.target_unit_ids) ? additionalDataObj.target_unit_ids : (request.unit_id ? [Number(request.unit_id)] : []);
+
   const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
     (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
     (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
-    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim()) ||
+    userManagedUnitIds.some(mId => targetUnitIds.includes(mId)) ||
+    userManagedUnits.some(mUnit => targetUnits.some(tUnit => tUnit.toLowerCase().trim() === mUnit.toLowerCase().trim()))
   );
 
   if (request.status === 'manager_approval' || request.status === 'pending') {
@@ -1612,15 +1667,26 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     }
   }
 
+  // Update unit_assignments for the acting unit head
+  if (isInterUnit && additionalDataObj.unit_assignments) {
+    for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+      if (
+        userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+        (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim())
+      ) {
+        (uMeta as any).status = 'accepted';
+        (uMeta as any).head_id = user.id;
+        (uMeta as any).head_name = user.name;
+        if (Array.isArray(staff_ids)) {
+          (uMeta as any).assigned_staff_ids = staff_ids;
+        }
+      }
+    }
+  }
+
   const assignedStr = Array.isArray(staff_ids) ? staff_ids.join(',') : '';
 
   // Merge staff_tasks into additional_data
-  let additionalDataObj: any = {};
-  if (request.additional_data) {
-    try {
-      additionalDataObj = JSON.parse(request.additional_data);
-    } catch (e) {}
-  }
   if (staff_tasks && typeof staff_tasks === 'object') {
     additionalDataObj.staff_tasks = {
       ...(additionalDataObj.staff_tasks || {}),

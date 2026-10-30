@@ -70,6 +70,7 @@ export const JobRequestsList: React.FC = () => {
   const [interUnitTitle, setInterUnitTitle] = useState('');
   const [interUnitDescription, setInterUnitDescription] = useState('');
   const [interUnitTargetUnit, setInterUnitTargetUnit] = useState('');
+  const [interUnitTargetUnits, setInterUnitTargetUnits] = useState<string[]>([]);
   const [interUnitPriority, setInterUnitPriority] = useState('normal');
   const [interUnitStartDate, setInterUnitStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [interUnitDeadline, setInterUnitDeadline] = useState('');
@@ -224,8 +225,12 @@ export const JobRequestsList: React.FC = () => {
       setInterUnitError('Job title is required.');
       return;
     }
-    if (!interUnitTargetUnit) {
-      setInterUnitError('Please select a target unit.');
+    const finalTargetUnits = interUnitTargetUnits.length > 0
+      ? interUnitTargetUnits
+      : (interUnitTargetUnit ? [interUnitTargetUnit] : []);
+
+    if (finalTargetUnits.length === 0) {
+      setInterUnitError('Please select at least one target unit.');
       return;
     }
     setInterUnitSubmitting(true);
@@ -237,7 +242,8 @@ export const JobRequestsList: React.FC = () => {
         body: JSON.stringify({
           title: interUnitTitle.trim(),
           description: interUnitDescription.trim(),
-          target_unit: interUnitTargetUnit,
+          target_unit: finalTargetUnits[0],
+          target_units: finalTargetUnits,
           priority: interUnitPriority,
           start_date: interUnitStartDate,
           deadline: interUnitDeadline || null,
@@ -259,6 +265,7 @@ export const JobRequestsList: React.FC = () => {
         setInterUnitTitle('');
         setInterUnitDescription('');
         setInterUnitTargetUnit('');
+        setInterUnitTargetUnits([]);
         setInterUnitPriority('normal');
         setInterUnitOriginStaffId('');
         setInterUnitParentJobId('');
@@ -1389,18 +1396,20 @@ export const JobRequestsList: React.FC = () => {
                 </div>
               )}
 
-              {/* Target Unit Selector */}
+              {/* Target Units Selector (Multi-Select Chips) */}
               <div>
-                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                  Target Unit <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  required
-                  value={interUnitTargetUnit}
-                  onChange={(e) => setInterUnitTargetUnit(e.target.value)}
-                  className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
-                >
-                  <option value="">-- Select Target Unit --</option>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                    Target Unit(s) <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                    {interUnitTargetUnits.length === 0
+                      ? 'Select 1 or more'
+                      : `${interUnitTargetUnits.length} unit${interUnitTargetUnits.length > 1 ? 's' : ''} selected`}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2.5 bg-slate-50 border border-slate-200/90 rounded-2xl">
                   {unitsList
                     .filter((u: any) => {
                       const managedUnits: string[] = (user as any)?.managed_units || [];
@@ -1409,14 +1418,71 @@ export const JobRequestsList: React.FC = () => {
                       }
                       return !user?.unit || u.name?.toLowerCase().trim() !== user.unit.toLowerCase().trim();
                     })
-                    .map((u: any) => (
-                      <option key={u.id} value={u.name}>
-                        {u.name}
-                      </option>
+                    .map((u: any) => {
+                      const isSelected = interUnitTargetUnits.includes(u.name);
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              const updated = interUnitTargetUnits.filter((name) => name !== u.name);
+                              setInterUnitTargetUnits(updated);
+                              setInterUnitTargetUnit(updated[0] || '');
+                            } else {
+                              const updated = [...interUnitTargetUnits, u.name];
+                              setInterUnitTargetUnits(updated);
+                              setInterUnitTargetUnit(updated[0]);
+                            }
+                          }}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                            isSelected
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                              : 'bg-white border-slate-200/90 hover:border-indigo-300 text-slate-700 hover:bg-indigo-50/30'
+                          }`}
+                        >
+                          <span className="text-xs font-bold truncate pr-1">{u.name}</span>
+                          <span
+                            className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] shrink-0 border font-black ${
+                              isSelected
+                                ? 'bg-white text-indigo-700 border-white'
+                                : 'bg-slate-50 border-slate-300 text-transparent'
+                            }`}
+                          >
+                            ✓
+                          </span>
+                        </button>
+                      );
+                    })}
+                </div>
+
+                {interUnitTargetUnits.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Selected:</span>
+                    {interUnitTargetUnits.map((uName) => (
+                      <span
+                        key={uName}
+                        className="inline-flex items-center gap-1 text-[11px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full"
+                      >
+                        <span>{uName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = interUnitTargetUnits.filter((name) => name !== uName);
+                            setInterUnitTargetUnits(updated);
+                            setInterUnitTargetUnit(updated[0] || '');
+                          }}
+                          className="hover:text-rose-600 font-black ml-0.5"
+                        >
+                          ×
+                        </button>
+                      </span>
                     ))}
-                </select>
-                <p className="text-[10px] text-slate-400 font-medium mt-1">
-                  The request will be sent directly to the Unit Head of the chosen unit for review and acceptance.
+                  </div>
+                )}
+
+                <p className="text-[10px] text-slate-400 font-medium mt-1.5">
+                  The request will be sent to the Unit Head(s) of the chosen unit(s) for review, acceptance, and staff assignment.
                 </p>
               </div>
 

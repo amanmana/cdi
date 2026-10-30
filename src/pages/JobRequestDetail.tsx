@@ -694,6 +694,13 @@ export const JobRequestDetail: React.FC = () => {
   const userUnit = user?.unit?.toLowerCase().trim();
   const userUnitId = user?.unit_id ? Number(user.unit_id) : null;
 
+  const multiTargetUnits: string[] = Array.isArray(request?.additional_data?.target_units)
+    ? request.additional_data.target_units
+    : (reqUnit ? [reqUnit] : []);
+  const multiTargetUnitIds: number[] = Array.isArray(request?.additional_data?.target_unit_ids)
+    ? request.additional_data.target_unit_ids
+    : (reqUnitId ? [reqUnitId] : []);
+
   const isTargetUnitHead = Boolean(
     isInterUnitJob &&
     user?.is_unit_head &&
@@ -701,7 +708,10 @@ export const JobRequestDetail: React.FC = () => {
       (reqUnitId && managedUnitIds.includes(reqUnitId)) ||
       (reqUnit && managedUnits.some((u) => u.toLowerCase().trim() === reqUnit)) ||
       (reqUnitId && userUnitId && reqUnitId === userUnitId) ||
-      (reqUnit && userUnit && reqUnit === userUnit)
+      (reqUnit && userUnit && reqUnit === userUnit) ||
+      managedUnitIds.some((mId) => multiTargetUnitIds.includes(mId)) ||
+      managedUnits.some((mUnit) => multiTargetUnits.some((tUnit) => tUnit.toLowerCase().trim() === mUnit.toLowerCase().trim())) ||
+      (userUnit && multiTargetUnits.some((tUnit) => tUnit.toLowerCase().trim() === userUnit))
     )
   );
 
@@ -836,17 +846,30 @@ export const JobRequestDetail: React.FC = () => {
                 </div>
 
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <span className="text-[10px] font-black text-blue-200 uppercase tracking-wider block">Target Handling Unit</span>
-                  <div className="font-extrabold text-white mt-0.5">
-                    {request.unit}
-                    {(targetUnitHead?.name || request.additional_data?.target_unit_head_name) && (
-                      <span className="text-blue-100 font-semibold ml-1">
-                        ({targetUnitHead?.name || request.additional_data?.target_unit_head_name})
-                      </span>
+                  <span className="text-[10px] font-black text-blue-200 uppercase tracking-wider block">
+                    {multiTargetUnits.length > 1 ? 'Target Handling Units' : 'Target Handling Unit'}
+                  </span>
+                  <div className="font-extrabold text-white mt-0.5 flex flex-wrap items-center gap-1.5">
+                    {multiTargetUnits.length > 0 ? (
+                      multiTargetUnits.map((uName: string) => {
+                        const matchingHead = (data?.targetUnitHeads || []).find(
+                          (h: any) => h.unit?.toLowerCase().trim() === uName.toLowerCase().trim()
+                        ) || (targetUnitHead?.unit?.toLowerCase().trim() === uName.toLowerCase().trim() ? targetUnitHead : null);
+                        return (
+                          <span key={uName} className="inline-flex items-center gap-1 bg-white/15 px-2 py-0.5 rounded-lg">
+                            <span>{uName}</span>
+                            {matchingHead && (
+                              <span className="text-[10px] text-blue-200 font-semibold">({matchingHead.name})</span>
+                            )}
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span>{request.unit}</span>
                     )}
                   </div>
-                  <div className="text-[11px] text-blue-200">
-                    Reviewer: <strong>Target Unit Head{(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''}</strong>
+                  <div className="text-[11px] text-blue-200 mt-1">
+                    Reviewer: <strong>Target Unit Head{multiTargetUnits.length > 1 ? 's' : ''}</strong>
                   </div>
                 </div>
               </div>
@@ -1334,12 +1357,14 @@ export const JobRequestDetail: React.FC = () => {
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-1 my-2">
                 <div className="text-xs font-bold text-slate-700">
                   {isInterUnitJob
-                    ? `Awaiting Head Unit${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''} Approval`
+                    ? (multiTargetUnits.length > 1
+                        ? `Awaiting Target Unit Heads (${multiTargetUnits.join(', ')}) Review`
+                        : `Awaiting Head Unit${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''} Approval`)
                     : 'Awaiting Manager Approval'}
                 </div>
                 <div className="text-[11px] text-slate-400 font-medium">
                   {isInterUnitJob
-                    ? `Inter-Unit collaboration requests are reviewed and accepted exclusively by the Target Unit Head${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''}.`
+                    ? `Inter-Unit collaboration requests are reviewed and accepted by the designated Unit Head(s).`
                     : 'Online client job requests are reviewed and approved exclusively by Department Managers.'}
                 </div>
               </div>
