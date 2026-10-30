@@ -749,21 +749,45 @@ export const JobRequestsList: React.FC = () => {
                           )}
                         </div>
                         {/* Handoff Turn indicator for Inter-Unit jobs in progress */}
-                        {req.additional_data?.handoff && req.status === 'staff_processing' && (
+                        {(req.additional_data?.is_inter_unit || req.ticket_no?.startsWith("IU")) && (
                           <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                            {Number(req.additional_data.handoff.current_holder_id) === Number(user?.id) ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black animate-pulse">
-                                <span>⚡ YOUR ACTION REQUIRED</span>
-                                {req.additional_data.handoff.last_action === 'REVISION_REQUESTED' && (
-                                  <span className="bg-emerald-600 text-white text-[9px] px-1 rounded">Revision</span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold">
-                                <span>Turn: {req.additional_data.handoff.current_holder_name} ({req.additional_data.handoff.current_holder_unit || 'Unit'})</span>
-                              </span>
-                            )}
-                            {req.additional_data.handoff.last_note && (
+                            {(() => {
+                              const handoff = req.additional_data?.handoff;
+                              const originStaffId = req.additional_data?.origin_staff_id;
+                              const originStaffName = req.additional_data?.origin_staff_name || req.additional_data?.requester_name;
+                              const originStaffUnit = req.additional_data?.requester_unit || "Origin Unit";
+
+                              const holderId = handoff?.current_holder_id
+                                ? Number(handoff.current_holder_id)
+                                : (originStaffId ? Number(originStaffId) : null);
+                              const holderName = handoff?.current_holder_name || originStaffName || "Origin Staff";
+                              const holderUnit = handoff?.current_holder_unit || originStaffUnit;
+
+                              if (holderId && Number(user?.id) === holderId) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black animate-pulse">
+                                    <span>⚡ YOUR ACTION REQUIRED</span>
+                                    {handoff?.last_action === "REVISION_REQUESTED" && (
+                                      <span className="bg-emerald-600 text-white text-[9px] px-1 rounded">Revision</span>
+                                    )}
+                                    {(!handoff || handoff?.last_action === "INITIAL_DRAFTING") && (
+                                      <span className="bg-emerald-600 text-white text-[9px] px-1 rounded">Drafting</span>
+                                    )}
+                                  </span>
+                                );
+                              }
+
+                              if (holderId) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-50 text-sky-800 border border-sky-200 text-[10px] font-bold">
+                                    <span>⏳ WAITING FOR HANDOVER ({holderName} - {holderUnit})</span>
+                                  </span>
+                                );
+                              }
+
+                              return null;
+                            })()}
+                            {req.additional_data?.handoff?.last_note && (
                               <span className="text-[10px] text-slate-400 italic truncate max-w-xs" title={req.additional_data.handoff.last_note}>
                                 "{req.additional_data.handoff.last_note}"
                               </span>

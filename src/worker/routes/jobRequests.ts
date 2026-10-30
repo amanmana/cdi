@@ -1553,6 +1553,29 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
       ...staff_tasks,
     };
   }
+
+  // If this is an Inter-Unit job and handoff is not yet initialized, set initial turn to the Origin Staff (e.g. Azuin)
+  if (isInterUnit && !additionalDataObj.handoff) {
+    const originStaffId = additionalDataObj.origin_staff_id || additionalDataObj.requester_id;
+    const originStaffName = additionalDataObj.origin_staff_name || additionalDataObj.requester_name;
+    const originStaffUnit = additionalDataObj.requester_unit || '';
+
+    if (originStaffId) {
+      additionalDataObj.handoff = {
+        current_holder_id: originStaffId,
+        current_holder_name: originStaffName,
+        current_holder_unit: originStaffUnit,
+        last_action: 'INITIAL_DRAFTING',
+        last_actor_id: originStaffId,
+        last_actor_name: originStaffName,
+        last_actor_unit: originStaffUnit,
+        last_note: 'Initial drafting phase by origin unit staff.',
+        last_draft_url: '',
+        last_updated_at: new Date().toISOString(),
+      };
+    }
+  }
+
   const additionalDataStr = JSON.stringify(additionalDataObj);
 
   // Automatically set status to staff_processing when staff is assigned

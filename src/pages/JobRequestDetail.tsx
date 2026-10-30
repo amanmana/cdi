@@ -1280,24 +1280,41 @@ export const JobRequestDetail: React.FC = () => {
                                 <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
                                 Inter-Unit Turn
                               </span>
-                              {request.additional_data?.handoff?.current_holder_id ? (
-                                Number(request.additional_data?.handoff?.current_holder_id) === Number(user?.id) ? (
-                                  <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">
-                                    Your Turn
+                              {(() => {
+                                const handoff = request.additional_data?.handoff;
+                                const originStaffId = request.additional_data?.origin_staff_id;
+                                const originStaffName = request.additional_data?.origin_staff_name || request.additional_data?.requester_name;
+                                const originStaffUnit = request.additional_data?.requester_unit || 'Origin Unit';
+
+                                const holderId = handoff?.current_holder_id
+                                  ? Number(handoff.current_holder_id)
+                                  : (originStaffId ? Number(originStaffId) : null);
+                                const holderName = handoff?.current_holder_name || originStaffName || 'Origin Staff';
+                                const holderUnit = handoff?.current_holder_unit || originStaffUnit;
+
+                                if (holderId && Number(user?.id) === holderId) {
+                                  return (
+                                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                                      ⚡ Your Turn {handoff?.last_action === 'REVISION_REQUESTED' ? '(Revision)' : '(Drafting / Action)'}
+                                    </span>
+                                  );
+                                }
+                                if (holderId) {
+                                  return (
+                                    <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                                      ⏳ Waiting for Handover ({holderName} - {holderUnit})
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-bold">
+                                    Shared Active
                                   </span>
-                                ) : (
-                                  <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md font-bold">
-                                    With {request.additional_data?.handoff?.current_holder_name}
-                                  </span>
-                                )
-                              ) : (
-                                <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-bold">
-                                  Shared Active
-                                </span>
-                              )}
+                                );
+                              })()}
                             </div>
 
-                            {request.additional_data?.handoff?.last_note && (
+                            {request.additional_data?.handoff?.last_note ? (
                               <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs space-y-1">
                                 <div className="text-[10px] font-bold text-slate-400 uppercase">
                                   Latest Handoff / Request Note
@@ -1307,6 +1324,17 @@ export const JobRequestDetail: React.FC = () => {
                                 </div>
                                 <div className="text-[10px] text-slate-400">
                                   By {request.additional_data.handoff.last_actor_name} ({request.additional_data.handoff.last_actor_unit || 'Unit'})
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-2.5 bg-sky-50/70 border border-sky-100 rounded-xl text-xs space-y-1">
+                                <div className="text-[10px] font-bold text-sky-600 uppercase flex items-center gap-1">
+                                  <span>ℹ️ Collaboration Status</span>
+                                </div>
+                                <div className="text-slate-600 text-[11px] leading-relaxed">
+                                  {Number(user?.id) === Number(request.additional_data?.origin_staff_id)
+                                    ? "You have the initial turn to prepare materials or draft content. Once ready, click 'Hand Over' to pass it to the collaborating team member."
+                                    : `Waiting for ${request.additional_data?.origin_staff_name || 'the origin unit staff'} to draft initial materials and hand over the task.`}
                                 </div>
                               </div>
                             )}
