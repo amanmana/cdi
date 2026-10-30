@@ -466,18 +466,18 @@ export const JobRequestDetail: React.FC = () => {
           draft_url: handoffDraftUrl,
         }),
       });
-      const resData = await res.json();
-      if (resData.success) {
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok && resData.success) {
         setShowHandoffModal(false);
         setHandoffNote('');
         setHandoffDraftUrl('');
         fetchDetail();
       } else {
-        alert(resData.error || 'Failed to submit handoff.');
+        alert(resData.error || resData.message || `Failed to submit handoff (HTTP ${res.status}).`);
       }
-    } catch (err) {
-      console.error(err);
-      alert('Network error submitting handoff.');
+    } catch (err: any) {
+      console.error('Handoff error:', err);
+      alert(`Network/Client error submitting handoff: ${err?.message || err}`);
     } finally {
       setActionLoading(false);
     }
