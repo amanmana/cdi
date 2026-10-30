@@ -246,8 +246,15 @@ export const JobRequestsList: React.FC = () => {
           project_id: interUnitProjectId ? Number(interUnitProjectId) : null,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        data = { error: `HTTP ${res.status}: ${res.statusText}` };
+      }
+
+      if (res.ok && data.success) {
         setShowInterUnitModal(false);
         setInterUnitTitle('');
         setInterUnitDescription('');
@@ -259,11 +266,11 @@ export const JobRequestsList: React.FC = () => {
         setInterUnitDeadline('');
         fetchRequests();
       } else {
-        setInterUnitError(data.error || 'Failed to submit inter-unit request.');
+        setInterUnitError(data.error || `Error ${res.status}: Failed to submit request.`);
       }
     } catch (err: any) {
       console.error(err);
-      setInterUnitError('Network error while connecting to server.');
+      setInterUnitError('Network error: ' + (err?.message || 'Unable to connect to server.'));
     } finally {
       setInterUnitSubmitting(false);
     }

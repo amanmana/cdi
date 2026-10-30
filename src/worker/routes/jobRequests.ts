@@ -1052,122 +1052,127 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
 
 // POST /api/job-requests/inter-unit - Unit Head direct Inter-Unit Job Request
 jobRequestsRouter.post('/inter-unit', async (c) => {
-  const db = c.env.DB;
-  const user = c.get('user');
+  try {
+    const db = c.env.DB;
+    const user = c.get('user');
 
-  if (!user.is_unit_head && !['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
-    return c.json({ error: 'Unauthorized. Only Unit Heads, Managers, or Admins can submit Inter-Unit requests.' }, 403);
-  }
-
-  const {
-    title,
-    description,
-    target_unit,
-    priority,
-    start_date,
-    deadline,
-    origin_staff_id,
-    parent_job_id,
-    parent_ticket_no,
-    project_id,
-  } = await c.req.json();
-
-  if (!title || !title.trim()) {
-    return c.json({ error: 'Title is required.' }, 400);
-  }
-  if (!target_unit || !target_unit.trim()) {
-    return c.json({ error: 'Target unit is required.' }, 400);
-  }
-
-  // Lookup target unit
-  const unitRow = await db
-    .prepare('SELECT id, department_id, name, head_id FROM units WHERE name = ? OR CAST(id AS TEXT) = ?')
-    .bind(target_unit.trim(), target_unit.trim())
-    .first<any>();
-
-  if (!unitRow) {
-    return c.json({ error: 'Target unit not found.' }, 400);
-  }
-
-  // Lookup origin staff if selected (e.g. Azuin selected by Pat)
-  let originStaffName = '';
-  let initialAssignedStaffIds: string | null = null;
-  if (origin_staff_id) {
-    const originStaffRow = await db
-      .prepare('SELECT id, name, unit FROM users WHERE id = ?')
-      .bind(Number(origin_staff_id))
-      .first<{ id: number; name: string; unit: string }>();
-    if (originStaffRow) {
-      originStaffName = originStaffRow.name;
-      initialAssignedStaffIds = String(originStaffRow.id);
+    if (!user.is_unit_head && !['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
+      return c.json({ error: 'Unauthorized. Only Unit Heads, Managers, or Admins can submit Inter-Unit requests.' }, 403);
     }
+
+    const {
+      title,
+      description,
+      target_unit,
+      priority,
+      start_date,
+      deadline,
+      origin_staff_id,
+      parent_job_id,
+      parent_ticket_no,
+      project_id,
+    } = await c.req.json();
+
+    if (!title || !title.trim()) {
+      return c.json({ error: 'Title is required.' }, 400);
+    }
+    if (!target_unit || !target_unit.trim()) {
+      return c.json({ error: 'Target unit is required.' }, 400);
+    }
+
+    // Lookup target unit
+    const unitRow = await db
+      .prepare('SELECT id, department_id, name, head_id FROM units WHERE name = ? OR CAST(id AS TEXT) = ?')
+      .bind(target_unit.trim(), target_unit.trim())
+      .first<any>();
+
+    if (!unitRow) {
+      return c.json({ error: 'Target unit not found.' }, 400);
+    }
+
+    // Lookup origin staff if selected (e.g. Azuin selected by Pat)
+    let originStaffName = '';
+    let initialAssignedStaffIds: string | null = null;
+    if (origin_staff_id) {
+      const originStaffRow = await db
+        .prepare('SELECT id, name, unit FROM users WHERE id = ?')
+        .bind(Number(origin_staff_id))
+        .first<{ id: number; name: string; unit: string }>();
+      if (originStaffRow) {
+        originStaffName = originStaffRow.name;
+        initialAssignedStaffIds = String(originStaffRow.id);
+      }
+    }
+
+    const numbers = Math.floor(100000 + Math.random() * 900000).toString();
+    const ticketNo = 'IU' + numbers;
+
+    const additionalData = JSON.stringify({
+      is_inter_unit: true,
+      request_type: 'inter_unit',
+      requester_id: user.id,
+      requester_name: user.name,
+      requester_unit: user.unit,
+      requester_unit_id: user.unit_id,
+      origin_staff_id: origin_staff_id ? Number(origin_staff_id) : null,
+      origin_staff_name: originStaffName || null,
+      priority: priority || 'normal',
+      parent_job_id: parent_job_id || null,
+      parent_ticket_no: parent_ticket_no || null,
+    });
+
+    const clientName = `${user.name} (${user.unit || 'Unit Head'})`;
+
+    const res = await db
+      .prepare(
+        `INSERT INTO job_requests (
+          ticket_no, client_name, client_email, title, description,
+          unit, unit_id, department_id, status, current_step_name,
+          assigned_staff_ids, start_date, deadline, project_id, additional_data, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Unit Head Review & Acceptance', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      )
+      .bind(
+        ticketNo,
+        clientName,
+        user.email,
+        title.trim(),
+        description || '',
+        unitRow.name,
+        unitRow.id,
+        unitRow.department_id || null,
+        initialAssignedStaffIds,
+        start_date || new Date().toISOString().split('T')[0],
+        deadline || null,
+        project_id ? Number(project_id) : null,
+        additionalData
+      )
+      .run();
+
+    const requestId = res.meta.last_row_id as number;
+
+    await db
+      .prepare(
+        `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+         VALUES (?, 'INTER_UNIT_REQUEST', ?, ?, 'Direct Request', 'Unit Head Review & Acceptance', ?)`
+      )
+      .bind(
+        requestId,
+        user.id,
+        user.name,
+        `Submitted Inter-Unit Job Request from ${user.unit || 'Unit Head'} to ${unitRow.name}. Priority: ${(priority || 'normal').toUpperCase()}`
+      )
+      .run();
+
+    return c.json({
+      success: true,
+      message: 'Inter-Unit request submitted successfully.',
+      ticket_no: ticketNo,
+      id: requestId,
+    });
+  } catch (err: any) {
+    console.error('Error in /inter-unit:', err);
+    return c.json({ error: 'Failed to create inter-unit request: ' + (err?.message || String(err)) }, 500);
   }
-
-  const numbers = Math.floor(100000 + Math.random() * 900000).toString();
-  const ticketNo = 'IU' + numbers;
-
-  const additionalData = JSON.stringify({
-    is_inter_unit: true,
-    request_type: 'inter_unit',
-    requester_id: user.id,
-    requester_name: user.name,
-    requester_unit: user.unit,
-    requester_unit_id: user.unit_id,
-    origin_staff_id: origin_staff_id ? Number(origin_staff_id) : null,
-    origin_staff_name: originStaffName || null,
-    priority: priority || 'normal',
-    parent_job_id: parent_job_id || null,
-    parent_ticket_no: parent_ticket_no || null,
-  });
-
-  const clientName = `${user.name} (${user.unit || 'Unit Head'})`;
-
-  const res = await db
-    .prepare(
-      `INSERT INTO job_requests (
-        ticket_no, client_name, client_email, title, description,
-        unit, unit_id, department_id, status, current_step_name,
-        assigned_staff_ids, start_date, deadline, project_id, additional_data, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Unit Head Review & Acceptance', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-    )
-    .bind(
-      ticketNo,
-      clientName,
-      user.email,
-      title.trim(),
-      description || '',
-      unitRow.name,
-      unitRow.id,
-      unitRow.department_id || null,
-      initialAssignedStaffIds,
-      start_date || new Date().toISOString().split('T')[0],
-      deadline || null,
-      project_id ? Number(project_id) : null,
-      additionalData
-    )
-    .run();
-
-  const requestId = res.meta.last_row_id as number;
-
-  await db
-    .prepare(
-      `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
-       VALUES (?, 'INTER_UNIT_REQUEST', ?, ?, 'Direct Request', 'Unit Head Review & Acceptance', ?)`
-    )
-    .bind(
-      requestId,
-      user.id,
-      user.name,
-      `Submitted Inter-Unit Job Request from ${user.unit || 'Unit Head'} to ${unitRow.name}. Priority: ${(priority || 'normal').toUpperCase()}`
-    )
-    .run();
-
-  return c.json({
-    success: true,
-    message: 'Inter-Unit request submitted successfully.',
-    ticket_no: ticketNo,
-    id: requestId,
-  });
 });
 
 // GET /api/job-requests/:id - Single job request detail
