@@ -247,10 +247,17 @@ export const JobRequestDetail: React.FC = () => {
 
   const handleOpenApproveModal = () => {
     if (!startDate) {
-      setStartDate(new Date().toISOString().split('T')[0]);
+      setStartDate(request.start_date || new Date().toISOString().split('T')[0]);
     }
-    if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
+    if (!deadline && request.deadline) {
+      setDeadline(request.deadline);
+    }
+    if (isInterUnitJob && isTargetUnitHead && user?.unit) {
+      setStaffUnitFilter(user.unit);
+    } else if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
       setStaffUnitFilter('Head');
+    } else {
+      setStaffUnitFilter('All');
     }
     setShowApproveModal(true);
   };
@@ -270,15 +277,19 @@ export const JobRequestDetail: React.FC = () => {
     }
     setActionLoading(true);
     try {
-      // 1. Update assigned team (for Inter-Unit jobs, preserve origin staff if already assigned)
+      // 1. Update assigned team (for Inter-Unit jobs, preserve origin staff and all existing assigned staff)
       let combinedStaff = [...selectedStaff];
       if (request.additional_data?.origin_staff_id) {
         const oId = Number(request.additional_data.origin_staff_id);
         if (!combinedStaff.includes(oId)) {
           combinedStaff.push(oId);
         }
-      } else if (request.assigned_staff_ids) {
-        const existingIds = request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n));
+      }
+      if (request.assigned_staff_ids) {
+        const existingIds = String(request.assigned_staff_ids)
+          .split(',')
+          .map((s: string) => Number(s.trim()))
+          .filter((n: number) => !isNaN(n));
         existingIds.forEach((eid: number) => {
           if (!combinedStaff.includes(eid)) combinedStaff.push(eid);
         });
@@ -288,7 +299,10 @@ export const JobRequestDetail: React.FC = () => {
         await fetch(`/api/job-requests/${id}/update-team`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ staff_ids: combinedStaff }),
+          body: JSON.stringify({
+            staff_ids: combinedStaff,
+            staff_tasks: staffTasks,
+          }),
         });
       }
 
@@ -715,8 +729,22 @@ export const JobRequestDetail: React.FC = () => {
     )
   );
 
+  const userUnitAssignments = request?.additional_data?.unit_assignments || {};
+  const isUserUnitPending = Boolean(
+    isInterUnitJob &&
+    isTargetUnitHead &&
+    multiTargetUnits.some((uName: string) => {
+      const isUserUnit =
+        managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+        (userUnit && userUnit === uName.toLowerCase().trim());
+      if (!isUserUnit) return false;
+      const meta = userUnitAssignments[uName];
+      return !meta || meta.status !== 'accepted' || !Array.isArray(meta.assigned_staff_ids) || meta.assigned_staff_ids.length === 0;
+    })
+  );
+
   const renderStatusCapsule = (status: string) => {
-    if (status === 'manager_approval') {
+    if (status === 'manager_approval' || (isInterUnitJob && status === 'staff_processing' && multiTargetUnits.length > 1)) {
       if (isInterUnitJob) {
         // Multi-Unit Live Badges
         if (multiTargetUnits.length > 1) {
@@ -1005,18 +1033,23 @@ export const JobRequestDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* EDIT / INVITE Button */}
-                {(request.status === 'staff_processing') && (user?.role === 'admin' ||
+                {/* EDIT / INVITE / ASSIGN Button */}
+                {(request.status === 'staff_processing') && (
+                  user?.role === 'admin' ||
                   user?.role === 'manager' ||
                   user?.is_acting_manager ||
-                  (user?.role === 'staff' && !isUserDone)) && (
+                  (isInterUnitJob && isTargetUnitHead) ||
+                  (user?.role === 'staff' && !isUserDone)
+                ) && (
                   <button
                     type="button"
                     onClick={() => {
                       if (request.assigned_staff_ids) {
                         setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
                       }
-                      if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
+                      if (isInterUnitJob && isTargetUnitHead && user?.unit) {
+                        setStaffUnitFilter(user.unit);
+                      } else if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
                         setStaffUnitFilter('Head');
                       } else {
                         setStaffUnitFilter('All');
@@ -1025,7 +1058,14 @@ export const JobRequestDetail: React.FC = () => {
                     }}
                     className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-extrabold uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
                   >
-                    {user?.role === 'staff' && !user?.is_acting_manager ? (
+                    {isInterUnitJob && isTargetUnitHead ? (
+                      <>
+                        <Users className="w-3.5 h-3.5" />
+                        {isUserUnitPending
+                          ? `ASSIGN ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`
+                          : `MANAGE ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`}
+                      </>
+                    ) : user?.role === 'staff' && !user?.is_acting_manager ? (
                       <>
                         <UserPlus className="w-3.5 h-3.5" /> INVITE TEAM
                       </>
@@ -1438,6 +1478,47 @@ export const JobRequestDetail: React.FC = () => {
 
                 {request.status === 'staff_processing' && (
                   <>
+                    {/* Inter-Unit Target Unit Head Action (Assign staff if pending, or manage team) */}
+                    {isInterUnitJob && isTargetUnitHead && (
+                      <div className="space-y-2 mb-3">
+                        {isUserUnitPending ? (
+                          <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 space-y-3 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                              <span className="text-xs font-black text-amber-900 uppercase tracking-wider">
+                                {user?.unit ? `${user.unit.toUpperCase()} UNIT ASSIGNMENT PENDING` : 'UNIT ASSIGNMENT PENDING'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                              This inter-unit collaboration has been activated. Please assign your {user?.unit || ''} staff to participate in this project.
+                            </p>
+                            <button
+                              onClick={handleOpenApproveModal}
+                              disabled={actionLoading}
+                              className="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-600/20 uppercase tracking-wider gap-2 flex items-center justify-center transition-all"
+                            >
+                              <UserPlus className="w-4 h-4" /> ASSIGN {user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (request.assigned_staff_ids) {
+                                setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
+                              }
+                              if (user?.unit) {
+                                setStaffUnitFilter(user.unit);
+                              }
+                              setShowManageTeamModal(true);
+                            }}
+                            className="btn w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-2xl h-11 uppercase tracking-wider gap-2 flex items-center justify-center transition-all shadow-xs"
+                          >
+                            <Users className="w-4 h-4 text-blue-600" /> MANAGE {user?.unit ? user.unit.toUpperCase() : 'UNIT'} TEAM
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {selectedStaff.map(Number).includes(Number(user?.id)) && (
                       <div className="space-y-2">
                         {/* If Inter-Unit Collaboration, show the Agile Turn Indicator & Handoff Controls */}
@@ -2853,9 +2934,9 @@ export const JobRequestDetail: React.FC = () => {
                   const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === m.id);
                   const isAlreadyDone = projectStaffDetail?.is_done || false;
                   const isAlreadyAssigned = Boolean(request.assigned_staff_ids?.split(',').map(Number).includes(m.id));
-
-                  // For Staff role, lock staff who are already in the team from being removed
-                  const isLocked = (user?.role === 'staff' && !user?.is_acting_manager)
+                  // For regular staff, lock staff who are already in the team from being removed. Unit Heads can manage team.
+                  const isRegularStaff = user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head;
+                  const isLocked = isRegularStaff
                     ? (isSelfStaff || isAlreadyDone || isAlreadyAssigned)
                     : (isSelfStaff || isAlreadyDone);
 

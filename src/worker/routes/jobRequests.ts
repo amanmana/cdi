@@ -1437,11 +1437,24 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
   const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
 
+  let additionalDataObj: any = {};
+  if (request.additional_data) {
+    try {
+      additionalDataObj = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+
+  const targetUnits: string[] = Array.isArray(additionalDataObj?.target_units) ? additionalDataObj.target_units : (request.unit ? [request.unit] : []);
+  const targetUnitIds: number[] = Array.isArray(additionalDataObj?.target_unit_ids) ? additionalDataObj.target_unit_ids : (request.unit_id ? [Number(request.unit_id)] : []);
+
   const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
     (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
     (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
-    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim()) ||
+    userManagedUnitIds.some(mId => targetUnitIds.includes(mId)) ||
+    userManagedUnits.some(mUnit => targetUnits.some(tUnit => tUnit.toLowerCase().trim() === mUnit.toLowerCase().trim())) ||
+    (user.unit && targetUnits.some(tUnit => tUnit.toLowerCase().trim() === user.unit.toLowerCase().trim()))
   );
 
   if (isInterUnit) {
@@ -1456,9 +1469,26 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const newStepName = 'Staff Processing & Design';
   const fromStep = request.current_step_name || 'Manager Review';
 
-  await db.prepare(
-    'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-  ).bind(newStatus, newStepName, request.id).run();
+  // If this is an inter-unit job, mark the acting unit head's unit assignment as accepted
+  if (isInterUnit && additionalDataObj.unit_assignments) {
+    for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+      if (
+        userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+        (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim())
+      ) {
+        (uMeta as any).status = 'accepted';
+        (uMeta as any).head_id = user.id;
+        (uMeta as any).head_name = user.name;
+      }
+    }
+    await db.prepare(
+      'UPDATE job_requests SET status = ?, current_step_name = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(newStatus, newStepName, JSON.stringify(additionalDataObj), request.id).run();
+  } else {
+    await db.prepare(
+      'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(newStatus, newStepName, request.id).run();
+  }
 
   const approverTitle = isTargetUnitHead ? 'Unit Head' : 'Manager';
   await db.prepare(
@@ -1490,11 +1520,24 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
   const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
   const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
 
+  let additionalDataObj: any = {};
+  if (request.additional_data) {
+    try {
+      additionalDataObj = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+
+  const targetUnits: string[] = Array.isArray(additionalDataObj?.target_units) ? additionalDataObj.target_units : (request.unit ? [request.unit] : []);
+  const targetUnitIds: number[] = Array.isArray(additionalDataObj?.target_unit_ids) ? additionalDataObj.target_unit_ids : (request.unit_id ? [Number(request.unit_id)] : []);
+
   const isTargetUnitHead = isInterUnit && Boolean(user.is_unit_head) && (
     (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
     (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
-    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+    (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim()) ||
+    userManagedUnitIds.some(mId => targetUnitIds.includes(mId)) ||
+    userManagedUnits.some(mUnit => targetUnits.some(tUnit => tUnit.toLowerCase().trim() === mUnit.toLowerCase().trim())) ||
+    (user.unit && targetUnits.some(tUnit => tUnit.toLowerCase().trim() === user.unit.toLowerCase().trim()))
   );
 
   if (isInterUnit) {
@@ -1671,7 +1714,8 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
     (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim()) ||
     userManagedUnitIds.some(mId => targetUnitIds.includes(mId)) ||
-    userManagedUnits.some(mUnit => targetUnits.some(tUnit => tUnit.toLowerCase().trim() === mUnit.toLowerCase().trim()))
+    userManagedUnits.some(mUnit => targetUnits.some(tUnit => tUnit.toLowerCase().trim() === mUnit.toLowerCase().trim())) ||
+    (user.unit && targetUnits.some(tUnit => tUnit.toLowerCase().trim() === user.unit.toLowerCase().trim()))
   );
 
   if (request.status === 'manager_approval' || request.status === 'pending') {
@@ -1686,16 +1730,35 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
 
   // Update unit_assignments for the acting unit head
   if (isInterUnit && additionalDataObj.unit_assignments) {
+    let staffUnitMap: Record<number, string> = {};
+    if (Array.isArray(staff_ids) && staff_ids.length > 0) {
+      const placeholders = staff_ids.map(() => '?').join(',');
+      const { results: staffRows } = await db.prepare(
+        `SELECT id, unit FROM users WHERE id IN (${placeholders})`
+      ).bind(...staff_ids).all<{ id: number; unit: string }>();
+      (staffRows || []).forEach(r => {
+        if (r.unit) staffUnitMap[r.id] = r.unit.toLowerCase().trim();
+      });
+    }
+
     for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
-      if (
+      const isCurrentHeadUnit =
         userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
-        (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim())
-      ) {
+        (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim());
+
+      if (isCurrentHeadUnit) {
         (uMeta as any).status = 'accepted';
         (uMeta as any).head_id = user.id;
         (uMeta as any).head_name = user.name;
-        if (Array.isArray(staff_ids)) {
-          (uMeta as any).assigned_staff_ids = staff_ids;
+      }
+
+      if (Array.isArray(staff_ids)) {
+        const matchingStaffForThisUnit = staff_ids.filter((sid: number) => {
+          const u = staffUnitMap[sid];
+          return u && u === uName.toLowerCase().trim();
+        });
+        if (isCurrentHeadUnit || matchingStaffForThisUnit.length > 0) {
+          (uMeta as any).assigned_staff_ids = matchingStaffForThisUnit;
         }
       }
     }
