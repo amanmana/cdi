@@ -237,12 +237,25 @@ export const JobRequestDetail: React.FC = () => {
     }
     setActionLoading(true);
     try {
-      // 1. Update assigned team
-      if (selectedStaff.length > 0) {
+      // 1. Update assigned team (for Inter-Unit jobs, preserve origin staff if already assigned)
+      let combinedStaff = [...selectedStaff];
+      if (request.additional_data?.origin_staff_id) {
+        const oId = Number(request.additional_data.origin_staff_id);
+        if (!combinedStaff.includes(oId)) {
+          combinedStaff.push(oId);
+        }
+      } else if (request.assigned_staff_ids) {
+        const existingIds = request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n));
+        existingIds.forEach((eid: number) => {
+          if (!combinedStaff.includes(eid)) combinedStaff.push(eid);
+        });
+      }
+
+      if (combinedStaff.length > 0) {
         await fetch(`/api/job-requests/${id}/update-team`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ staff_ids: selectedStaff }),
+          body: JSON.stringify({ staff_ids: combinedStaff }),
         });
       }
 
@@ -2641,13 +2654,42 @@ export const JobRequestDetail: React.FC = () => {
                   className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
                 >
                   <option value="">-- Choose Collaborator --</option>
-                  {(data?.staffDetails || [])
-                    .filter((s: any) => Number(s.id) !== Number(user?.id))
-                    .map((s: any) => (
+                  {(() => {
+                    // 1. Gather other collaborators from staffDetails
+                    const others = (data?.staffDetails || []).filter((s: any) => Number(s.id) !== Number(user?.id));
+                    
+                    // 2. If inter-unit and others is empty, check origin_staff or requester from additional_data
+                    if (others.length === 0 && isInterUnitJob) {
+                      const addData = request.additional_data;
+                      if (addData?.origin_staff_id && Number(addData.origin_staff_id) !== Number(user?.id)) {
+                        others.push({
+                          id: addData.origin_staff_id,
+                          name: addData.origin_staff_name || 'Origin Unit Staff',
+                          unit: addData.requester_unit || 'Origin Unit',
+                        });
+                      } else if (addData?.requester_id && Number(addData.requester_id) !== Number(user?.id)) {
+                        others.push({
+                          id: addData.requester_id,
+                          name: addData.requester_name || 'Unit Head (Requester)',
+                          unit: addData.requester_unit || 'Origin Unit',
+                        });
+                      }
+                    }
+
+                    if (others.length === 0) {
+                      return (
+                        <option value="" disabled>
+                          -- No other collaborator assigned yet --
+                        </option>
+                      );
+                    }
+
+                    return others.map((s: any) => (
                       <option key={s.id} value={s.id}>
                         {s.name} ({s.unit || 'Assigned Staff'})
                       </option>
-                    ))}
+                    ));
+                  })()}
                 </select>
                 <p className="text-[10px] text-slate-400 font-medium mt-1">
                   The selected colleague will receive an action notification on their Dashboard under this project.

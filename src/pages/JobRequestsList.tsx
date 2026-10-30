@@ -73,6 +73,7 @@ export const JobRequestsList: React.FC = () => {
   const [interUnitPriority, setInterUnitPriority] = useState('normal');
   const [interUnitStartDate, setInterUnitStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [interUnitDeadline, setInterUnitDeadline] = useState('');
+  const [interUnitOriginStaffId, setInterUnitOriginStaffId] = useState<number | ''>('');
   const [interUnitParentJobId, setInterUnitParentJobId] = useState('');
   const [interUnitProjectId, setInterUnitProjectId] = useState<string>('');
   const [interUnitSubmitting, setInterUnitSubmitting] = useState(false);
@@ -240,6 +241,7 @@ export const JobRequestsList: React.FC = () => {
           priority: interUnitPriority,
           start_date: interUnitStartDate,
           deadline: interUnitDeadline || null,
+          origin_staff_id: interUnitOriginStaffId ? Number(interUnitOriginStaffId) : null,
           parent_job_id: interUnitParentJobId ? Number(interUnitParentJobId) : null,
           project_id: interUnitProjectId ? Number(interUnitProjectId) : null,
         }),
@@ -251,11 +253,10 @@ export const JobRequestsList: React.FC = () => {
         setInterUnitDescription('');
         setInterUnitTargetUnit('');
         setInterUnitPriority('normal');
+        setInterUnitOriginStaffId('');
         setInterUnitParentJobId('');
         setInterUnitProjectId('');
-        fetchRequests();
         setInterUnitDeadline('');
-        setInterUnitParentJobId('');
         fetchRequests();
       } else {
         setInterUnitError(data.error || 'Failed to submit inter-unit request.');
@@ -318,10 +319,10 @@ export const JobRequestsList: React.FC = () => {
   useEffect(() => {
     fetchRequests();
     fetchUnits();
-    if (isManagerOrAdmin) {
+    if (isManagerOrAdmin || user?.is_unit_head) {
       fetchTeam();
     }
-  }, [token, search]);
+  }, [token, search, user?.is_unit_head]);
 
   const handleOpenCreateModal = () => {
     setNewTitle('');
@@ -1376,6 +1377,34 @@ export const JobRequestsList: React.FC = () => {
                 </select>
                 <p className="text-[10px] text-slate-400 font-medium mt-1">
                   The request will be sent directly to the Unit Head of the chosen unit for review and acceptance.
+                </p>
+              </div>
+
+              {/* Origin Unit Staff Selection (Staff under requester's unit, e.g. Azuin under Pat) */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Assigned Staff from Your Unit ({user?.unit || 'Your Unit'})</span>
+                  <span className="text-[10px] text-slate-400 font-semibold lowercase">colleague handling this side</span>
+                </label>
+                <select
+                  value={interUnitOriginStaffId}
+                  onChange={(e) => setInterUnitOriginStaffId(e.target.value ? Number(e.target.value) : '')}
+                  className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                >
+                  <option value="">-- Select Staff from Your Unit (Optional / or Self) --</option>
+                  {staffMembers
+                    .filter((m: any) => {
+                      if (!user?.unit) return true;
+                      return m.unit?.toLowerCase().trim() === user.unit.toLowerCase().trim();
+                    })
+                    .map((m: any) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} {Boolean(m.is_unit_head) ? '(Unit Head)' : ''}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-slate-400 font-medium mt-1">
+                  Choose the staff member from your unit (e.g. Writer/Designer) who will collaborate on this task with the target unit.
                 </p>
               </div>
 

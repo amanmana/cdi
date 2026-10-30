@@ -1066,6 +1066,7 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
     priority,
     start_date,
     deadline,
+    origin_staff_id,
     parent_job_id,
     parent_ticket_no,
     project_id,
@@ -1088,6 +1089,20 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
     return c.json({ error: 'Target unit not found.' }, 400);
   }
 
+  // Lookup origin staff if selected (e.g. Azuin selected by Pat)
+  let originStaffName = '';
+  let initialAssignedStaffIds: string | null = null;
+  if (origin_staff_id) {
+    const originStaffRow = await db
+      .prepare('SELECT id, name, unit FROM users WHERE id = ?')
+      .bind(Number(origin_staff_id))
+      .first<{ id: number; name: string; unit: string }>();
+    if (originStaffRow) {
+      originStaffName = originStaffRow.name;
+      initialAssignedStaffIds = String(originStaffRow.id);
+    }
+  }
+
   const numbers = Math.floor(100000 + Math.random() * 900000).toString();
   const ticketNo = 'IU' + numbers;
 
@@ -1098,6 +1113,8 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
     requester_name: user.name,
     requester_unit: user.unit,
     requester_unit_id: user.unit_id,
+    origin_staff_id: origin_staff_id ? Number(origin_staff_id) : null,
+    origin_staff_name: originStaffName || null,
     priority: priority || 'normal',
     parent_job_id: parent_job_id || null,
     parent_ticket_no: parent_ticket_no || null,
@@ -1110,8 +1127,8 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
       `INSERT INTO job_requests (
         ticket_no, client_name, client_email, title, description,
         unit, unit_id, department_id, status, current_step_name,
-        start_date, deadline, project_id, additional_data, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Unit Head Review & Acceptance', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        assigned_staff_ids, start_date, deadline, project_id, additional_data, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Unit Head Review & Acceptance', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     )
     .bind(
       ticketNo,
@@ -1122,6 +1139,7 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
       unitRow.name,
       unitRow.id,
       unitRow.department_id || null,
+      initialAssignedStaffIds,
       start_date || new Date().toISOString().split('T')[0],
       deadline || null,
       project_id ? Number(project_id) : null,
