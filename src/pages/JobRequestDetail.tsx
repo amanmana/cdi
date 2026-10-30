@@ -753,6 +753,14 @@ export const JobRequestDetail: React.FC = () => {
 
   const isCollaboratingUnitHead = isTargetUnitHead || isRequesterUnitHead;
 
+  // True when the logged-in user is the origin staff of an Inter-Unit job
+  // (the person from the requester's unit who was assigned to do the requester-side work)
+  const isCurrentUserOriginStaff = Boolean(
+    isInterUnitJob &&
+    request?.additional_data?.origin_staff_id &&
+    Number(request.additional_data.origin_staff_id) === Number(user?.id)
+  );
+
   const userUnitAssignments = request?.additional_data?.unit_assignments || {};
   const isUserUnitPending = Boolean(
     isInterUnitJob &&
@@ -1469,12 +1477,50 @@ export const JobRequestDetail: React.FC = () => {
                     : 'Awaiting Manager Approval'}
                 </div>
                 <div className="text-[11px] text-slate-400 font-medium">
-                  {isInterUnitJob
+                  {isInterUnitJob && isCurrentUserOriginStaff
+                    ? `Target unit acceptance is pending — but you can start and finalize your own work portion independently.`
+                    : isInterUnitJob
                     ? `Inter-Unit collaboration requests are reviewed and accepted by the designated Unit Head(s).`
                     : 'Online client job requests are reviewed and approved exclusively by Department Managers.'}
                 </div>
               </div>
             )}
+
+            {/* Origin Staff Work Panel — shown during manager_approval for the inter-unit origin staff */}
+            {isInterUnitJob &&
+              request.status === 'manager_approval' &&
+              isCurrentUserOriginStaff && (
+                <div className="space-y-2 my-2">
+                  {isUserDone ? (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Your Part Finalized</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-700 font-medium leading-relaxed">
+                        You have completed your work portion. The target unit is still pending acceptance from their head.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200/80 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                        <span className="text-xs font-black text-blue-800 uppercase tracking-wider">Your Work Is Active</span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+                        Your own work portion can begin now — you don't need to wait for the target unit head to accept. Finalize your part whenever you're ready.
+                      </p>
+                      <button
+                        onClick={() => setShowMarkDoneModal(true)}
+                        disabled={actionLoading}
+                        className="btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-500/20 uppercase tracking-wider gap-2 flex items-center justify-center transition-all"
+                      >
+                        <CheckCircle2 className="w-4 h-4" /> Finalize My Part
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
             {/* Action Buttons & Oversight based on Role & Status */}
             {(canAct || user?.role === 'director' || user?.is_unit_head) && (
@@ -2075,8 +2121,8 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             )}
 
-            {/* Note / Report Section (Staff Page Only) */}
-            {user?.role === 'staff' && !user?.is_acting_manager && (
+            {/* Note / Report Section (Staff Page Only — also shown to Inter-Unit origin staff) */}
+            {(user?.role === 'staff' && !user?.is_acting_manager || isCurrentUserOriginStaff) && (
               <div className="space-y-3 pt-2">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">
                   NOTE / REPORT

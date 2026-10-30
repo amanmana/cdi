@@ -2060,7 +2060,16 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
     }
   }
 
-  if (allDone) {
+  // For Inter-Unit jobs still in manager_approval, never mark the whole job completed —
+  // the target unit staff haven't been assigned or worked yet.
+  const isInterUnitManagerApproval = Boolean(
+    request.status === 'manager_approval' &&
+    (request.ticket_no?.startsWith('IU') ||
+     request.request_type === 'inter_unit' ||
+     (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit'))))
+  );
+
+  if (allDone && !isInterUnitManagerApproval) {
     await db.prepare(`
       UPDATE job_requests SET status = 'completed', current_step_name = 'Completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(request.id).run();
