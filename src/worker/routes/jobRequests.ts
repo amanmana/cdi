@@ -1762,6 +1762,24 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
         }
       }
     }
+
+    // If the acting user is the requester unit head (e.g. Azni from Social Media), update origin_staff
+    const isRequesterHead =
+      (additionalDataObj.requester_id && Number(user.id) === Number(additionalDataObj.requester_id)) ||
+      (additionalDataObj.requester_unit && (
+        userManagedUnits.some(mu => mu.toLowerCase().trim() === additionalDataObj.requester_unit.toLowerCase().trim()) ||
+        (user.unit && user.unit.toLowerCase().trim() === additionalDataObj.requester_unit.toLowerCase().trim())
+      ));
+
+    if (isRequesterHead && Array.isArray(staff_ids)) {
+      const originStaffId = staff_ids.find((sid: number) => {
+        const u = staffUnitMap[sid];
+        return u && additionalDataObj.requester_unit && u === additionalDataObj.requester_unit.toLowerCase().trim();
+      });
+      if (originStaffId) {
+        additionalDataObj.origin_staff_id = originStaffId;
+      }
+    }
   }
 
   const assignedStr = Array.isArray(staff_ids) ? staff_ids.join(',') : '';

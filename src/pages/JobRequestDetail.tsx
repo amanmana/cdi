@@ -729,6 +729,20 @@ export const JobRequestDetail: React.FC = () => {
     )
   );
 
+  const requesterUnit = request?.additional_data?.requester_unit?.toLowerCase().trim();
+  const requesterId = request?.additional_data?.requester_id ? Number(request.additional_data.requester_id) : null;
+  const isRequesterUnitHead = Boolean(
+    isInterUnitJob &&
+    user?.is_unit_head &&
+    (
+      (requesterId && Number(user?.id) === requesterId) ||
+      (requesterUnit && userUnit && requesterUnit === userUnit) ||
+      (requesterUnit && managedUnits.some((u) => u.toLowerCase().trim() === requesterUnit))
+    )
+  );
+
+  const isCollaboratingUnitHead = isTargetUnitHead || isRequesterUnitHead;
+
   const userUnitAssignments = request?.additional_data?.unit_assignments || {};
   const isUserUnitPending = Boolean(
     isInterUnitJob &&
@@ -1038,7 +1052,7 @@ export const JobRequestDetail: React.FC = () => {
                   user?.role === 'admin' ||
                   user?.role === 'manager' ||
                   user?.is_acting_manager ||
-                  (isInterUnitJob && isTargetUnitHead) ||
+                  (isInterUnitJob && isCollaboratingUnitHead) ||
                   (user?.role === 'staff' && !isUserDone)
                 ) && (
                   <button
@@ -1047,7 +1061,7 @@ export const JobRequestDetail: React.FC = () => {
                       if (request.assigned_staff_ids) {
                         setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
                       }
-                      if (isInterUnitJob && isTargetUnitHead && user?.unit) {
+                      if (isInterUnitJob && isCollaboratingUnitHead && user?.unit) {
                         setStaffUnitFilter(user.unit);
                       } else if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
                         setStaffUnitFilter('Head');
@@ -1058,7 +1072,7 @@ export const JobRequestDetail: React.FC = () => {
                     }}
                     className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-extrabold uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
                   >
-                    {isInterUnitJob && isTargetUnitHead ? (
+                    {isInterUnitJob && isCollaboratingUnitHead ? (
                       <>
                         <Users className="w-3.5 h-3.5" />
                         {isUserUnitPending
@@ -1478,8 +1492,8 @@ export const JobRequestDetail: React.FC = () => {
 
                 {request.status === 'staff_processing' && (
                   <>
-                    {/* Inter-Unit Target Unit Head Action (Assign staff if pending, or manage team) */}
-                    {isInterUnitJob && isTargetUnitHead && (
+                    {/* Inter-Unit Collaborating Unit Head Action (Assign staff if pending, or manage team) */}
+                    {isInterUnitJob && isCollaboratingUnitHead && (
                       <div className="space-y-2 mb-3">
                         {isUserUnitPending ? (
                           <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 space-y-3 shadow-xs">
@@ -2814,12 +2828,16 @@ export const JobRequestDetail: React.FC = () => {
             {/* Title & Subtitle */}
             <div>
               <h3 className="text-xl font-bold text-slate-800 tracking-tight">
-                {user?.role === 'staff' && !user?.is_acting_manager ? 'Invite Team Members' : 'Manage Team Assignment'}
+                {isInterUnitJob && isCollaboratingUnitHead
+                  ? `Manage ${user?.unit || ''} Team Assignment`
+                  : (user?.role === 'staff' && !user?.is_acting_manager ? 'Invite Team Members' : 'Manage Team Assignment')}
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                {user?.role === 'staff' && !user?.is_acting_manager
-                  ? 'Invite staff members and specify tasks for this project.'
-                  : 'Add or remove staff assigned to this project and set tasks.'}
+                {isInterUnitJob && isCollaboratingUnitHead
+                  ? `Assign or update staff from ${user?.unit || 'your unit'} for this project.`
+                  : (user?.role === 'staff' && !user?.is_acting_manager
+                    ? 'Invite staff members and specify tasks for this project.'
+                    : 'Add or remove staff assigned to this project and set tasks.')}
               </p>
             </div>
 
