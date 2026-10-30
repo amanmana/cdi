@@ -142,6 +142,15 @@ export const ProjectsPage: React.FC = () => {
       alert('Please select at least one participating unit.');
       return;
     }
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (createDeadline && createDeadline < todayStr) {
+      alert('Target Completion Deadline cannot be earlier than today.');
+      return;
+    }
+    if (createStartDate && createDeadline && createDeadline < createStartDate) {
+      alert('Target Completion Deadline cannot be earlier than Start Date.');
+      return;
+    }
 
     setCreating(true);
     try {
@@ -591,6 +600,7 @@ export const ProjectsPage: React.FC = () => {
                   <input
                     type="date"
                     value={createDeadline}
+                    min={createStartDate && createStartDate > new Date().toISOString().split('T')[0] ? createStartDate : new Date().toISOString().split('T')[0]}
                     onChange={(e) => setCreateDeadline(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
                   />

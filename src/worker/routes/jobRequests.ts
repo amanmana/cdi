@@ -926,6 +926,14 @@ jobRequestsRouter.post('/create-internal', async (c) => {
     return c.json({ error: 'Title is required.' }, 400);
   }
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (deadline && String(deadline).trim() < todayStr) {
+    return c.json({ error: 'Target deadline cannot be in the past.' }, 400);
+  }
+  if (start_date && deadline && String(deadline).trim() < String(start_date).trim()) {
+    return c.json({ error: 'Target deadline cannot be earlier than start date.' }, 400);
+  }
+
   const targetUnit = unit || user.acting_manager_unit || user.unit || 'Graphic & Web';
   const numbers = Math.floor(100000 + Math.random() * 900000).toString();
   const ticketNo = 'INT' + numbers;
@@ -1147,6 +1155,14 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
 
     if (!title || !title.trim()) {
       return c.json({ error: 'Title is required.' }, 400);
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (deadline && String(deadline).trim() < todayStr) {
+      return c.json({ error: 'Target deadline cannot be in the past.' }, 400);
+    }
+    if (start_date && deadline && String(deadline).trim() < String(start_date).trim()) {
+      return c.json({ error: 'Target deadline cannot be earlier than start date.' }, 400);
     }
 
     const requestedUnitsList: string[] = Array.isArray(target_units) && target_units.length > 0
@@ -1904,6 +1920,14 @@ jobRequestsRouter.post('/:id/update-timeline', async (c) => {
   const user = c.get('user');
   const idParam = c.req.param('id');
   const { start_date, deadline, reason } = await c.req.json();
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (deadline && String(deadline).trim() < todayStr) {
+    return c.json({ error: 'Deadline cannot be earlier than today.' }, 400);
+  }
+  if (start_date && deadline && String(deadline).trim() < String(start_date).trim()) {
+    return c.json({ error: 'Deadline cannot be earlier than start date.' }, 400);
+  }
 
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);

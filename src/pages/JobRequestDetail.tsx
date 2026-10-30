@@ -271,6 +271,11 @@ export const JobRequestDetail: React.FC = () => {
       alert("Please set a deadline date before approving this request.");
       return;
     }
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (deadline < todayStr) {
+      alert("Deadline date cannot be earlier than today.");
+      return;
+    }
     if (startDate && deadline && deadline < startDate) {
       alert("Deadline date cannot be earlier than Start Date.");
       return;
@@ -390,6 +395,11 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   const handleSaveTimeline = async () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (deadline && deadline < todayStr) {
+      alert("Deadline date cannot be earlier than today.");
+      return;
+    }
     if (startDate && deadline && deadline < startDate) {
       alert("Deadline date cannot be earlier than Start Date.");
       return;
@@ -2571,10 +2581,10 @@ export const JobRequestDetail: React.FC = () => {
                 <input
                   type="date"
                   value={deadline}
-                  min={startDate}
+                  min={startDate && startDate > new Date().toISOString().split('T')[0] ? startDate : new Date().toISOString().split('T')[0]}
                   onChange={(e) => setDeadline(e.target.value)}
                   className={`w-full bg-white border rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none ${
-                    startDate && deadline && deadline < startDate
+                    (startDate && deadline && deadline < startDate) || (deadline && deadline < new Date().toISOString().split('T')[0])
                       ? 'border-rose-500 text-rose-600 focus:border-rose-600'
                       : 'border-slate-300 focus:border-blue-600'
                   }`}
@@ -3283,10 +3293,10 @@ export const JobRequestDetail: React.FC = () => {
                 <input
                   type="date"
                   value={deadline}
-                  min={startDate}
+                  min={startDate && startDate > new Date().toISOString().split('T')[0] ? startDate : new Date().toISOString().split('T')[0]}
                   onChange={(e) => setDeadline(e.target.value)}
                   className={`w-full bg-white border rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none ${
-                    startDate && deadline && deadline < startDate
+                    (startDate && deadline && deadline < startDate) || (deadline && deadline < new Date().toISOString().split('T')[0])
                       ? 'border-rose-500 text-rose-600 focus:border-rose-600'
                       : 'border-slate-300 focus:border-blue-600'
                   }`}

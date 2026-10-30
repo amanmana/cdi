@@ -233,6 +233,11 @@ export const JobRequestsList: React.FC = () => {
       setInterUnitError('Please select at least one target unit.');
       return;
     }
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (interUnitDeadline && interUnitDeadline < todayStr) {
+      setInterUnitError('Target deadline cannot be in the past (must be today or later).');
+      return;
+    }
     setInterUnitSubmitting(true);
     setInterUnitError('');
     try {
@@ -362,6 +367,11 @@ export const JobRequestsList: React.FC = () => {
     e.preventDefault();
     if (!newTitle.trim()) {
       alert('Please enter a project title.');
+      return;
+    }
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (newDeadline && newDeadline < todayStr) {
+      alert('Target deadline cannot be in the past (must be today or later).');
       return;
     }
 
@@ -1011,6 +1021,7 @@ export const JobRequestsList: React.FC = () => {
                     </label>
                     <input
                       type="date"
+                      min={newStartDate && newStartDate > new Date().toISOString().split('T')[0] ? newStartDate : new Date().toISOString().split('T')[0]}
                       value={newDeadline}
                       onChange={(e) => setNewDeadline(e.target.value)}
                       className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-blue-600"
@@ -1557,6 +1568,7 @@ export const JobRequestsList: React.FC = () => {
                   </label>
                   <input
                     type="date"
+                    min={new Date().toISOString().split('T')[0]}
                     value={interUnitDeadline}
                     onChange={(e) => setInterUnitDeadline(e.target.value)}
                     className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
