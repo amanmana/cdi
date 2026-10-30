@@ -2290,71 +2290,123 @@ export const JobRequestDetail: React.FC = () => {
         </div>
       )}
 
-      {/* MARK AS DONE CONFIRMATION MODAL matching Reference Image */}
+      {/* MARK AS DONE / FINALIZE CONFIRMATION MODAL */}
       {showMarkDoneModal && (
-        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-100 max-w-md w-full p-8 text-center space-y-6">
-            {/* Big Question Mark Circle Icon matching Reference Image */}
+        <div
+          className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowMarkDoneModal(false);
+          }}
+        >
+          <div className="relative bg-white rounded-[2rem] shadow-2xl border border-slate-100 max-w-md w-full p-8 text-center space-y-6">
+            {/* Top-Right Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowMarkDoneModal(false)}
+              className="absolute top-5 right-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-all shadow-xs"
+              title="Close window"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Question Mark Circle Icon */}
             <div className="flex justify-center pt-2">
-              <div className="w-20 h-20 rounded-full border-4 border-slate-300 flex items-center justify-center text-slate-400 font-light text-4xl leading-none">
+              <div className="w-20 h-20 rounded-full border-4 border-slate-200 bg-slate-50/70 flex items-center justify-center text-slate-400 font-light text-4xl leading-none shadow-inner">
                 ?
               </div>
             </div>
 
             {/* Title & Description */}
             <div className="space-y-2">
-              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">
                 {isInterUnitJob ? 'Finalize Without Handover?' : 'Mark as Done?'}
               </h3>
-              <p className="text-sm font-semibold text-slate-500 max-w-xs mx-auto leading-relaxed">
+              <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto leading-relaxed">
                 {isInterUnitJob
                   ? 'If your colleague is waiting for your draft or files, please use "Hand Over" instead. Only proceed here if you are completely ending your involvement.'
                   : 'This will notify the manager that your portion of the work is finished.'}
               </p>
             </div>
 
-            {/* Modal Action Buttons matching Reference Image */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              {isInterUnitJob && (
+            {/* Modal Action Buttons */}
+            {isInterUnitJob ? (
+              <div className="space-y-2.5 pt-2">
+                {/* Primary Action: Hand Over */}
                 <button
                   type="button"
                   onClick={() => {
                     setShowMarkDoneModal(false);
                     handleOpenHandoffModal('pass');
                   }}
-                  className="btn bg-indigo-600 hover:bg-indigo-700 border-none text-white font-extrabold text-xs rounded-2xl px-5 h-12 uppercase tracking-wider shadow-lg shadow-indigo-500/25 w-full sm:flex-1 gap-1.5"
+                  className="w-full group bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-extrabold text-xs py-3.5 px-4 rounded-2xl uppercase tracking-wider shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2"
                 >
-                  <ArrowLeftRight className="w-4 h-4" /> HAND OVER INSTEAD
+                  <ArrowLeftRight className="w-4 h-4 transition-transform group-hover:rotate-180 duration-300 shrink-0" />
+                  <span>Hand Over Work Instead</span>
                 </button>
-              )}
 
-              <button
-                type="button"
-                onClick={handleMarkMyPartDone}
-                disabled={actionLoading}
-                className={`btn ${
-                  isInterUnitJob
-                    ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/25'
-                } border-none font-extrabold text-xs rounded-2xl px-5 h-12 uppercase tracking-wider shadow-lg w-full sm:flex-1`}
-              >
-                {actionLoading ? <span className="loading loading-spinner"></span> : isInterUnitJob ? 'YES, FINALIZE ANYWAY' : 'YES, I AM DONE!'}
-              </button>
+                {/* Secondary Actions in 2-column grid */}
+                <div className="grid grid-cols-2 gap-2.5 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={handleMarkMyPartDone}
+                    disabled={actionLoading}
+                    className="w-full bg-slate-100 hover:bg-slate-200 active:scale-[0.99] text-slate-700 font-bold text-xs py-3 px-3 rounded-2xl transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    {actionLoading ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <span>Yes, Finalize Anyway</span>
+                    )}
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMarkDoneModal(false);
-                  if (user?.role === 'staff' && !user?.is_acting_manager) {
-                    const textarea = document.querySelector('textarea');
-                    if (textarea) textarea.focus();
-                  }
-                }}
-                className="btn bg-slate-100 hover:bg-slate-200 border-none text-slate-600 font-extrabold text-xs rounded-2xl px-4 h-12 uppercase tracking-wider flex-1"
-              >
-                {(user?.role === 'staff' && !user?.is_acting_manager) ? 'WAIT, LET ME ADD A NOTE' : 'CANCEL'}
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMarkDoneModal(false);
+                      if (user?.role === 'staff' && !user?.is_acting_manager) {
+                        const textarea = document.querySelector('textarea');
+                        if (textarea) textarea.focus();
+                      }
+                    }}
+                    className="w-full bg-white hover:bg-slate-50 border border-slate-200/90 active:scale-[0.99] text-slate-600 font-bold text-xs py-3 px-3 rounded-2xl transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    <span>{user?.role === 'staff' && !user?.is_acting_manager ? 'Add Note First' : 'Cancel'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleMarkMyPartDone}
+                  disabled={actionLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-extrabold text-xs py-3.5 px-4 rounded-2xl uppercase tracking-wider shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
+                >
+                  {actionLoading ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Yes, I Am Done!</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMarkDoneModal(false);
+                    if (user?.role === 'staff' && !user?.is_acting_manager) {
+                      const textarea = document.querySelector('textarea');
+                      if (textarea) textarea.focus();
+                    }
+                  }}
+                  className="w-full bg-slate-100 hover:bg-slate-200 active:scale-[0.99] text-slate-600 font-bold text-xs py-3.5 px-4 rounded-2xl uppercase tracking-wider transition-all flex items-center justify-center"
+                >
+                  <span>{user?.role === 'staff' && !user?.is_acting_manager ? 'Wait, Add Note' : 'Cancel'}</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
