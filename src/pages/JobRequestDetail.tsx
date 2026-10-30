@@ -427,12 +427,21 @@ export const JobRequestDetail: React.FC = () => {
     setHandoffNote('');
     setHandoffDraftUrl('');
 
-    // Pre-select first eligible other collaborator if any
+    // Pre-select first eligible other collaborator
     const otherCollaborators = (data?.staffDetails || []).filter(
       (s: any) => Number(s.id) !== Number(user?.id)
     );
     if (otherCollaborators.length > 0) {
       setHandoffTargetStaffId(Number(otherCollaborators[0].id));
+    } else if (isInterUnitJob) {
+      const addData = request.additional_data;
+      if (addData?.origin_staff_id && Number(addData.origin_staff_id) !== Number(user?.id)) {
+        setHandoffTargetStaffId(Number(addData.origin_staff_id));
+      } else if (addData?.requester_id && Number(addData.requester_id) !== Number(user?.id)) {
+        setHandoffTargetStaffId(Number(addData.requester_id));
+      } else {
+        setHandoffTargetStaffId('');
+      }
     } else {
       setHandoffTargetStaffId('');
     }
@@ -1333,72 +1342,60 @@ export const JobRequestDetail: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* Collaborative Action Buttons - Only enabled when it is user's active turn */}
+                              {/* Collaborative Action Buttons inside Turn Box - Only when active turn */}
                               {isUserTurn && (
-                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                <div className="space-y-2 pt-1">
                                   <button
                                     type="button"
                                     onClick={() => handleOpenHandoffModal('pass')}
                                     disabled={actionLoading}
-                                    className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] rounded-xl border-none shadow-sm gap-1.5 normal-case"
+                                    className="btn w-full bg-indigo-600 hover:bg-indigo-700 border-none text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md shadow-indigo-500/20 gap-2 flex items-center justify-center"
                                   >
-                                    <ArrowLeftRight className="w-3.5 h-3.5" /> Hand Over
+                                    <ArrowLeftRight className="w-4 h-4" /> HAND OVER WORK TO COLLABORATOR
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenHandoffModal('request_revision')}
-                                    disabled={actionLoading}
-                                    className="btn btn-sm bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
-                                  >
-                                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Request Check
-                                  </button>
+
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenHandoffModal('request_revision')}
+                                      disabled={actionLoading}
+                                      className="btn btn-sm flex-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                                    >
+                                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Request Check / Revision
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowMarkDoneModal(true)}
+                                      disabled={actionLoading}
+                                      className="btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                                      title="Finalize your involvement without handoff"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" /> Finalize My Part
+                                    </button>
+                                  </div>
                                 </div>
                               )}
                             </div>
                           );
                         })()}
 
-                        {data.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ? (
-                          /* PART COMPLETED Box matching Reference Image 1 & 2 */
-                          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-3xl p-6 text-center space-y-2 my-2">
-                            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
-                              <CheckCircle2 className="w-5.5 h-5.5 stroke-[2.5]" />
+                        {/* For Standard (non-inter-unit) jobs, show standard Mark My Part As Done */}
+                        {!isInterUnitJob && (
+                          data.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ? (
+                            /* PART COMPLETED Box matching Reference Image 1 & 2 */
+                            <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-3xl p-6 text-center space-y-2 my-2">
+                              <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
+                                <CheckCircle2 className="w-5.5 h-5.5 stroke-[2.5]" />
+                              </div>
+                              <div className="text-xs font-black text-emerald-800 tracking-wider uppercase">
+                                PART COMPLETED
+                              </div>
+                              <div className="text-xs font-semibold text-emerald-600 leading-relaxed">
+                                You have finalized your work for this project.
+                              </div>
                             </div>
-                            <div className="text-xs font-black text-emerald-800 tracking-wider uppercase">
-                              PART COMPLETED
-                            </div>
-                            <div className="text-xs font-semibold text-emerald-600 leading-relaxed">
-                              You have finalized your work for this project.
-                            </div>
-                          </div>
-                        ) : (() => {
-                          // For Inter-Unit jobs, only the active turn holder can mark part as done.
-                          if (isInterUnitJob) {
-                            const handoff = request.additional_data?.handoff;
-                            const originStaffId = request.additional_data?.origin_staff_id;
-                            const holderId = handoff?.current_holder_id
-                              ? Number(handoff.current_holder_id)
-                              : (originStaffId ? Number(originStaffId) : null);
-                            const isUserTurn = !holderId || Number(user?.id) === holderId;
-
-                            if (!isUserTurn) {
-                              return (
-                                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-center space-y-1.5 my-2">
-                                  <div className="text-slate-400 flex items-center justify-center">
-                                    <Clock className="w-5 h-5 stroke-[2]" />
-                                  </div>
-                                  <div className="text-xs font-black text-slate-600 uppercase tracking-wider">
-                                    Action Blocked (Waiting Handover)
-                                  </div>
-                                  <div className="text-[11px] text-slate-500">
-                                    You can finalize your part once the draft is handed over to you.
-                                  </div>
-                                </div>
-                              );
-                            }
-                          }
-
-                          return (
+                          ) : (
                             /* Bright Cyan MARK MY PART AS DONE button for Staff */
                             <button
                               type="button"
@@ -1408,8 +1405,21 @@ export const JobRequestDetail: React.FC = () => {
                             >
                               <CheckCircle2 className="w-4.5 h-4.5" /> MARK MY PART AS DONE
                             </button>
-                          );
-                        })()}
+                          )
+                        )}
+
+                        {/* If Inter-Unit staff already finalized their part */}
+                        {isInterUnitJob && data.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) && (
+                          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3 text-center space-y-1 my-1">
+                            <div className="text-[11px] font-black text-emerald-800 tracking-wider uppercase flex items-center justify-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span>Your Part Finalized</span>
+                            </div>
+                            <div className="text-[10px] text-emerald-600">
+                              You have marked your contribution as finalized for this project.
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -2114,22 +2124,41 @@ export const JobRequestDetail: React.FC = () => {
             {/* Title & Description */}
             <div className="space-y-2">
               <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-                Mark as Done?
+                {isInterUnitJob ? 'Finalize Without Handover?' : 'Mark as Done?'}
               </h3>
               <p className="text-sm font-semibold text-slate-500 max-w-xs mx-auto leading-relaxed">
-                This will notify the manager that your portion of the work is finished.
+                {isInterUnitJob
+                  ? 'If your colleague is waiting for your draft or files, please use "Hand Over" instead. Only proceed here if you are completely ending your involvement.'
+                  : 'This will notify the manager that your portion of the work is finished.'}
               </p>
             </div>
 
             {/* Modal Action Buttons matching Reference Image */}
-            <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              {isInterUnitJob && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMarkDoneModal(false);
+                    handleOpenHandoffModal('pass');
+                  }}
+                  className="btn bg-indigo-600 hover:bg-indigo-700 border-none text-white font-extrabold text-xs rounded-2xl px-5 h-12 uppercase tracking-wider shadow-lg shadow-indigo-500/25 w-full sm:flex-1 gap-1.5"
+                >
+                  <ArrowLeftRight className="w-4 h-4" /> HAND OVER INSTEAD
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleMarkMyPartDone}
                 disabled={actionLoading}
-                className="btn bg-blue-600 hover:bg-blue-700 border-none text-white font-extrabold text-xs rounded-2xl px-5 h-12 uppercase tracking-wider shadow-lg shadow-blue-500/25 flex-1"
+                className={`btn ${
+                  isInterUnitJob
+                    ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/25'
+                } border-none font-extrabold text-xs rounded-2xl px-5 h-12 uppercase tracking-wider shadow-lg w-full sm:flex-1`}
               >
-                {actionLoading ? <span className="loading loading-spinner"></span> : 'YES, I AM DONE!'}
+                {actionLoading ? <span className="loading loading-spinner"></span> : isInterUnitJob ? 'YES, FINALIZE ANYWAY' : 'YES, I AM DONE!'}
               </button>
 
               <button
