@@ -1285,9 +1285,27 @@ export const JobRequestDetail: React.FC = () => {
             )) &&
             !((user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && request.status === 'completed') && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4">
-              <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
-                <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                <span>Workflow Actions</span>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+                  {isInterUnitJob && request.status === 'staff_processing' ? (
+                    <>
+                      <ArrowLeftRight className="w-4 h-4 text-indigo-600" />
+                      <span>Collaboration Status</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                      <span>Workflow Actions</span>
+                    </>
+                  )}
+                </div>
+
+                {isInterUnitJob && request.status === 'staff_processing' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200/80">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    In Progress
+                  </span>
+                )}
               </div>
 
             {!(request.status === 'staff_processing' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) &&
@@ -1621,132 +1639,132 @@ export const JobRequestDetail: React.FC = () => {
                           }
 
                           return (
-                            <div className="space-y-3 pt-1">
-                              {/* Live Status Container */}
-                              <div className="bg-gradient-to-br from-indigo-50/70 via-white to-slate-50/60 border border-indigo-100/90 rounded-3xl p-4.5 space-y-3.5 shadow-xs">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
-                                    <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
-                                    Live Collaboration Status
-                                  </span>
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200/80">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                    In Progress
+                            <div className="space-y-4 pt-1">
+                              {/* Hero Turn Holder Spotlight */}
+                              <div className="rounded-2xl bg-gradient-to-br from-indigo-50/60 to-slate-50/80 border border-indigo-100/70 p-4 space-y-3 shadow-2xs">
+                                <div className="text-[10px] font-extrabold text-indigo-500 uppercase tracking-wider flex items-center justify-between">
+                                  <span>Sedang Diuruskan Oleh</span>
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-full">
+                                    Active Turn
                                   </span>
                                 </div>
 
-                                {/* Active Holder Card */}
-                                <div className="bg-white rounded-2xl p-3.5 border border-indigo-100/80 shadow-xs space-y-1.5">
-                                  <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                                    Sedang Diuruskan Oleh
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+                                    {holderName.charAt(0).toUpperCase()}
                                   </div>
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center shadow-xs">
-                                        {holderName.charAt(0).toUpperCase()}
-                                      </div>
-                                      <div>
-                                        <div className="text-sm font-black text-slate-900 leading-tight">
-                                          {holderName}
-                                        </div>
-                                        {holderUnit && (
-                                          <div className="text-[10px] font-bold text-indigo-600">
-                                            Unit: {holderUnit}
-                                          </div>
-                                        )}
-                                      </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-black text-slate-900 truncate">
+                                      {holderName}
                                     </div>
-                                    <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-2 py-0.5 rounded-full">
-                                      Active Turn
+                                    <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+                                      {holderUnit && <span>Unit: {holderUnit}</span>}
+                                      <span className="text-slate-300">•</span>
+                                      <span className="text-emerald-600 font-bold">Sedang Bertugas</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {handoff?.last_note && (
+                                  <div className="border-l-2 border-indigo-400 pl-3 py-1 bg-white/70 rounded-r-xl text-xs text-slate-700 space-y-0.5 shadow-2xs">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                                      Nota Serahan Terkini:
                                     </span>
+                                    <p className="italic font-medium text-slate-800 leading-snug">
+                                      "{handoff.last_note}"
+                                    </p>
                                   </div>
+                                )}
 
-                                  {handoff?.last_note && (
-                                    <div className="text-[11px] text-slate-600 font-medium bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 mt-2 space-y-1">
-                                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                                        Nota Serahan Terkini:
-                                      </div>
-                                      <p className="italic text-slate-700">"{handoff.last_note}"</p>
-                                    </div>
-                                  )}
-
-                                  {handoff?.last_draft_url && (
-                                    <div className="pt-1">
-                                      <a
-                                        href={handoff.last_draft_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
-                                      >
-                                        <ExternalLink className="w-3 h-3" /> Lihat Pautan Draf
-                                      </a>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Assigned Collaborators Quick Summary */}
-                                <div className="space-y-1.5 pt-0.5">
-                                  <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                                    Status Pasukan Projek
+                                {handoff?.last_draft_url && (
+                                  <div className="pt-0.5">
+                                    <a
+                                      href={handoff.last_draft_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" /> Lihat Pautan Draf Fail
+                                    </a>
                                   </div>
-                                  <div className="space-y-1.5">
-                                    {(data?.staffDetails || []).map((staff: any) => {
-                                      const isHolder = Number(staff.id) === holderId;
-                                      const isDone = staff.is_done;
-                                      return (
-                                        <div
-                                          key={staff.id}
-                                          className={`flex items-center justify-between p-2 rounded-xl border text-xs ${
-                                            isDone
-                                              ? 'bg-emerald-50/60 border-emerald-200/70 text-emerald-800'
-                                              : isHolder
-                                              ? 'bg-indigo-50/50 border-indigo-200/70 text-indigo-900 font-bold'
-                                              : 'bg-white border-slate-100 text-slate-600'
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <span
-                                              className="w-2 h-2 rounded-full shrink-0"
-                                              style={{
-                                                backgroundColor: isDone ? '#10b981' : isHolder ? '#6366f1' : '#94a3b8',
-                                              }}
-                                            />
-                                            <span className="font-bold">{staff.name}</span>
-                                            {staff.unit && (
-                                              <span className="text-[10px] text-slate-400">({staff.unit})</span>
-                                            )}
-                                          </div>
-                                          <span className="text-[10px] font-extrabold uppercase">
-                                            {isDone ? '✓ Selesai' : isHolder ? '⚡ Sedang Bertugas' : '⏳ Menunggu'}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-
-                                <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic border-t border-indigo-100/60 pt-2">
-                                  ℹ️ Projek ini akan bertukar ke status COMPLETED secara automatik sebaik sahaja semua staf selesai menekan "Finalize My Part".
-                                </p>
+                                )}
                               </div>
 
-                              {/* Subtle secondary administrative controls for manager (Pending / Cancel) */}
-                              <div className="flex items-center justify-between px-1 pt-1 text-[11px]">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                  Tindakan Luar Jangka:
+                              {/* Team Status Flow */}
+                              <div className="space-y-2">
+                                <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-0.5">
+                                  Status Pasukan Projek
+                                </div>
+                                <div className="space-y-1.5">
+                                  {(data?.staffDetails || []).map((staff: any) => {
+                                    const isHolder = Number(staff.id) === holderId;
+                                    const isDone = staff.is_done;
+                                    return (
+                                      <div
+                                        key={staff.id}
+                                        className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-slate-200/80 bg-slate-50/40 hover:bg-white transition-all text-xs"
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <div
+                                            className={`w-2 h-2 rounded-full shrink-0 ${
+                                              isDone
+                                                ? 'bg-emerald-500'
+                                                : isHolder
+                                                ? 'bg-indigo-600 ring-4 ring-indigo-100'
+                                                : 'bg-slate-300'
+                                            }`}
+                                          />
+                                          <span className="font-bold text-slate-800 truncate">{staff.name}</span>
+                                          {staff.unit && (
+                                            <span className="text-[10px] font-medium text-slate-400 shrink-0">
+                                              ({staff.unit})
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <span
+                                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                            isDone
+                                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                              : isHolder
+                                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/60 font-black'
+                                              : 'text-slate-400 bg-slate-100/60'
+                                          }`}
+                                        >
+                                          {isDone ? '✓ Selesai' : isHolder ? '⚡ Aktif' : 'Menunggu'}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Minimalist Info Banner */}
+                              <div className="flex items-start gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-[11px] text-slate-500 leading-relaxed">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                                <span>
+                                  Projek selesai secara automatik apabila semua staf klik <b>Finalize My Part</b>.
                                 </span>
-                                <div className="flex items-center gap-2">
+                              </div>
+
+                              {/* Clean Project Controls (Pending / Cancel) */}
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  Tindakan Luar Jangka
+                                </span>
+                                <div className="flex items-center gap-1.5">
                                   <button
                                     type="button"
                                     onClick={() => { setStatusReason(''); setShowStatusModal('on_hold'); }}
-                                    className="font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 border border-amber-200/70 shadow-2xs"
+                                    className="font-bold text-[11px] text-slate-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
                                   >
-                                    <Clock className="w-3 h-3 text-amber-600" /> Pending
+                                    <Clock className="w-3 h-3 text-amber-500" /> Pending
                                   </button>
+                                  <span className="text-slate-200">|</span>
                                   <button
                                     type="button"
                                     onClick={() => { setStatusReason(''); setShowStatusModal('cancelled'); }}
-                                    className="font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 border border-rose-200/70 shadow-2xs"
+                                    className="font-bold text-[11px] text-slate-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
                                   >
                                     <XCircle className="w-3 h-3 text-rose-500" /> Batal
                                   </button>
