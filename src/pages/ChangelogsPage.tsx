@@ -12,6 +12,19 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.10.0',
+    date: '2026-10-30',
+    items: [
+      'Feature: Inter-Unit Job Collaboration (Agile Peer Handoff) — Cross-unit staff can now iteratively hand off deliverables, draft files, and notes directly to one another without requiring Unit Head re-approval at every cycle.',
+      'Feature: Collaborative Handoff & Revision Loop — Introduced dedicated peer-to-peer actions: "Hand Over Work to Collaborator" and "Request Check / Revision" with real-time audit logging and turn notifications.',
+      'UX: Real-Time Turn Indicator & Waiting States — Dynamic turn indicators across Job Lists and Job Details clearly distinguish between active turn holders ("⚡ Your Turn - Action Required") and downstream collaborators ("⏳ Waiting for Handover").',
+      'UX: Action Guarding & Fail-Safe Controls — Downstream staff cannot prematurely mark jobs as done while waiting for upstream drafts; streamlined primary handoff buttons prevent accidental workflow termination.',
+      'Workflow: Intelligent Auto-Yield on Peer Completion — When a collaborator finalizes their portion (e.g., Graphic Designer completes visual layout), the turn automatically yields back to the pending team member with a prominent "Finalize & Complete My Part" action.',
+      'Feature: Unit Head Pre-Assignment in Inter-Unit Requests — Requesters can assign designated staff from their own unit directly upon ticket creation, populating origin staff automatically.',
+      'Fix: Inter-Unit Job Visibility for Assigned Staff — Adjusted database query filters so origin unit staff immediately see incoming cross-unit requests in their active workbench while awaiting target unit assignment.',
+    ],
+  },
+  {
     version: '1.9.1',
     date: '2026-10-29',
     items: [
