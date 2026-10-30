@@ -1106,8 +1106,9 @@ export const JobRequestDetail: React.FC = () => {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-black text-slate-900 truncate">{s.name}</div>
-                          <div className="text-[10px] font-semibold text-slate-400 truncate">{s.email}</div>
-
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
+                            {s.unit || 'General'}
+                          </div>
                         </div>
                       </div>
                       {s.is_done ? (
@@ -1181,7 +1182,9 @@ export const JobRequestDetail: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <div className="text-[10px] font-semibold text-slate-400 truncate">{s.email}</div>
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
+                              {s.unit || 'General'}
+                            </div>
                           </div>
                         </div>
 
@@ -2501,7 +2504,7 @@ export const JobRequestDetail: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <div className="text-[10px] text-slate-400 font-medium">{m.email}</div>
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{m.unit ? `${m.unit} Unit` : 'General Unit'}</div>
                           </div>
                         </div>
                         {m.unit && (
@@ -3009,7 +3012,7 @@ export const JobRequestDetail: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] font-semibold text-slate-400">{m.email}</div>
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{m.unit ? `${m.unit} Unit` : 'General Unit'}</div>
                         </div>
                       </div>
 
