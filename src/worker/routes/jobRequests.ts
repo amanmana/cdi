@@ -1986,4 +1986,36 @@ jobRequestsRouter.post('/:id/reset-dev', async (c) => {
   return c.json({ success: true, message: 'Request status reset to Pending Approval.' });
 });
 
+// DELETE /api/job-requests/:id - Delete a job request and its related dependencies
+jobRequestsRouter.delete('/:id', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const idParam = c.req.param('id');
+
+  if (!user || (!['admin', 'manager', 'director'].includes(user.role) && !user.is_acting_manager)) {
+    return c.json({ error: 'Unauthorized to delete job requests.' }, 403);
+  }
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) {
+    return c.json({ error: 'Job request not found.' }, 404);
+  }
+
+  const realId = request.id;
+
+  try {
+    await db.batch([
+      db.prepare('DELETE FROM job_tasks WHERE job_request_id = ?').bind(realId),
+      db.prepare('DELETE FROM staff_reports WHERE job_request_id = ?').bind(realId),
+      db.prepare('DELETE FROM workflow_logs WHERE job_request_id = ?').bind(realId),
+      db.prepare('DELETE FROM job_requests WHERE id = ?').bind(realId),
+    ]);
+
+    return c.json({ success: true, message: 'Job request deleted successfully.' });
+  } catch (err: any) {
+    console.error('Error deleting job request:', err);
+    return c.json({ error: `Failed to delete job request: ${err?.message || err}` }, 500);
+  }
+});
+
 export default jobRequestsRouter;

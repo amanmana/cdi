@@ -434,9 +434,12 @@ export const JobRequestsList: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         fetchRequests();
+      } else {
+        alert(data.error || 'Failed to delete job request.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(`Error deleting job request: ${err?.message || err}`);
     }
   };
 
