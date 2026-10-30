@@ -23,6 +23,8 @@ import {
   Wrench,
   Users,
   ArrowLeftRight,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
@@ -1369,63 +1371,100 @@ export const JobRequestDetail: React.FC = () => {
                           const isUserTurn = !holderId || Number(user?.id) === holderId;
 
                           return (
-                            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-left mb-2">
-                              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
-                                <span className="text-slate-500 flex items-center gap-1.5">
-                                  <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
-                                  Inter-Unit Turn
-                                </span>
+                            <div className="bg-slate-50/70 border border-slate-200/90 rounded-3xl p-4 space-y-3.5 text-left mb-3 shadow-xs">
+                              {/* Header: Turn pill */}
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                                    <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-500" />
+                                    Collaboration Turn
+                                  </span>
+                                  {holderId && Number(user?.id) === holderId ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                      Your Turn
+                                    </span>
+                                  ) : holderId ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/80">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                                      Waiting
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
+                                      Shared Active
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Active Turn Sub-Banner */}
                                 {holderId && Number(user?.id) === holderId ? (
-                                  <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
-                                    ⚡ Your Turn {collaboratorCompletedNotice ? '(Ready to Complete)' : handoff?.last_action === 'REVISION_REQUESTED' ? '(Revision)' : '(Drafting / Action)'}
-                                  </span>
+                                  <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200/70 flex items-start gap-2">
+                                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-xs font-black text-emerald-950">Active Action Required</div>
+                                      <div className="text-[11px] font-medium text-emerald-800 leading-snug">
+                                        {collaboratorCompletedNotice
+                                          ? 'Collaborator has finalized their part. Ready to finalize.'
+                                          : handoff?.last_action === 'REVISION_REQUESTED'
+                                          ? 'Revision requested — please review changes and update.'
+                                          : 'You hold the turn — prepare drafts and hand over when ready.'}
+                                      </div>
+                                    </div>
+                                  </div>
                                 ) : holderId ? (
-                                  <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
-                                    ⏳ Waiting for Handover ({holderName} - {holderUnit})
-                                  </span>
-                                ) : (
-                                  <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-bold">
-                                    Shared Active
-                                  </span>
-                                )}
+                                  <div className="p-2.5 rounded-2xl bg-white border border-slate-200/70 flex items-start gap-2">
+                                    <Clock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-xs font-bold text-slate-800">Waiting for Collaborator</div>
+                                      <div className="text-[11px] font-medium text-slate-500 leading-snug">
+                                        Currently with <strong className="text-slate-700">{holderName}</strong> ({holderUnit})
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : null}
                               </div>
 
+                              {/* Latest Note / History */}
                               {collaboratorCompletedNotice ? (
-                                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-1">
-                                  <div className="text-[10px] font-bold text-emerald-700 uppercase flex items-center gap-1">
+                                <div className="p-3 bg-white border border-emerald-200 rounded-2xl space-y-1">
+                                  <div className="text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                    <span>Collaborator Completed Work</span>
+                                    <span>Collaborator Finalized</span>
                                   </div>
-                                  <div className="text-emerald-800 text-[11px] leading-relaxed font-medium">
-                                    {finishedCollaborators.map((s: any) => s.name).join(', ')} has finalized their part. If no further revisions are needed, you can now finalize your part to complete this project.
+                                  <div className="text-slate-600 text-xs leading-relaxed font-medium">
+                                    {finishedCollaborators.map((s: any) => s.name).join(', ')} has marked their portion as complete.
                                   </div>
                                 </div>
                               ) : request.additional_data?.handoff?.last_note ? (
-                                <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs space-y-1">
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase">
-                                    Latest Handoff / Request Note
+                                <div className="p-3 bg-white border border-slate-200/80 rounded-2xl space-y-1.5">
+                                  <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                                    <span className="flex items-center gap-1">
+                                      <MessageSquare className="w-3 h-3 text-indigo-500" />
+                                      Latest Note
+                                    </span>
+                                    <span className="text-slate-600 lowercase font-medium">
+                                      {request.additional_data.handoff.last_actor_name} ({request.additional_data.handoff.last_actor_unit || 'Unit'})
+                                    </span>
                                   </div>
-                                  <div className="text-slate-700 font-medium italic">
+                                  <p className="text-xs text-slate-800 font-medium italic leading-relaxed pl-2.5 border-l-2 border-indigo-500">
                                     "{request.additional_data.handoff.last_note}"
-                                  </div>
-                                  <div className="text-[10px] text-slate-400">
-                                    By {request.additional_data.handoff.last_actor_name} ({request.additional_data.handoff.last_actor_unit || 'Unit'})
-                                  </div>
+                                  </p>
+                                  {request.additional_data.handoff.last_draft_url && (
+                                    <div className="pt-1">
+                                      <a
+                                        href={request.additional_data.handoff.last_draft_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                      >
+                                        <ExternalLink className="w-3 h-3" /> View Shared Draft
+                                      </a>
+                                    </div>
+                                  )}
                                 </div>
-                              ) : (
-                                <div className="p-2.5 bg-sky-50/70 border border-sky-100 rounded-xl text-xs space-y-1">
-                                  <div className="text-[10px] font-bold text-sky-600 uppercase flex items-center gap-1">
-                                    <span>ℹ️ Collaboration Status</span>
-                                  </div>
-                                  <div className="text-slate-600 text-[11px] leading-relaxed">
-                                    {Number(user?.id) === Number(request.additional_data?.origin_staff_id)
-                                      ? "You have the initial turn to prepare materials or draft content. Once ready, click 'Hand Over' to pass it to the collaborating team member."
-                                      : `Waiting for ${request.additional_data?.origin_staff_name || 'the origin unit staff'} to draft initial materials and hand over the task.`}
-                                  </div>
-                                </div>
-                              )}
+                              ) : null}
 
-                              {/* Collaborative Action Buttons inside Turn Box - Only when active turn */}
+                              {/* Collaborative Action Buttons - Clean, spacious & designer-ready */}
                               {isUserTurn && (
                                 <div className="space-y-2 pt-1">
                                   {collaboratorCompletedNotice ? (
@@ -1434,48 +1473,54 @@ export const JobRequestDetail: React.FC = () => {
                                         type="button"
                                         onClick={() => setShowMarkDoneModal(true)}
                                         disabled={actionLoading}
-                                        className="btn w-full bg-emerald-600 hover:bg-emerald-700 border-none text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md shadow-emerald-500/20 gap-2 flex items-center justify-center"
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-extrabold text-xs py-3 px-4 rounded-2xl uppercase tracking-wider shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
                                       >
-                                        <CheckCircle2 className="w-4.5 h-4.5" /> FINALIZE & COMPLETE MY PART
+                                        <CheckCircle2 className="w-4 h-4" /> FINALIZE & COMPLETE MY PART
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => handleOpenHandoffModal('request_revision')}
                                         disabled={actionLoading}
-                                        className="btn btn-sm w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                                        className="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 font-bold text-xs py-2.5 px-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xs"
                                       >
-                                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Need Changes? Request Check / Revision
+                                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" /> Need Changes? Request Revision
                                       </button>
                                     </>
                                   ) : (
                                     <>
+                                      {/* Primary Hand Over Button */}
                                       <button
                                         type="button"
                                         onClick={() => handleOpenHandoffModal('pass')}
                                         disabled={actionLoading}
-                                        className="btn w-full bg-indigo-600 hover:bg-indigo-700 border-none text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md shadow-indigo-500/20 gap-2 flex items-center justify-center"
+                                        className="w-full group bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-extrabold text-xs py-3 px-4 rounded-2xl uppercase tracking-wider shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-2"
                                       >
-                                        <ArrowLeftRight className="w-4 h-4" /> HAND OVER WORK TO COLLABORATOR
+                                        <ArrowLeftRight className="w-4 h-4 transition-transform group-hover:rotate-180 duration-300" />
+                                        <span>Hand Over to Collaborator</span>
                                       </button>
 
-                                      <div className="flex items-center gap-2">
+                                      {/* Secondary Actions Grid */}
+                                      <div className="grid grid-cols-2 gap-2 pt-0.5">
                                         <button
                                           type="button"
                                           onClick={() => handleOpenHandoffModal('request_revision')}
                                           disabled={actionLoading}
-                                          className="btn btn-sm flex-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                                          className="w-full bg-amber-50/80 hover:bg-amber-100 text-amber-900 border border-amber-200/90 font-bold text-[11px] py-2.5 px-2 rounded-2xl transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                                          title="Request changes from collaborator"
                                         >
-                                          <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Request Check / Revision
+                                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                          <span className="truncate">Request Revision</span>
                                         </button>
 
                                         <button
                                           type="button"
                                           onClick={() => setShowMarkDoneModal(true)}
                                           disabled={actionLoading}
-                                          className="btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
-                                          title="Finalize your involvement without handoff"
+                                          className="w-full bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 font-bold text-[11px] py-2.5 px-2 rounded-2xl transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                                          title="Finalize your involvement directly"
                                         >
-                                          <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" /> Finalize My Part
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                          <span className="truncate">Finalize My Part</span>
                                         </button>
                                       </div>
                                     </>
