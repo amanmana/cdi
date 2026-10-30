@@ -1288,11 +1288,30 @@ export const JobRequestDetail: React.FC = () => {
                           const originStaffName = request.additional_data?.origin_staff_name || request.additional_data?.requester_name;
                           const originStaffUnit = request.additional_data?.requester_unit || 'Origin Unit';
 
-                          const holderId = handoff?.current_holder_id
+                          let holderId = handoff?.current_holder_id
                             ? Number(handoff.current_holder_id)
                             : (originStaffId ? Number(originStaffId) : null);
-                          const holderName = handoff?.current_holder_name || originStaffName || 'Origin Staff';
-                          const holderUnit = handoff?.current_holder_unit || originStaffUnit;
+                          let holderName = handoff?.current_holder_name || originStaffName || 'Origin Staff';
+                          let holderUnit = handoff?.current_holder_unit || originStaffUnit;
+
+                          // Check who has finished
+                          const finishedCollaborators = (data?.staffDetails || []).filter((s: any) => s.is_done);
+                          const pendingCollaborators = (data?.staffDetails || []).filter((s: any) => !s.is_done);
+                          const isHolderFinished = finishedCollaborators.some((s: any) => Number(s.id) === holderId);
+
+                          // If the designated holder has already completed their part (e.g. Johan completed),
+                          // the active turn naturally passes back to the pending collaborator(s) (e.g. Azuin)
+                          let collaboratorCompletedNotice = false;
+                          if (isHolderFinished && pendingCollaborators.length > 0) {
+                            collaboratorCompletedNotice = true;
+                            // Set holder to current user if they are among pending collaborators
+                            if (pendingCollaborators.some((s: any) => Number(s.id) === Number(user?.id))) {
+                              holderId = Number(user?.id);
+                              holderName = user?.name || 'You';
+                              holderUnit = user?.unit || '';
+                            }
+                          }
+
                           const isUserTurn = !holderId || Number(user?.id) === holderId;
 
                           return (
@@ -1304,7 +1323,7 @@ export const JobRequestDetail: React.FC = () => {
                                 </span>
                                 {holderId && Number(user?.id) === holderId ? (
                                   <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
-                                    ⚡ Your Turn {handoff?.last_action === 'REVISION_REQUESTED' ? '(Revision)' : '(Drafting / Action)'}
+                                    ⚡ Your Turn {collaboratorCompletedNotice ? '(Ready to Complete)' : handoff?.last_action === 'REVISION_REQUESTED' ? '(Revision)' : '(Drafting / Action)'}
                                   </span>
                                 ) : holderId ? (
                                   <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
@@ -1317,7 +1336,17 @@ export const JobRequestDetail: React.FC = () => {
                                 )}
                               </div>
 
-                              {request.additional_data?.handoff?.last_note ? (
+                              {collaboratorCompletedNotice ? (
+                                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-1">
+                                  <div className="text-[10px] font-bold text-emerald-700 uppercase flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Collaborator Completed Work</span>
+                                  </div>
+                                  <div className="text-emerald-800 text-[11px] leading-relaxed font-medium">
+                                    {finishedCollaborators.map((s: any) => s.name).join(', ')} has finalized their part. If no further revisions are needed, you can now finalize your part to complete this project.
+                                  </div>
+                                </div>
+                              ) : request.additional_data?.handoff?.last_note ? (
                                 <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs space-y-1">
                                   <div className="text-[10px] font-bold text-slate-400 uppercase">
                                     Latest Handoff / Request Note
@@ -1345,35 +1374,58 @@ export const JobRequestDetail: React.FC = () => {
                               {/* Collaborative Action Buttons inside Turn Box - Only when active turn */}
                               {isUserTurn && (
                                 <div className="space-y-2 pt-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenHandoffModal('pass')}
-                                    disabled={actionLoading}
-                                    className="btn w-full bg-indigo-600 hover:bg-indigo-700 border-none text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md shadow-indigo-500/20 gap-2 flex items-center justify-center"
-                                  >
-                                    <ArrowLeftRight className="w-4 h-4" /> HAND OVER WORK TO COLLABORATOR
-                                  </button>
+                                  {collaboratorCompletedNotice ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowMarkDoneModal(true)}
+                                        disabled={actionLoading}
+                                        className="btn w-full bg-emerald-600 hover:bg-emerald-700 border-none text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md shadow-emerald-500/20 gap-2 flex items-center justify-center"
+                                      >
+                                        <CheckCircle2 className="w-4.5 h-4.5" /> FINALIZE & COMPLETE MY PART
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenHandoffModal('request_revision')}
+                                        disabled={actionLoading}
+                                        className="btn btn-sm w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                                      >
+                                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Need Changes? Request Check / Revision
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenHandoffModal('pass')}
+                                        disabled={actionLoading}
+                                        className="btn w-full bg-indigo-600 hover:bg-indigo-700 border-none text-white font-extrabold text-xs rounded-2xl h-11 uppercase tracking-wider shadow-md shadow-indigo-500/20 gap-2 flex items-center justify-center"
+                                      >
+                                        <ArrowLeftRight className="w-4 h-4" /> HAND OVER WORK TO COLLABORATOR
+                                      </button>
 
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenHandoffModal('request_revision')}
-                                      disabled={actionLoading}
-                                      className="btn btn-sm flex-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
-                                    >
-                                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Request Check / Revision
-                                    </button>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenHandoffModal('request_revision')}
+                                          disabled={actionLoading}
+                                          className="btn btn-sm flex-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                                        >
+                                          <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Request Check / Revision
+                                        </button>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowMarkDoneModal(true)}
-                                      disabled={actionLoading}
-                                      className="btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
-                                      title="Finalize your involvement without handoff"
-                                    >
-                                      <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" /> Finalize My Part
-                                    </button>
-                                  </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setShowMarkDoneModal(true)}
+                                          disabled={actionLoading}
+                                          className="btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                                          title="Finalize your involvement without handoff"
+                                        >
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" /> Finalize My Part
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               )}
                             </div>
