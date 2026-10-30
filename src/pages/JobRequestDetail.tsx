@@ -722,7 +722,7 @@ export const JobRequestDetail: React.FC = () => {
         if (multiTargetUnits.length > 1) {
           const unitAssignments = request.additional_data?.unit_assignments || {};
           return (
-            <div className="flex flex-wrap items-center gap-2 justify-end">
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
               {multiTargetUnits.map((uName: string) => {
                 const uMeta = unitAssignments[uName];
                 const matchingHead = (data?.targetUnitHeads || []).find(
@@ -734,7 +734,7 @@ export const JobRequestDetail: React.FC = () => {
                 return (
                   <span
                     key={uName}
-                    className={`inline-flex items-center gap-1.5 font-black uppercase text-[11px] px-3 py-1.5 rounded-xl tracking-wider shadow-xs border transition-all ${
+                    className={`inline-flex items-center gap-1.5 font-black uppercase text-[11px] px-3 py-1 rounded-xl tracking-wider shadow-2xs border transition-all whitespace-nowrap ${
                       isAccepted
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                         : 'bg-teal-700 text-white border-teal-600'
@@ -926,11 +926,13 @@ export const JobRequestDetail: React.FC = () => {
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 space-y-6">
             {/* Top Title & Status Capsule Row */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="text-xs font-extrabold text-blue-600 uppercase tracking-wider mb-1">
                   REQUEST #{request.ticket_no}
                 </div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">{request.title}</h1>
+                <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight break-words">
+                  {request.title}
+                </h1>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <span className="text-xs font-bold text-slate-500">INTERNAL ID: #{request.id}</span>
                   <span className="text-slate-300">•</span>
@@ -941,7 +943,7 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {/* Status Capsule Badge & Progress Indicator matching Reference Image */}
-              <div className="flex items-center gap-5 shrink-0">
+              <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
                 <div className="relative flex items-center justify-center w-14 h-14 shrink-0">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 50 50">
                     {/* Track circle */}
