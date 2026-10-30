@@ -1273,93 +1273,90 @@ export const JobRequestDetail: React.FC = () => {
                     {selectedStaff.map(Number).includes(Number(user?.id)) && (
                       <div className="space-y-2">
                         {/* If Inter-Unit Collaboration, show the Agile Turn Indicator & Handoff Controls */}
-                        {isInterUnitJob && (
-                          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-left mb-2">
-                            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
-                              <span className="text-slate-500 flex items-center gap-1.5">
-                                <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
-                                Inter-Unit Turn
-                              </span>
-                              {(() => {
-                                const handoff = request.additional_data?.handoff;
-                                const originStaffId = request.additional_data?.origin_staff_id;
-                                const originStaffName = request.additional_data?.origin_staff_name || request.additional_data?.requester_name;
-                                const originStaffUnit = request.additional_data?.requester_unit || 'Origin Unit';
+                        {isInterUnitJob && (() => {
+                          const handoff = request.additional_data?.handoff;
+                          const originStaffId = request.additional_data?.origin_staff_id;
+                          const originStaffName = request.additional_data?.origin_staff_name || request.additional_data?.requester_name;
+                          const originStaffUnit = request.additional_data?.requester_unit || 'Origin Unit';
 
-                                const holderId = handoff?.current_holder_id
-                                  ? Number(handoff.current_holder_id)
-                                  : (originStaffId ? Number(originStaffId) : null);
-                                const holderName = handoff?.current_holder_name || originStaffName || 'Origin Staff';
-                                const holderUnit = handoff?.current_holder_unit || originStaffUnit;
+                          const holderId = handoff?.current_holder_id
+                            ? Number(handoff.current_holder_id)
+                            : (originStaffId ? Number(originStaffId) : null);
+                          const holderName = handoff?.current_holder_name || originStaffName || 'Origin Staff';
+                          const holderUnit = handoff?.current_holder_unit || originStaffUnit;
+                          const isUserTurn = !holderId || Number(user?.id) === holderId;
 
-                                if (holderId && Number(user?.id) === holderId) {
-                                  return (
-                                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
-                                      ⚡ Your Turn {handoff?.last_action === 'REVISION_REQUESTED' ? '(Revision)' : '(Drafting / Action)'}
-                                    </span>
-                                  );
-                                }
-                                if (holderId) {
-                                  return (
-                                    <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
-                                      ⏳ Waiting for Handover ({holderName} - {holderUnit})
-                                    </span>
-                                  );
-                                }
-                                return (
+                          return (
+                            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-left mb-2">
+                              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
+                                <span className="text-slate-500 flex items-center gap-1.5">
+                                  <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
+                                  Inter-Unit Turn
+                                </span>
+                                {holderId && Number(user?.id) === holderId ? (
+                                  <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                                    ⚡ Your Turn {handoff?.last_action === 'REVISION_REQUESTED' ? '(Revision)' : '(Drafting / Action)'}
+                                  </span>
+                                ) : holderId ? (
+                                  <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                                    ⏳ Waiting for Handover ({holderName} - {holderUnit})
+                                  </span>
+                                ) : (
                                   <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-bold">
                                     Shared Active
                                   </span>
-                                );
-                              })()}
-                            </div>
-
-                            {request.additional_data?.handoff?.last_note ? (
-                              <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs space-y-1">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase">
-                                  Latest Handoff / Request Note
-                                </div>
-                                <div className="text-slate-700 font-medium italic">
-                                  "{request.additional_data.handoff.last_note}"
-                                </div>
-                                <div className="text-[10px] text-slate-400">
-                                  By {request.additional_data.handoff.last_actor_name} ({request.additional_data.handoff.last_actor_unit || 'Unit'})
-                                </div>
+                                )}
                               </div>
-                            ) : (
-                              <div className="p-2.5 bg-sky-50/70 border border-sky-100 rounded-xl text-xs space-y-1">
-                                <div className="text-[10px] font-bold text-sky-600 uppercase flex items-center gap-1">
-                                  <span>ℹ️ Collaboration Status</span>
-                                </div>
-                                <div className="text-slate-600 text-[11px] leading-relaxed">
-                                  {Number(user?.id) === Number(request.additional_data?.origin_staff_id)
-                                    ? "You have the initial turn to prepare materials or draft content. Once ready, click 'Hand Over' to pass it to the collaborating team member."
-                                    : `Waiting for ${request.additional_data?.origin_staff_name || 'the origin unit staff'} to draft initial materials and hand over the task.`}
-                                </div>
-                              </div>
-                            )}
 
-                            {/* Collaborative Action Buttons */}
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenHandoffModal('pass')}
-                                disabled={actionLoading}
-                                className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] rounded-xl border-none shadow-sm gap-1.5 normal-case"
-                              >
-                                <ArrowLeftRight className="w-3.5 h-3.5" /> Hand Over
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenHandoffModal('request_revision')}
-                                disabled={actionLoading}
-                                className="btn btn-sm bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
-                              >
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Request Check
-                              </button>
+                              {request.additional_data?.handoff?.last_note ? (
+                                <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs space-y-1">
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase">
+                                    Latest Handoff / Request Note
+                                  </div>
+                                  <div className="text-slate-700 font-medium italic">
+                                    "{request.additional_data.handoff.last_note}"
+                                  </div>
+                                  <div className="text-[10px] text-slate-400">
+                                    By {request.additional_data.handoff.last_actor_name} ({request.additional_data.handoff.last_actor_unit || 'Unit'})
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="p-2.5 bg-sky-50/70 border border-sky-100 rounded-xl text-xs space-y-1">
+                                  <div className="text-[10px] font-bold text-sky-600 uppercase flex items-center gap-1">
+                                    <span>ℹ️ Collaboration Status</span>
+                                  </div>
+                                  <div className="text-slate-600 text-[11px] leading-relaxed">
+                                    {Number(user?.id) === Number(request.additional_data?.origin_staff_id)
+                                      ? "You have the initial turn to prepare materials or draft content. Once ready, click 'Hand Over' to pass it to the collaborating team member."
+                                      : `Waiting for ${request.additional_data?.origin_staff_name || 'the origin unit staff'} to draft initial materials and hand over the task.`}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Collaborative Action Buttons - Only enabled when it is user's active turn */}
+                              {isUserTurn && (
+                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenHandoffModal('pass')}
+                                    disabled={actionLoading}
+                                    className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] rounded-xl border-none shadow-sm gap-1.5 normal-case"
+                                  >
+                                    <ArrowLeftRight className="w-3.5 h-3.5" /> Hand Over
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenHandoffModal('request_revision')}
+                                    disabled={actionLoading}
+                                    className="btn btn-sm bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] rounded-xl shadow-sm gap-1.5 normal-case"
+                                  >
+                                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Request Check
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {data.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) ? (
                           /* PART COMPLETED Box matching Reference Image 1 & 2 */
@@ -1374,17 +1371,45 @@ export const JobRequestDetail: React.FC = () => {
                               You have finalized your work for this project.
                             </div>
                           </div>
-                        ) : (
-                          /* Bright Cyan MARK MY PART AS DONE button for Staff */
-                          <button
-                            type="button"
-                            onClick={() => setShowMarkDoneModal(true)}
-                            disabled={actionLoading}
-                            className="btn w-full bg-sky-400 hover:bg-sky-500 border-none text-white font-extrabold text-xs rounded-2xl h-12 uppercase tracking-wider shadow-lg shadow-sky-400/25 gap-2"
-                          >
-                            <CheckCircle2 className="w-4.5 h-4.5" /> MARK MY PART AS DONE
-                          </button>
-                        )}
+                        ) : (() => {
+                          // For Inter-Unit jobs, only the active turn holder can mark part as done.
+                          if (isInterUnitJob) {
+                            const handoff = request.additional_data?.handoff;
+                            const originStaffId = request.additional_data?.origin_staff_id;
+                            const holderId = handoff?.current_holder_id
+                              ? Number(handoff.current_holder_id)
+                              : (originStaffId ? Number(originStaffId) : null);
+                            const isUserTurn = !holderId || Number(user?.id) === holderId;
+
+                            if (!isUserTurn) {
+                              return (
+                                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-center space-y-1.5 my-2">
+                                  <div className="text-slate-400 flex items-center justify-center">
+                                    <Clock className="w-5 h-5 stroke-[2]" />
+                                  </div>
+                                  <div className="text-xs font-black text-slate-600 uppercase tracking-wider">
+                                    Action Blocked (Waiting Handover)
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">
+                                    You can finalize your part once the draft is handed over to you.
+                                  </div>
+                                </div>
+                              );
+                            }
+                          }
+
+                          return (
+                            /* Bright Cyan MARK MY PART AS DONE button for Staff */
+                            <button
+                              type="button"
+                              onClick={() => setShowMarkDoneModal(true)}
+                              disabled={actionLoading}
+                              className="btn w-full bg-sky-400 hover:bg-sky-500 border-none text-white font-extrabold text-xs rounded-2xl h-12 uppercase tracking-wider shadow-lg shadow-sky-400/25 gap-2"
+                            >
+                              <CheckCircle2 className="w-4.5 h-4.5" /> MARK MY PART AS DONE
+                            </button>
+                          );
+                        })()}
                       </div>
                     )}
 
