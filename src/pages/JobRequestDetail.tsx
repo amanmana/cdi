@@ -1051,7 +1051,7 @@ export const JobRequestDetail: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                        TEAM ASSIGNMENT & STATUS
+                        TEAM ASSIGNMENT & TASKS
                       </h3>
                       {data.staffDetails && data.staffDetails.length > 0 && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-50 text-blue-700">
@@ -1060,7 +1060,7 @@ export const JobRequestDetail: React.FC = () => {
                       )}
                     </div>
                     <span className="text-[11px] text-slate-400 font-medium">
-                      Assigned staff team working on this project
+                      Assigned staff team working on this project & task responsibilities
                     </span>
                   </div>
                 </div>
@@ -1111,61 +1111,6 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {data.staffDetails && data.staffDetails.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  {data.staffDetails.map((s: any) => (
-                    <div key={s.id} className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/70 flex items-center justify-between shadow-xs">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-white text-slate-800 font-black text-xs flex items-center justify-center border border-slate-200 shrink-0 shadow-inner overflow-hidden">
-                          {s.avatar_url ? (
-                            <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
-                          ) : (
-                            s.name.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-black text-slate-900 truncate">{s.name}</div>
-                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                            {s.unit || 'General'}
-                          </div>
-                        </div>
-                      </div>
-                      {s.is_done ? (
-                        <span className="badge bg-emerald-500 text-white font-extrabold text-[9px] uppercase px-3 py-2 rounded-xl border-none tracking-wider shrink-0 gap-1 shadow-xs">
-                          ✓ DONE
-                        </span>
-                      ) : (
-                        <span className="badge bg-white text-slate-500 font-extrabold text-[9px] uppercase px-3 py-2 border border-slate-200/80 tracking-wider shrink-0">
-                          PENDING
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-center text-xs text-slate-400 font-semibold italic">
-                  ● No staff assigned yet
-                </div>
-              )}
-            </div>
-
-            {/* Dedicated STAFF TASKS Card (Hidden for Client role) */}
-            {user?.role !== 'client' && (
-              <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/80 shadow-md shadow-slate-100 space-y-4">
-              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3.5">
-                <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 shadow-inner">
-                  <ListTodo className="w-4.5 h-4.5" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    STAFF TASKS
-                  </h3>
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    Individual task assignments for team members
-                  </span>
-                </div>
-              </div>
-
-              {data.staffDetails && data.staffDetails.length > 0 ? (
                 <div className="space-y-2.5 pt-1">
                   {data.staffDetails.map((s: any) => {
                     const tText = staffTasks[s.id];
@@ -1173,16 +1118,17 @@ export const JobRequestDetail: React.FC = () => {
                     return (
                       <div
                         key={s.id}
-                        className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-all ${
+                        className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                           isSelf
-                            ? 'bg-blue-50/90 border-blue-300 ring-2 ring-blue-500/15 shadow-sm'
+                            ? 'bg-blue-50/80 border-blue-300 ring-2 ring-blue-500/15 shadow-sm'
                             : 'bg-slate-50/80 border-slate-200/70 shadow-xs'
                         }`}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        {/* Staff Profile & Task */}
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
                           <div
-                            className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 overflow-hidden ${
-                              isSelf ? 'bg-blue-600 text-white shadow-sm' : 'bg-indigo-100 text-indigo-700'
+                            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl font-black text-xs flex items-center justify-center shrink-0 overflow-hidden shadow-inner ${
+                              isSelf ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-800 border border-slate-200'
                             }`}
                           >
                             {s.avatar_url ? (
@@ -1191,29 +1137,45 @@ export const JobRequestDetail: React.FC = () => {
                               s.name.charAt(0).toUpperCase()
                             )}
                           </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-black text-slate-900 flex items-center gap-1.5 truncate">
-                              <span>{s.name}</span>
+
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-xs font-black text-slate-900 truncate">{s.name}</span>
                               {isSelf && (
                                 <span className="bg-blue-600 text-white font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-md tracking-wider">
                                   YOU
                                 </span>
                               )}
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                • {s.unit || 'General'}
+                              </span>
                             </div>
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                              {s.unit || 'General'}
+
+                            {/* Task Description */}
+                            <div className="text-xs leading-relaxed">
+                              {tText ? (
+                                <span className={`font-semibold ${isSelf ? 'text-blue-950 font-bold' : 'text-slate-700'}`}>
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mr-1.5">Task:</span>
+                                  {tText}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-medium text-slate-400 italic">
+                                  No specific task assigned
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
 
-                        <div className="sm:text-right">
-                          {tText ? (
-                            <span className={`text-xs font-bold ${isSelf ? 'text-blue-950 font-extrabold' : 'text-slate-800'}`}>
-                              {tText}
+                        {/* Status Badge */}
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60">
+                          {s.is_done ? (
+                            <span className="badge bg-emerald-500 text-white font-extrabold text-[10px] uppercase px-3 py-2.5 rounded-xl border-none tracking-wider gap-1 shadow-xs">
+                              ✓ DONE
                             </span>
                           ) : (
-                            <span className="text-[11px] font-semibold text-slate-400 italic">
-                              No specific task assigned
+                            <span className="badge bg-white text-slate-500 font-extrabold text-[10px] uppercase px-3 py-2.5 border border-slate-200/80 tracking-wider">
+                              PENDING
                             </span>
                           )}
                         </div>
@@ -1227,7 +1189,6 @@ export const JobRequestDetail: React.FC = () => {
                 </div>
               )}
             </div>
-            )}
 
             {/* Client Info Soft Box */}
             <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
