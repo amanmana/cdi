@@ -2202,6 +2202,33 @@ jobRequestsRouter.post('/:id/respond-assistance', async (c) => {
       VALUES (?, 'ASSISTANCE_DECLINED', ?, ?, ?, datetime('now', '+8 hours'))
     `).bind(request.id, user.id, user.name, logComment).run();
 
+    // Send email notification to requester (Rihan)
+    try {
+      const requesterUser = await db.prepare('SELECT email, name FROM users WHERE id = ?').bind(astReq.requester_id).first<{ email: string; name: string }>();
+      if (requesterUser?.email) {
+        const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
+        await sendGmail({
+          to: requesterUser.email,
+          subject: `[Assistance Declined] #${request.ticket_no} - Support request from ${astReq.target_unit}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
+              <h2 style="color: #e11d48; margin-top: 0;">Cross-Unit Assistance Declined</h2>
+              <p>Hello <strong>${requesterUser.name}</strong>,</p>
+              <p>Your cross-unit assistance request for <strong>#${request.ticket_no} - ${request.title}</strong> has been declined by <strong>${user.name}</strong> (Head of ${astReq.target_unit}).</p>
+              <div style="background-color: #fff1f2; border-left: 4px solid #e11d48; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+                <p style="margin: 0 0 6px 0; color: #9f1239;"><strong>Reason for Decline:</strong></p>
+                <p style="margin: 0; color: #4c0519; font-style: italic;">"${astReq.decline_reason}"</p>
+              </div>
+              <p style="color: #64748b; font-size: 13px;">You may review this project, discuss alternative arrangements with your unit head/manager, or request assistance from another unit if needed.</p>
+              <a href="${origin}/portal/job-requests/${request.id}" style="display: inline-block; padding: 10px 20px; background-color: #475569; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">View Project Ticket</a>
+            </div>
+          `,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to dispatch assistance decline email:', e);
+    }
+
     return c.json({ success: true, message: 'Assistance request declined.' });
   }
 });
