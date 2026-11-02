@@ -19,7 +19,11 @@ export const Sidebar: React.FC = () => {
     { to: '/portal/backup', label: 'Backup & Restore', icon: <HardDrive className="w-5 h-5" />, roles: ['admin'] },
   ];
 
-  const allowedLinks = links.filter((link) => user && link.roles.includes(user.role));
+  const allowedLinks = links.filter((link) => {
+    if (!user) return false;
+    if (link.to === '/portal/dashboard' && user.is_unit_head) return true;
+    return link.roles.includes(user.role);
+  });
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 min-h-[calc(100vh-4.25rem)] p-5 hidden md:block shrink-0">

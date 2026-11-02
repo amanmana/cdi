@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban } from 'lucide-react';
+import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus } from 'lucide-react';
 
 export const JobRequestsList: React.FC = () => {
   const { token, user } = useAuth();
@@ -613,6 +613,58 @@ export const JobRequestsList: React.FC = () => {
         </div>
       </div>
 
+      {/* Pending Cross-Unit Assistance Requests Alert Banner */}
+      {(() => {
+        const pendingAssistanceJobs = requests.filter((r) => {
+          const astList = Array.isArray(r.additional_data?.assistance_requests)
+            ? r.additional_data.assistance_requests
+            : [];
+          return astList.some((ast: any) => {
+            if (ast.status !== 'pending') return false;
+            if (user?.role === 'admin' || user?.role === 'director' || user?.role === 'manager' || user?.is_acting_manager) return true;
+            if (ast.head_id && Number(user?.id) === Number(ast.head_id)) return true;
+            if (user?.is_unit_head && user?.unit && user.unit.toLowerCase().trim() === ast.target_unit?.toLowerCase().trim()) return true;
+            return false;
+          });
+        });
+
+        if (pendingAssistanceJobs.length === 0) return null;
+
+        return (
+          <div className="bg-gradient-to-r from-amber-500 via-indigo-600 to-blue-600 rounded-3xl p-5 text-white shadow-xl shadow-indigo-500/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider">
+                    Cross-Unit Assistance Action Required
+                  </span>
+                  <span className="bg-white/25 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    {pendingAssistanceJobs.length} Pending
+                  </span>
+                </div>
+                <p className="text-xs text-white/90 font-medium mt-0.5">
+                  Another unit has requested assistance from your unit. Please review and assign staff.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {pendingAssistanceJobs.map((j) => (
+                <Link
+                  key={j.id}
+                  to={`/portal/job-requests/${j.id}`}
+                  className="btn btn-sm bg-white text-indigo-700 hover:bg-slate-100 border-none font-extrabold text-xs rounded-xl shadow-md gap-1.5 px-4"
+                >
+                  <UserPlus className="w-3.5 h-3.5" /> Review #{j.ticket_no}
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {urlStatus && (
         <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-2xl px-4 py-2.5 flex items-center justify-between text-xs font-bold">
           <span className="flex items-center gap-2">
@@ -814,6 +866,38 @@ export const JobRequestsList: React.FC = () => {
                             )}
                           </div>
                         )}
+
+                        {/* Cross-Unit Assistance Pending Indicator */}
+                        {(() => {
+                          const astList = Array.isArray(req.additional_data?.assistance_requests)
+                            ? req.additional_data.assistance_requests
+                            : [];
+                          const pendingAst = astList.find((ast: any) => ast.status === 'pending');
+                          if (!pendingAst) return null;
+
+                          const isForMe = Boolean(
+                            user?.role === 'admin' ||
+                            user?.role === 'director' ||
+                            user?.role === 'manager' ||
+                            user?.is_acting_manager ||
+                            (pendingAst.head_id && Number(user?.id) === Number(pendingAst.head_id)) ||
+                            (user?.is_unit_head && user?.unit && user.unit.toLowerCase().trim() === pendingAst.target_unit?.toLowerCase().trim())
+                          );
+
+                          return (
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                                isForMe
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isForMe ? 'bg-amber-500' : 'bg-slate-400'}`} />
+                                <span>Assistance Requested: {pendingAst.target_unit} Unit</span>
+                                {isForMe && <span className="bg-amber-600 text-white text-[9px] px-1 rounded font-extrabold">Action Required</span>}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="py-4 px-4 align-top">
                         {renderStatusBadge(req.status, req.current_step_name, isInterUnitJob(req))}

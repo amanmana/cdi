@@ -21,7 +21,7 @@ export const Dashboard: React.FC = () => {
   if (user && user.role === 'director') {
     return <Navigate to="/portal/director-dashboard" replace />;
   }
-  if (user && user.role === 'staff' && !user.is_acting_manager) {
+  if (user && user.role === 'staff' && !user.is_acting_manager && !user.is_unit_head) {
     return <Navigate to="/portal/job-requests" replace />;
   }
   const [stats, setStats] = useState<Stats>({

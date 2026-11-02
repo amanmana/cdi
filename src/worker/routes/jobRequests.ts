@@ -385,6 +385,17 @@ jobRequestsRouter.get('/', async (c) => {
           WHERE u_target.head_id = ? 
             AND INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), u_target.name) > 0
         )
+        OR INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), ?) > 0
+        OR EXISTS (
+          SELECT 1 FROM units u_ast 
+          WHERE u_ast.head_id = ? 
+            AND INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), u_ast.name) > 0
+        )
+        OR EXISTS (
+          SELECT 1 FROM users u_sub 
+          WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || u_sub.id || ',') > 0 
+            AND (u_sub.unit_id IN (SELECT id FROM units WHERE head_id = ?) OR u_sub.unit = ? OR u_sub.unit IN (SELECT name FROM units WHERE head_id = ?))
+        )
       )`;
       params.push(
         String(user.id),
@@ -394,6 +405,11 @@ jobRequestsRouter.get('/', async (c) => {
         user.id,
         user.id,
         user.email,
+        user.id,
+        user.unit || '',
+        user.id,
+        user.unit || '',
+        user.id,
         user.id,
         user.unit || '',
         user.id
@@ -420,6 +436,11 @@ jobRequestsRouter.get('/', async (c) => {
         OR JSON_EXTRACT(j.additional_data, '$.requester_id') IN (SELECT id FROM users WHERE department_id = ?)
         OR JSON_EXTRACT(j.additional_data, '$.origin_staff_id') IN (SELECT id FROM users WHERE department_id = ?)
         OR EXISTS (
+          SELECT 1 FROM units u_m_dept 
+          WHERE u_m_dept.department_id = ? 
+            AND INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), u_m_dept.name) > 0
+        )
+        OR EXISTS (
           SELECT 1 FROM users u 
           WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || u.id || ',') > 0 
             AND (u.department_id = ? OR u.unit_id IN (SELECT id FROM units WHERE department_id = ?))
@@ -427,7 +448,8 @@ jobRequestsRouter.get('/', async (c) => {
       )`;
       params.push(
         managerDeptId, managerDeptId, managerDeptId, managerUnit || '', managerUnit || '',
-        managerDeptId, managerDeptId, managerDeptId, managerDeptId, managerDeptId, managerDeptId
+        managerDeptId, managerDeptId, managerDeptId, managerDeptId, managerDeptId,
+        managerDeptId, managerDeptId
       );
     } else if (managerUnit) {
       query += ` AND (
@@ -435,6 +457,7 @@ jobRequestsRouter.get('/', async (c) => {
         OR j.unit_id IN (SELECT id FROM units WHERE name = ?)
         OR JSON_EXTRACT(j.additional_data, '$.requester_unit') = ?
         OR JSON_EXTRACT(j.additional_data, '$.requester_unit_id') IN (SELECT id FROM units WHERE name = ?)
+        OR INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), ?) > 0
         OR EXISTS (
           SELECT 1 FROM users u 
           WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || u.id || ',') > 0 
@@ -444,6 +467,7 @@ jobRequestsRouter.get('/', async (c) => {
       params.push(
         managerUnit, managerUnit,
         managerUnit, managerUnit,
+        managerUnit,
         managerUnit, managerUnit
       );
     }

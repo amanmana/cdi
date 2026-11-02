@@ -78,7 +78,11 @@ export const Navbar: React.FC = () => {
     { to: '/portal/backup', label: 'Backup & Restore', icon: <HardDrive className="w-5 h-5" />, roles: ['admin'] },
   ];
 
-  const allowedSidebarLinks = sidebarLinks.filter((link) => user && link.roles.includes(user.role));
+  const allowedSidebarLinks = sidebarLinks.filter((link) => {
+    if (!user) return false;
+    if (link.to === '/portal/dashboard' && user.is_unit_head) return true;
+    return link.roles.includes(user.role);
+  });
 
   // Re-load from localStorage once user.id is available (fixes async auth timing)
   useEffect(() => {
