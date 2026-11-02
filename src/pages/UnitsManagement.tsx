@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   FolderGit2,
@@ -143,21 +143,34 @@ export const UnitsManagement: React.FC = () => {
     }
   }, [token]);
 
-  // For manager: auto-select their own unit and lock to builder view
+  // Filter accessible units for Manager vs Admin
+  const accessibleUnits = useMemo(() => {
+    if (user?.role === 'admin' || user?.role === 'director') return units;
+    if (isManager) {
+      const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+      const filtered = units.filter((u) => {
+        if (userDeptId && u.department_id && String(u.department_id) === String(userDeptId)) return true;
+        if (u.name === user?.unit || u.name === user?.acting_manager_unit) return true;
+        const managedUnits: string[] = (user as any)?.managed_units || [];
+        if (managedUnits.includes(u.name)) return true;
+        const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
+        if (managedUnitIds.includes(u.id)) return true;
+        return false;
+      });
+      return filtered.length > 0 ? filtered : units;
+    }
+    return units;
+  }, [units, user, isManager]);
+
+  // For manager: auto-select their first accessible unit and lock to builder view
   useEffect(() => {
     if (isManager) {
       setActiveTab('builder');
-      if (units.length > 0 && !selectedUnit) {
-        const managerUnit = units.find(
-          (u) => u.name === user?.unit || u.name === user?.acting_manager_unit
-        );
-        if (managerUnit) {
-          handleOpenBuilder(managerUnit);
-          setIsSidebarCollapsed(true);
-        }
+      if (accessibleUnits.length > 0 && !selectedUnit) {
+        handleOpenBuilder(accessibleUnits[0]);
       }
     }
-  }, [isManager, units, user]);
+  }, [isManager, accessibleUnits, selectedUnit]);
 
   // ==========================================
   // DEPARTMENT HANDLERS
@@ -513,7 +526,7 @@ export const UnitsManagement: React.FC = () => {
             </h1>
             <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
               {isManager
-                ? 'Manage form schema for your unit.'
+                ? 'Manage dynamic form schemas and additional requirements for units under your department.'
                 : 'Manage departments, unit public labels, visibility, unit heads, and custom dynamic forms.'}
             </p>
           </div>
@@ -877,94 +890,92 @@ export const UnitsManagement: React.FC = () => {
       {/* ========================================================= */}
       {(isManager || activeTab === 'builder') && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-in fade-in duration-200">
-          {/* Left: Units List — hidden for manager */}
-          {!isManager && (
-            <div
-              className={`bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 transition-all duration-300 ${
-                isSidebarCollapsed && selectedUnit
-                  ? 'hidden lg:none lg:w-0 lg:p-0 lg:opacity-0 lg:overflow-hidden'
-                  : 'block'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-slate-900">Select Unit</h2>
-                <span className="text-xs text-slate-400 font-medium">{units.length} Units</span>
-              </div>
-
-              <div className="space-y-2">
-                {units.map((u) => {
-                  const isSelected = selectedUnit?.id === u.id;
-                  return (
-                    <div
-                      key={u.id}
-                      onClick={() => handleOpenBuilder(u)}
-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                        isSelected
-                          ? 'bg-blue-50/80 border-blue-300 shadow-sm'
-                          : 'bg-slate-50 border-slate-100 hover:bg-slate-100/70 hover:border-slate-200'
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`font-bold text-xs truncate ${
-                              isSelected ? 'text-blue-900' : 'text-slate-900'
-                            }`}
-                          >
-                            {u.name}
-                          </span>
-                          {u.department_name && (
-                            <span className="text-[10px] bg-white/80 border border-slate-200 text-slate-500 font-extrabold px-1.5 py-0.2 rounded-md">
-                              {u.department_name}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                          {u.form_schema?.length || 0} custom fields
-                        </div>
-                      </div>
-                      <ChevronRight
-                        className={`w-4 h-4 shrink-0 transition-transform ${
-                          isSelected ? 'text-blue-600 translate-x-0.5' : 'text-slate-300'
-                        }`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+          {/* Left: Units List */}
+          <div
+            className={`bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 transition-all duration-300 ${
+              isSidebarCollapsed && selectedUnit
+                ? 'hidden lg:none lg:w-0 lg:p-0 lg:opacity-0 lg:overflow-hidden'
+                : 'block'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-slate-900">
+                {isManager ? 'Department Units' : 'Select Unit'}
+              </h2>
+              <span className="text-xs text-slate-400 font-medium">{accessibleUnits.length} Units</span>
             </div>
-          )}
+
+            <div className="space-y-2">
+              {accessibleUnits.map((u) => {
+                const isSelected = selectedUnit?.id === u.id;
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => handleOpenBuilder(u)}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-blue-50/80 border-blue-300 shadow-sm'
+                        : 'bg-slate-50 border-slate-100 hover:bg-slate-100/70 hover:border-slate-200'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`font-bold text-xs truncate ${
+                            isSelected ? 'text-blue-900' : 'text-slate-900'
+                          }`}
+                        >
+                          {u.name}
+                        </span>
+                        {u.department_name && (
+                          <span className="text-[10px] bg-white/80 border border-slate-200 text-slate-500 font-extrabold px-1.5 py-0.2 rounded-md">
+                            {u.department_name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                        {u.form_schema?.length || 0} custom fields
+                      </div>
+                    </div>
+                    <ChevronRight
+                      className={`w-4 h-4 shrink-0 transition-transform ${
+                        isSelected ? 'text-blue-600 translate-x-0.5' : 'text-slate-300'
+                      }`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Right: Form Builder Panel */}
           <div
             className={`bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 transition-all duration-300 ${
-              isManager || (isSidebarCollapsed && selectedUnit) ? 'lg:col-span-3' : 'lg:col-span-2'
+              isSidebarCollapsed && selectedUnit ? 'lg:col-span-3' : 'lg:col-span-2'
             }`}
           >
             {selectedUnit ? (
               <>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 mb-6 gap-4">
                   <div className="flex items-center gap-3">
-                    {!isManager && (
-                      <button
-                        type="button"
-                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                        className="btn btn-outline btn-sm rounded-xl px-3 border-slate-200 hover:bg-slate-50 hover:text-slate-800 text-slate-500 hidden lg:flex items-center gap-1.5 font-bold text-xs"
-                        title={isSidebarCollapsed ? 'Show Units List' : 'Minimize Units List'}
-                      >
-                        {isSidebarCollapsed ? (
-                          <>
-                            <ChevronRight className="w-4 h-4 text-blue-600" />
-                            Show Units List
-                          </>
-                        ) : (
-                          <>
-                            <ChevronLeft className="w-4 h-4 text-blue-600" />
-                            Minimize List
-                          </>
-                        )}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      className="btn btn-outline btn-sm rounded-xl px-3 border-slate-200 hover:bg-slate-50 hover:text-slate-800 text-slate-500 hidden lg:flex items-center gap-1.5 font-bold text-xs"
+                      title={isSidebarCollapsed ? 'Show Units List' : 'Minimize Units List'}
+                    >
+                      {isSidebarCollapsed ? (
+                        <>
+                          <ChevronRight className="w-4 h-4 text-blue-600" />
+                          Show Units List
+                        </>
+                      ) : (
+                        <>
+                          <ChevronLeft className="w-4 h-4 text-blue-600" />
+                          Minimize List
+                        </>
+                      )}
+                    </button>
                     <div>
                       <h2 className="text-xl font-bold text-slate-900">
                         Dynamic Form Builder: {selectedUnit.name}
