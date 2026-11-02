@@ -1225,22 +1225,6 @@ export const JobRequestDetail: React.FC = () => {
                         </span>
                       </div>
                     </div>
-
-                    {request.status === 'staff_processing' && (isAssignedStaff || isManagerOrAdminUser || isCollaboratingUnitHead) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAssistanceTargetUnit('');
-                          setAssistanceSuggestedStaffId('');
-                          setAssistanceTaskDesc('');
-                          setAssistanceNotes('');
-                          setShowRequestAssistanceModal(true);
-                        }}
-                        className="btn btn-sm btn-outline border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-xs font-bold rounded-xl gap-1.5 shadow-xs"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" /> Request Unit Assistance
-                      </button>
-                    )}
                   </div>
 
                   {/* List of Pending Assistance Requests */}
@@ -1396,7 +1380,7 @@ export const JobRequestDetail: React.FC = () => {
                         setAssistanceNotes('');
                         setShowRequestAssistanceModal(true);
                       }}
-                      className="btn btn-sm btn-outline border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-xs font-bold rounded-xl gap-1.5 shadow-xs"
+                      className="btn btn-sm btn-ghost text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 hover:border-indigo-300 text-xs font-bold rounded-xl gap-1.5 shadow-xs transition-all"
                     >
                       <UserPlus className="w-3.5 h-3.5" /> Request Unit Assistance
                     </button>
