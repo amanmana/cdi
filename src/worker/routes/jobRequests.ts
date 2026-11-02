@@ -1914,6 +1914,273 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   return c.json({ success: true, message: 'Assigned staff updated.' });
 });
 
+// POST /api/job-requests/:id/request-assistance - Staff requests assistance from another unit
+jobRequestsRouter.post('/:id/request-assistance', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const idParam = c.req.param('id');
+  const { target_unit, suggested_staff_id, task_description, notes } = await c.req.json();
+
+  if (!target_unit || !task_description) {
+    return c.json({ error: 'Target unit and task description are required.' }, 400);
+  }
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) return c.json({ error: 'Job request not found' }, 404);
+
+  // Look up target unit and its head
+  const targetUnitRow = await db.prepare(
+    `SELECT u.id, u.name, u.head_id, h.name as head_name, h.email as head_email
+     FROM units u
+     LEFT JOIN users h ON u.head_id = h.id
+     WHERE LOWER(TRIM(u.name)) = LOWER(TRIM(?))`
+  ).bind(target_unit).first<any>();
+
+  if (!targetUnitRow) {
+    return c.json({ error: 'Target unit not found.' }, 404);
+  }
+
+  // Look up suggested staff name if provided
+  let suggestedStaffName = null;
+  if (suggested_staff_id) {
+    const sStaff = await db.prepare('SELECT name FROM users WHERE id = ?').bind(Number(suggested_staff_id)).first<{ name: string }>();
+    suggestedStaffName = sStaff?.name || null;
+  }
+
+  let addData: any = {};
+  if (request.additional_data) {
+    try {
+      addData = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+
+  if (!Array.isArray(addData.assistance_requests)) {
+    addData.assistance_requests = [];
+  }
+
+  const newAssistanceReq = {
+    id: 'ast_' + Date.now(),
+    requester_id: user.id,
+    requester_name: user.name,
+    requester_unit: user.unit || 'Staff',
+    target_unit: targetUnitRow.name,
+    target_unit_id: targetUnitRow.id,
+    head_id: targetUnitRow.head_id,
+    head_name: targetUnitRow.head_name,
+    suggested_staff_id: suggested_staff_id ? Number(suggested_staff_id) : null,
+    suggested_staff_name: suggestedStaffName,
+    task_description: task_description.trim(),
+    notes: notes ? notes.trim() : '',
+    status: 'pending', // pending, accepted, declined
+    created_at: new Date().toISOString(),
+  };
+
+  addData.assistance_requests.push(newAssistanceReq);
+
+  // Also flag that the job has collaboration requests
+  addData.is_inter_unit = true;
+
+  await db.prepare(
+    `UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+  ).bind(JSON.stringify(addData), request.id).run();
+
+  const commentText = `${user.name} (${user.unit || 'Staff'}) requested assistance from Unit "${targetUnitRow.name}"${suggestedStaffName ? ` (Suggested staff: ${suggestedStaffName})` : ''} — Task: "${task_description.trim()}"`;
+
+  await db.prepare(`
+    INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment, created_at)
+    VALUES (?, 'ASSISTANCE_REQUESTED', ?, ?, ?, datetime('now', '+8 hours'))
+  `).bind(request.id, user.id, user.name, commentText).run();
+
+  // Send email notification to target unit head if available
+  if (targetUnitRow.head_email) {
+    try {
+      const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
+      await sendGmail({
+        to: targetUnitRow.head_email,
+        subject: `[Assistance Request] #${request.ticket_no} - Support needed from ${targetUnitRow.name}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded: 16px;">
+            <h2 style="color: #2563eb; margin-top: 0;">Cross-Unit Assistance Request</h2>
+            <p>Hello <strong>${targetUnitRow.head_name || 'Unit Head'}</strong>,</p>
+            <p><strong>${user.name}</strong> from unit <strong>${user.unit || 'Internal Team'}</strong> has requested collaboration/assistance from your unit (<strong>${targetUnitRow.name}</strong>) for project <strong>#${request.ticket_no} - ${request.title}</strong>.</p>
+            <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 12px 16px; margin: 16px 0;">
+              <p style="margin: 0 0 6px 0;"><strong>Scope / Task Needed:</strong> ${task_description.trim()}</p>
+              ${suggestedStaffName ? `<p style="margin: 0 0 6px 0;"><strong>Suggested Staff:</strong> ${suggestedStaffName}</p>` : ''}
+              ${notes ? `<p style="margin: 0;"><strong>Notes:</strong> ${notes.trim()}</p>` : ''}
+            </div>
+            <p>Please review and assign a staff member from your unit to assist on this project.</p>
+            <a href="${origin}/portal/job-requests/${request.id}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Review & Assign Staff</a>
+          </div>
+        `,
+      });
+    } catch (e) {
+      console.error('Failed to dispatch assistance request email:', e);
+    }
+  }
+
+  return c.json({ success: true, message: 'Assistance request submitted successfully to Unit Head.', assistance_request: newAssistanceReq });
+});
+
+// POST /api/job-requests/:id/respond-assistance - Unit Head accepts or declines assistance request
+jobRequestsRouter.post('/:id/respond-assistance', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const idParam = c.req.param('id');
+  const { request_item_id, action, assigned_staff_id, task_description, decline_reason } = await c.req.json();
+
+  if (!request_item_id || !action || !['accept', 'decline'].includes(action)) {
+    return c.json({ error: 'Invalid parameters.' }, 400);
+  }
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) return c.json({ error: 'Job request not found' }, 404);
+
+  let addData: any = {};
+  if (request.additional_data) {
+    try {
+      addData = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+
+  const astList: any[] = Array.isArray(addData.assistance_requests) ? addData.assistance_requests : [];
+  const astReq = astList.find((r: any) => r.id === request_item_id);
+
+  if (!astReq) {
+    return c.json({ error: 'Assistance request record not found.' }, 404);
+  }
+
+  // Authorization check: User must be unit head of target unit, manager of target unit's department, or admin
+  const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
+  const isAuthorized =
+    user.role === 'admin' ||
+    user.role === 'director' ||
+    Boolean(user.is_acting_manager) ||
+    (astReq.head_id && Number(user.id) === Number(astReq.head_id)) ||
+    userManagedUnits.some(u => u.toLowerCase().trim() === astReq.target_unit?.toLowerCase().trim()) ||
+    (user.unit && user.unit.toLowerCase().trim() === astReq.target_unit?.toLowerCase().trim());
+
+  if (!isAuthorized) {
+    return c.json({ error: 'Unauthorized. Only the Head of ' + astReq.target_unit + ' or Admin can respond to this request.' }, 403);
+  }
+
+  if (action === 'accept') {
+    if (!assigned_staff_id) {
+      return c.json({ error: 'Please select a staff member to assign for this assistance.' }, 400);
+    }
+
+    const assignedStaff = await db.prepare(
+      'SELECT id, name, email, unit FROM users WHERE id = ?'
+    ).bind(Number(assigned_staff_id)).first<any>();
+
+    if (!assignedStaff) {
+      return c.json({ error: 'Assigned staff member not found.' }, 404);
+    }
+
+    astReq.status = 'accepted';
+    astReq.assigned_staff_id = assignedStaff.id;
+    astReq.assigned_staff_name = assignedStaff.name;
+    astReq.assigned_by_id = user.id;
+    astReq.assigned_by_name = user.name;
+    astReq.accepted_at = new Date().toISOString();
+
+    // Add this staff to assigned_staff_ids on the job request if not already present
+    const currentStaffIds = request.assigned_staff_ids
+      ? request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n))
+      : [];
+
+    if (!currentStaffIds.includes(assignedStaff.id)) {
+      currentStaffIds.push(assignedStaff.id);
+    }
+    const updatedStaffIdsStr = currentStaffIds.join(',');
+
+    // Store task in additional_data.staff_tasks
+    if (!addData.staff_tasks) addData.staff_tasks = {};
+    const taskText = task_description ? task_description.trim() : (astReq.task_description || 'Collaborative task assistance');
+    addData.staff_tasks[assignedStaff.id] = taskText;
+
+    // Initialize handoff if not yet set up
+    if (!addData.handoff) {
+      const originStaffId = currentStaffIds.find((id: number) => id !== assignedStaff.id) || user.id;
+      const originUser = await db.prepare('SELECT name, unit FROM users WHERE id = ?').bind(originStaffId).first<any>();
+      addData.handoff = {
+        current_holder_id: originStaffId,
+        current_holder_name: originUser?.name || 'Primary Staff',
+        current_holder_unit: originUser?.unit || request.unit,
+        last_action: 'COLLAB_STARTED',
+        last_actor_id: user.id,
+        last_actor_name: user.name,
+        last_actor_unit: user.unit,
+        last_note: `Collaboration initialized. ${user.name} assigned ${assignedStaff.name} (${assignedStaff.unit}) to assist.`,
+        last_draft_url: '',
+        last_updated_at: new Date().toISOString(),
+      };
+    }
+
+    // Save updated job request
+    await db.prepare(
+      `UPDATE job_requests SET assigned_staff_ids = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+    ).bind(updatedStaffIdsStr, JSON.stringify(addData), request.id).run();
+
+    // Create a task row in job_tasks
+    await db.prepare(
+      `INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status) VALUES (?, ?, ?, ?, 'pending')`
+    ).bind(request.id, taskText, assignedStaff.id, user.id).run();
+
+    // Workflow log
+    const logComment = `${user.name} (Head of ${astReq.target_unit}) ACCEPTED assistance request and assigned ${assignedStaff.name} (${assignedStaff.unit}) — Task: "${taskText}"`;
+    await db.prepare(`
+      INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment, created_at)
+      VALUES (?, 'ASSISTANCE_ACCEPTED', ?, ?, ?, datetime('now', '+8 hours'))
+    `).bind(request.id, user.id, user.name, logComment).run();
+
+    // Send notification email to assigned staff
+    const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
+    try {
+      await notifyStaffAssignment({
+        staffEmail: assignedStaff.email,
+        staffName: assignedStaff.name,
+        ticketNo: request.ticket_no,
+        title: request.title,
+        unit: assignedStaff.unit || astReq.target_unit,
+        clientName: request.client_name,
+        actorName: user.name,
+        actorRole: 'Head Unit',
+        startDate: request.start_date,
+        deadline: request.deadline,
+        taskDescription: taskText,
+        origin,
+      });
+    } catch (e) {
+      console.error('Failed to notify assigned collaborator:', e);
+    }
+
+    return c.json({
+      success: true,
+      message: `Assistance accepted. ${assignedStaff.name} has been added to the project team.`,
+      assigned_staff: assignedStaff,
+    });
+  } else {
+    // Decline
+    astReq.status = 'declined';
+    astReq.declined_by_id = user.id;
+    astReq.declined_by_name = user.name;
+    astReq.decline_reason = decline_reason ? decline_reason.trim() : 'Unable to accommodate at this time';
+    astReq.declined_at = new Date().toISOString();
+
+    await db.prepare(
+      `UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+    ).bind(JSON.stringify(addData), request.id).run();
+
+    const logComment = `${user.name} (Head of ${astReq.target_unit}) DECLINED assistance request — Reason: "${astReq.decline_reason}"`;
+    await db.prepare(`
+      INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment, created_at)
+      VALUES (?, 'ASSISTANCE_DECLINED', ?, ?, ?, datetime('now', '+8 hours'))
+    `).bind(request.id, user.id, user.name, logComment).run();
+
+    return c.json({ success: true, message: 'Assistance request declined.' });
+  }
+});
+
 // POST /api/job-requests/:id/update-timeline - Update start and deadline dates
 jobRequestsRouter.post('/:id/update-timeline', async (c) => {
   const db = c.env.DB;

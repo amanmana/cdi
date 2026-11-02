@@ -78,6 +78,21 @@ export const JobRequestDetail: React.FC = () => {
   const [showStatusModal, setShowStatusModal] = useState<'on_hold' | 'cancelled' | null>(null);
   const [statusReason, setStatusReason] = useState('');
 
+  // Cross-Unit Assistance Modal State
+  const [unitsList, setUnitsList] = useState<any[]>([]);
+  const [showRequestAssistanceModal, setShowRequestAssistanceModal] = useState(false);
+  const [assistanceTargetUnit, setAssistanceTargetUnit] = useState('');
+  const [assistanceSuggestedStaffId, setAssistanceSuggestedStaffId] = useState<number | ''>('');
+  const [assistanceTaskDesc, setAssistanceTaskDesc] = useState('');
+  const [assistanceNotes, setAssistanceNotes] = useState('');
+
+  // Respond Assistance Modal State (for Unit Head / Manager / Admin)
+  const [showRespondAssistanceModal, setShowRespondAssistanceModal] = useState<any | null>(null);
+  const [respondAssignedStaffId, setRespondAssignedStaffId] = useState<number | ''>('');
+  const [respondTaskDesc, setRespondTaskDesc] = useState('');
+  const [respondDeclineReason, setRespondDeclineReason] = useState('');
+  const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
+
   // Sub-task builder state
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
@@ -224,6 +239,15 @@ export const JobRequestDetail: React.FC = () => {
         if (tData.staffMembers) setTeamMembers(tData.staffMembers);
       })
       .catch((err) => console.error(err));
+
+    fetch('/api/public/units')
+      .then((res) => res.json())
+      .then((uData) => {
+        if (Array.isArray(uData)) {
+          setUnitsList(uData.filter((u: any) => u.name && !['administrator', 'admin'].includes(u.name.toLowerCase().trim())));
+        }
+      })
+      .catch((err) => console.error('Failed to load units:', err));
   }, [id, token, user?.id]);
 
   if (loading) {
@@ -550,6 +574,101 @@ export const JobRequestDetail: React.FC = () => {
     }
   };
 
+  const handleRequestAssistanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assistanceTargetUnit) {
+      alert('Sila pilih unit sasaran (Target Unit).');
+      return;
+    }
+    if (!assistanceTaskDesc.trim()) {
+      alert('Sila nyatakan skop atau tugasan yang diperlukan.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/job-requests/${id}/request-assistance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          target_unit: assistanceTargetUnit,
+          suggested_staff_id: assistanceSuggestedStaffId || null,
+          task_description: assistanceTaskDesc.trim(),
+          notes: assistanceNotes.trim(),
+        }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok || resData.error) {
+        alert(resData.error || 'Gagal menghantar permohonan bantuan.');
+      } else {
+        setShowRequestAssistanceModal(false);
+        setAssistanceTargetUnit('');
+        setAssistanceSuggestedStaffId('');
+        setAssistanceTaskDesc('');
+        setAssistanceNotes('');
+        fetchDetail();
+      }
+    } catch (err: any) {
+      alert(`Ralat: ${err?.message || err}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleOpenRespondModal = (ast: any) => {
+    setShowRespondAssistanceModal(ast);
+    setShowDeclineConfirm(false);
+    setRespondAssignedStaffId(ast.suggested_staff_id ? Number(ast.suggested_staff_id) : '');
+    setRespondTaskDesc(ast.task_description || '');
+    setRespondDeclineReason('');
+  };
+
+  const handleRespondAssistanceSubmit = async (action: 'accept' | 'decline') => {
+    if (!showRespondAssistanceModal) return;
+    if (action === 'accept' && !respondAssignedStaffId) {
+      alert('Sila pilih staf yang ingin ditugaskan.');
+      return;
+    }
+    if (action === 'decline' && !respondDeclineReason.trim()) {
+      alert('Sila nyatakan sebab permohonan ditolak.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/job-requests/${id}/respond-assistance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          request_id: showRespondAssistanceModal.id,
+          action,
+          assigned_staff_id: action === 'accept' ? Number(respondAssignedStaffId) : undefined,
+          task_description: action === 'accept' ? respondTaskDesc.trim() : undefined,
+          decline_reason: action === 'decline' ? respondDeclineReason.trim() : undefined,
+        }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok || resData.error) {
+        alert(resData.error || 'Gagal memproses permohonan bantuan.');
+      } else {
+        setShowRespondAssistanceModal(null);
+        setShowDeclineConfirm(false);
+        setRespondAssignedStaffId('');
+        setRespondTaskDesc('');
+        setRespondDeclineReason('');
+        fetchDetail();
+      }
+    } catch (err: any) {
+      alert(`Ralat: ${err?.message || err}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const toggleStaffSelection = (staffId: number) => {
     // If the logged-in user is staff, prevent them from removing existing assigned team members
     if (user?.role === 'staff' && !user?.is_acting_manager) {
@@ -762,6 +881,26 @@ export const JobRequestDetail: React.FC = () => {
   );
 
   const isCollaboratingUnitHead = isTargetUnitHead || isRequesterUnitHead;
+
+  const isAssignedStaff = Boolean(
+    (request?.assigned_staff_ids && request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).includes(Number(user?.id))) ||
+    (data?.staffDetails && data.staffDetails.some((s: any) => Number(s.id) === Number(user?.id))) ||
+    (selectedStaff && selectedStaff.map(Number).includes(Number(user?.id)))
+  );
+
+  const canUserRespondToAst = (ast: any) => {
+    if (user?.role === 'admin' || user?.role === 'director' || user?.role === 'manager' || user?.is_acting_manager) {
+      return true;
+    }
+    if (ast.head_id && Number(user?.id) === Number(ast.head_id)) {
+      return true;
+    }
+    if (user?.is_unit_head) {
+      if (user?.unit && user.unit.toLowerCase().trim() === ast.target_unit?.toLowerCase().trim()) return true;
+      if (managedUnits.some((mu) => mu.toLowerCase().trim() === ast.target_unit?.toLowerCase().trim())) return true;
+    }
+    return false;
+  };
 
   // True when the logged-in user is the origin staff of an Inter-Unit job
   // (the person from the requester's unit who was assigned to do the requester-side work)
@@ -1051,6 +1190,175 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             </div>
 
+            {/* Dedicated Standalone CROSS-UNIT ASSISTANCE BANNER / CARD */}
+            {(() => {
+              const assistanceRequests: any[] = Array.isArray(request?.additional_data?.assistance_requests)
+                ? request.additional_data.assistance_requests
+                : [];
+              if (assistanceRequests.length === 0) return null;
+
+              const pendingList = assistanceRequests.filter((a) => a.status === 'pending');
+              const resolvedList = assistanceRequests.filter((a) => a.status !== 'pending');
+
+              return (
+                <div className="bg-white p-5 md:p-6 rounded-3xl border border-indigo-200/90 shadow-md shadow-indigo-50/50 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 shadow-inner">
+                        <Users className="w-4.5 h-4.5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                            CROSS-UNIT ASSISTANCE & COLLABORATION
+                          </h3>
+                          {pendingList.length > 0 && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              {pendingList.length} PENDING REVIEW
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          Cross-unit assistance requests and staff endorsements
+                        </span>
+                      </div>
+                    </div>
+
+                    {request.status === 'staff_processing' && (isAssignedStaff || isManagerOrAdminUser || isCollaboratingUnitHead) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssistanceTargetUnit('');
+                          setAssistanceSuggestedStaffId('');
+                          setAssistanceTaskDesc('');
+                          setAssistanceNotes('');
+                          setShowRequestAssistanceModal(true);
+                        }}
+                        className="btn btn-sm btn-outline border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-xs font-bold rounded-xl gap-1.5 shadow-xs"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" /> Request Unit Assistance
+                      </button>
+                    )}
+                  </div>
+
+                  {/* List of Pending Assistance Requests */}
+                  {pendingList.length > 0 && (
+                    <div className="space-y-3">
+                      {pendingList.map((ast) => {
+                        const canRespond = canUserRespondToAst(ast);
+                        return (
+                          <div
+                            key={ast.id}
+                            className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-amber-100 text-amber-900 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg">
+                                  Assistance Needed: {ast.target_unit} Unit
+                                </span>
+                                <span className="text-[11px] text-slate-500 font-medium">
+                                  Requested by <strong className="text-slate-800">{ast.requester_name}</strong> ({ast.requester_unit})
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-semibold">
+                                {ast.created_at ? new Date(ast.created_at).toLocaleDateString() : ''}
+                              </span>
+                            </div>
+
+                            <div className="bg-white/80 p-3 rounded-xl border border-amber-100 text-xs text-slate-800 space-y-1">
+                              <div>
+                                <strong className="text-slate-900 font-bold">Task / Scope: </strong>
+                                <span className="text-slate-700">{ast.task_description}</span>
+                              </div>
+                              {ast.suggested_staff_name && (
+                                <div className="text-[11px] text-indigo-700 font-semibold">
+                                  ★ Suggested staff by requester: <strong>{ast.suggested_staff_name}</strong>
+                                </div>
+                              )}
+                              {ast.notes && (
+                                <div className="text-[11px] text-slate-500 italic">
+                                  Notes: "{ast.notes}"
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Action Buttons if user is Target Unit Head or Admin/Manager */}
+                            {canRespond ? (
+                              <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenRespondModal(ast)}
+                                  className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl border-none shadow-sm gap-1.5 px-4"
+                                >
+                                  <UserPlus className="w-3.5 h-3.5" /> Review & Assign Staff
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleOpenRespondModal(ast);
+                                    setShowDeclineConfirm(true);
+                                  }}
+                                  className="btn btn-sm btn-ghost text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-xl px-3"
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-amber-800 font-medium italic flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                Waiting for {ast.target_unit} Head ({ast.head_name || 'Unit Head'}) or Manager to review and assign staff.
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* List of Resolved (Accepted / Declined) Requests */}
+                  {resolvedList.length > 0 && (
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Assistance History
+                      </span>
+                      <div className="space-y-1.5">
+                        {resolvedList.map((ast) => (
+                          <div
+                            key={ast.id}
+                            className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-xs"
+                          >
+                            <div className="flex items-center gap-2">
+                              {ast.status === 'accepted' ? (
+                                <span className="badge bg-emerald-100 text-emerald-800 font-extrabold text-[10px] border-none">
+                                  ✓ ACCEPTED
+                                </span>
+                              ) : (
+                                <span className="badge bg-rose-100 text-rose-800 font-extrabold text-[10px] border-none">
+                                  DECLINED
+                                </span>
+                              )}
+                              <span className="font-semibold text-slate-800">
+                                {ast.target_unit} Unit
+                              </span>
+                              <span className="text-slate-500 text-[11px]">
+                                {ast.status === 'accepted'
+                                  ? `— ${ast.assigned_staff_name} assigned by ${ast.assigned_by_name}`
+                                  : `— Declined by ${ast.declined_by_name} (${ast.decline_reason || 'No reason'})`}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400">
+                              {ast.accepted_at ? new Date(ast.accepted_at).toLocaleDateString() : ast.declined_at ? new Date(ast.declined_at).toLocaleDateString() : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Dedicated Standalone TEAM ASSIGNMENT & STATUS Slate Card */}
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/80 shadow-md shadow-slate-100 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
@@ -1075,49 +1383,68 @@ export const JobRequestDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* EDIT / INVITE / ASSIGN Button */}
-                {(request.status === 'staff_processing') && (
-                  user?.role === 'admin' ||
-                  user?.role === 'manager' ||
-                  user?.is_acting_manager ||
-                  (isInterUnitJob && isCollaboratingUnitHead) ||
-                  (user?.role === 'staff' && !isUserDone)
-                ) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (request.assigned_staff_ids) {
-                        setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
-                      }
-                      if (isInterUnitJob && isCollaboratingUnitHead && user?.unit) {
-                        setStaffUnitFilter(user.unit);
-                      } else if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
-                        setStaffUnitFilter('Head');
-                      } else {
-                        setStaffUnitFilter('All');
-                      }
-                      setShowManageTeamModal(true);
-                    }}
-                    className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-extrabold uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
-                  >
-                    {isInterUnitJob && isCollaboratingUnitHead ? (
-                      <>
-                        <Users className="w-3.5 h-3.5" />
-                        {isUserUnitPending
-                          ? `ASSIGN ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`
-                          : `MANAGE ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`}
-                      </>
-                    ) : user?.role === 'staff' && !user?.is_acting_manager ? (
-                      <>
-                        <UserPlus className="w-3.5 h-3.5" /> INVITE TEAM
-                      </>
-                    ) : (
-                      <>
-                        <Edit2 className="w-3.5 h-3.5" /> EDIT TEAM
-                      </>
-                    )}
-                  </button>
-                )}
+                {/* Team Assignment Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {request.status === 'staff_processing' && (isAssignedStaff || isManagerOrAdminUser || isCollaboratingUnitHead) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssistanceTargetUnit('');
+                        setAssistanceSuggestedStaffId('');
+                        setAssistanceTaskDesc('');
+                        setAssistanceNotes('');
+                        setShowRequestAssistanceModal(true);
+                      }}
+                      className="btn btn-sm btn-outline border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-xs font-bold rounded-xl gap-1.5 shadow-xs"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> Request Unit Assistance
+                    </button>
+                  )}
+
+                  {/* EDIT / INVITE / ASSIGN Button */}
+                  {(request.status === 'staff_processing') && (
+                    user?.role === 'admin' ||
+                    user?.role === 'manager' ||
+                    user?.is_acting_manager ||
+                    (isInterUnitJob && isCollaboratingUnitHead) ||
+                    (user?.role === 'staff' && !isUserDone)
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (request.assigned_staff_ids) {
+                          setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
+                        }
+                        if (isInterUnitJob && isCollaboratingUnitHead && user?.unit) {
+                          setStaffUnitFilter(user.unit);
+                        } else if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
+                          setStaffUnitFilter('Head');
+                        } else {
+                          setStaffUnitFilter('All');
+                        }
+                        setShowManageTeamModal(true);
+                      }}
+                      className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-extrabold uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
+                    >
+                      {isInterUnitJob && isCollaboratingUnitHead ? (
+                        <>
+                          <Users className="w-3.5 h-3.5" />
+                          {isUserUnitPending
+                            ? `ASSIGN ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`
+                            : `MANAGE ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`}
+                        </>
+                      ) : user?.role === 'staff' && !user?.is_acting_manager ? (
+                        <>
+                          <UserPlus className="w-3.5 h-3.5" /> INVITE TEAM
+                        </>
+                      ) : (
+                        <>
+                          <Edit2 className="w-3.5 h-3.5" /> EDIT TEAM
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {data.staffDetails && data.staffDetails.length > 0 ? (
@@ -1523,6 +1850,41 @@ export const JobRequestDetail: React.FC = () => {
 
                 {request.status === 'staff_processing' && (
                   <>
+                    {/* Pending Cross-Unit Assistance Review Action */}
+                    {(() => {
+                      const astList: any[] = Array.isArray(request?.additional_data?.assistance_requests)
+                        ? request.additional_data.assistance_requests
+                        : [];
+                      const myPendingAst = astList.find((a: any) => a.status === 'pending' && canUserRespondToAst(a));
+                      if (!myPendingAst) return null;
+                      return (
+                        <div className="p-4 rounded-2xl bg-indigo-50/90 border border-indigo-200/90 space-y-3 mb-3 shadow-xs">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shrink-0" />
+                            <span className="text-xs font-black text-indigo-900 uppercase tracking-wider">
+                              Assistance Request Pending
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-indigo-800 font-medium leading-relaxed">
+                            {myPendingAst.requester_name} ({myPendingAst.requester_unit}) requested support from <strong>{myPendingAst.target_unit}</strong>.
+                            {myPendingAst.suggested_staff_name && (
+                              <span className="block mt-1 font-semibold text-indigo-900">
+                                Suggested: {myPendingAst.suggested_staff_name}
+                              </span>
+                            )}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRespondModal(myPendingAst)}
+                            disabled={actionLoading}
+                            className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-indigo-600/20 uppercase tracking-wider gap-2 flex items-center justify-center transition-all"
+                          >
+                            <UserPlus className="w-4 h-4" /> Review & Assign Staff
+                          </button>
+                        </div>
+                      );
+                    })()}
+
                     {/* Inter-Unit Collaborating Unit Head Action (Assign staff if pending, or manage team) */}
                     {isInterUnitJob && isCollaboratingUnitHead && (
                       <div className="space-y-2 mb-3">
@@ -3531,6 +3893,345 @@ export const JobRequestDetail: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* REQUEST CROSS-UNIT ASSISTANCE MODAL */}
+      {showRequestAssistanceModal && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 sm:p-7 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 tracking-tight">
+                    Request Unit Assistance
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Request collaboration or help from another unit for #{request.ticket_no}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRequestAssistanceModal(false)}
+                className="btn btn-sm btn-ghost btn-circle text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRequestAssistanceSubmit} className="space-y-4 text-xs">
+              {/* Target Unit Dropdown */}
+              <div>
+                <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
+                  Target Unit <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={assistanceTargetUnit}
+                  onChange={(e) => {
+                    setAssistanceTargetUnit(e.target.value);
+                    setAssistanceSuggestedStaffId('');
+                  }}
+                  required
+                  className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                >
+                  <option value="">-- Choose Unit to Request Assistance From --</option>
+                  {unitsList
+                    .filter((u) => u.name && u.name.toLowerCase().trim() !== (request.unit || '').toLowerCase().trim())
+                    .map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.display_label || u.name} {u.department_name ? `(${u.department_name})` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Suggested Staff (Filtered by chosen target unit) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-extrabold text-slate-800 text-xs">
+                    Suggested Staff Member <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  {assistanceTargetUnit && (
+                    <span className="text-[10px] text-indigo-600 font-bold">
+                      {teamMembers.filter((m) => m.unit?.toLowerCase().trim() === assistanceTargetUnit.toLowerCase().trim()).length} staff available
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={assistanceSuggestedStaffId}
+                  onChange={(e) => setAssistanceSuggestedStaffId(e.target.value ? Number(e.target.value) : '')}
+                  disabled={!assistanceTargetUnit}
+                  className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">-- No preference / Let Unit Head decide --</option>
+                  {assistanceTargetUnit &&
+                    teamMembers
+                      .filter((m) => m.unit?.toLowerCase().trim() === assistanceTargetUnit.toLowerCase().trim())
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} {m.is_unit_head ? '(Unit Head)' : ''}
+                        </option>
+                      ))}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  You may suggest a specific staff member (e.g. Amalina for Writer). The Unit Head will review and can confirm or reassign.
+                </p>
+              </div>
+
+              {/* Task / Scope Description */}
+              <div>
+                <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
+                  Required Task / Scope of Work <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Specify what assistance is needed (e.g. Penulisan skrip video, copywriting kapsyen media sosial, semakan teks)..."
+                  value={assistanceTaskDesc}
+                  onChange={(e) => setAssistanceTaskDesc(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all resize-none shadow-inner"
+                ></textarea>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
+                  Additional Notes / Deadlines <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Any extra context or target deadline for this task..."
+                  value={assistanceNotes}
+                  onChange={(e) => setAssistanceNotes(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all resize-none shadow-inner"
+                ></textarea>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowRequestAssistanceModal(false)}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading || !assistanceTargetUnit || !assistanceTaskDesc.trim()}
+                  className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md shadow-indigo-600/20 gap-2"
+                >
+                  {actionLoading ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Send Assistance Request</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RESPOND TO ASSISTANCE MODAL (FOR UNIT HEAD / MANAGER / ADMIN) */}
+      {showRespondAssistanceModal && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 sm:p-7 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 tracking-tight">
+                    {showDeclineConfirm ? 'Decline Assistance Request' : 'Review & Assign Unit Staff'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Unit {showRespondAssistanceModal.target_unit} Endorsement for #{request.ticket_no}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRespondAssistanceModal(null);
+                  setShowDeclineConfirm(false);
+                }}
+                className="btn btn-sm btn-ghost btn-circle text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Request Summary Box */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-semibold">Requester:</span>
+                <span className="font-extrabold text-slate-900">
+                  {showRespondAssistanceModal.requester_name} ({showRespondAssistanceModal.requester_unit})
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-500 font-semibold shrink-0">Task Scope:</span>
+                <span className="font-medium text-slate-800 text-right">
+                  {showRespondAssistanceModal.task_description}
+                </span>
+              </div>
+              {showRespondAssistanceModal.suggested_staff_name && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-semibold">Suggested Staff:</span>
+                  <span className="font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+                    ★ {showRespondAssistanceModal.suggested_staff_name}
+                  </span>
+                </div>
+              )}
+              {showRespondAssistanceModal.notes && (
+                <div className="flex items-start justify-between gap-2 border-t border-slate-200/50 pt-1.5 mt-1.5">
+                  <span className="text-slate-500 font-semibold shrink-0">Notes:</span>
+                  <span className="text-slate-600 italic text-right">
+                    "{showRespondAssistanceModal.notes}"
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {!showDeclineConfirm ? (
+              <div className="space-y-4 text-xs">
+                {/* Staff Assignment Dropdown */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-extrabold text-slate-800 text-xs">
+                      Assign Staff Member from {showRespondAssistanceModal.target_unit} <span className="text-rose-500">*</span>
+                    </label>
+                    {showRespondAssistanceModal.suggested_staff_id && Number(respondAssignedStaffId) === Number(showRespondAssistanceModal.suggested_staff_id) ? (
+                      <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
+                        ✓ Requester Suggestion
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 font-bold">
+                        Unit Head Choice
+                      </span>
+                    )}
+                  </div>
+
+                  <select
+                    value={respondAssignedStaffId}
+                    onChange={(e) => setRespondAssignedStaffId(e.target.value ? Number(e.target.value) : '')}
+                    className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
+                  >
+                    <option value="">-- Choose Staff Member to Assign --</option>
+                    {teamMembers
+                      .filter((m) => m.unit?.toLowerCase().trim() === showRespondAssistanceModal.target_unit?.toLowerCase().trim())
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} {m.is_unit_head ? '(Unit Head)' : ''} {showRespondAssistanceModal.suggested_staff_id === m.id ? '★ Suggested' : ''}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    You can confirm the requester's suggestion or choose another qualified staff member from your unit.
+                  </p>
+                </div>
+
+                {/* Task Instructions */}
+                <div>
+                  <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
+                    Task Instructions / Scope for Assigned Staff
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={respondTaskDesc}
+                    onChange={(e) => setRespondTaskDesc(e.target.value)}
+                    placeholder="Enter or refine instructions for the assigned staff..."
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all resize-none shadow-inner"
+                  ></textarea>
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeclineConfirm(true)}
+                    className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-rose-600 hover:bg-rose-50"
+                  >
+                    Decline Request
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRespondAssistanceModal(null)}
+                      className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionLoading || !respondAssignedStaffId}
+                      onClick={() => handleRespondAssistanceSubmit('accept')}
+                      className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md shadow-indigo-600/20 gap-2"
+                    >
+                      {actionLoading ? (
+                        <span className="loading loading-spinner loading-xs"></span>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Accept & Assign Staff</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Decline Form */
+              <div className="space-y-4 text-xs">
+                <p className="text-xs text-slate-600 font-medium">
+                  Please provide a reason for declining this cross-unit assistance request:
+                </p>
+                <textarea
+                  rows={3}
+                  value={respondDeclineReason}
+                  onChange={(e) => setRespondDeclineReason(e.target.value)}
+                  placeholder="e.g. Unit staff currently at full capacity, deadline too tight, or outside unit scope..."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-800 focus:bg-white focus:border-rose-600 focus:outline-none transition-all resize-none shadow-inner"
+                ></textarea>
+
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeclineConfirm(false)}
+                    className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100"
+                  >
+                    Back to Assign
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={actionLoading || !respondDeclineReason.trim()}
+                    onClick={() => handleRespondAssistanceSubmit('decline')}
+                    className="btn bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md shadow-rose-600/20 gap-2"
+                  >
+                    {actionLoading ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <>
+                        <XCircle className="w-4 h-4" />
+                        <span>Confirm Decline</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
