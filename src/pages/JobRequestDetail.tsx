@@ -98,22 +98,32 @@ export const JobRequestDetail: React.FC = () => {
       // 1. Superusers (Admin and Director) see all staff
       if (user?.role === 'admin' || user?.role === 'director') return true;
 
-      // 2. Managers and Acting Managers have department-wide visibility
+      // 2. Managers and Acting Managers have department-wide visibility strictly for their OWN department
       if (user?.role === 'manager' || user?.is_acting_manager) {
         const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
         const reqDeptId = data?.request?.department_id;
 
-        // Department ID match
-        if (userDeptId && m.department_id && String(m.department_id) === String(userDeptId)) return true;
-        if (reqDeptId && m.department_id && String(m.department_id) === String(reqDeptId)) return true;
+        // If the job belongs to another department, a manager from a different department can only assign staff from their OWN managed department
+        // (or if the job has no department, match manager's department)
+        if (userDeptId && m.department_id && String(m.department_id) === String(userDeptId)) {
+          return true;
+        }
 
-        // Department Name match
-        if (user?.department_name && m.department_name && user.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
-        if (data?.request?.department_name && m.department_name && data.request.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) return true;
+        // If user has a department name, match by user's department name
+        if (user?.department_name && m.department_name && user.department_name.toLowerCase().trim() === m.department_name.toLowerCase().trim()) {
+          return true;
+        }
 
-        // Fallback Unit match
-        if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) return true;
-        if (data?.request?.unit && m.unit?.toLowerCase().trim() === data.request.unit?.toLowerCase().trim()) return true;
+        // Fallback: match by manager's own unit
+        if (user?.unit && m.unit?.toLowerCase().trim() === user.unit?.toLowerCase().trim()) {
+          return true;
+        }
+
+        // If manager has managed units listed, allow those units
+        const managedUnits: string[] = (user as any)?.managed_units || [];
+        if (managedUnits.length > 0 && m.unit && managedUnits.some((u: string) => u.toLowerCase().trim() === m.unit.toLowerCase().trim())) {
+          return true;
+        }
 
         return false;
       }
