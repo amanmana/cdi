@@ -931,7 +931,8 @@ admin.post('/clear-transactions', async (c) => {
       db.prepare('DELETE FROM workflow_logs'),
       db.prepare('DELETE FROM delegations'),
       db.prepare('DELETE FROM job_requests'),
-      db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('job_requests', 'job_tasks', 'staff_reports', 'workflow_logs', 'delegations')"),
+      db.prepare('DELETE FROM projects'),
+      db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('projects', 'job_requests', 'job_tasks', 'staff_reports', 'workflow_logs', 'delegations')"),
     ]);
 
     return c.json({

@@ -417,7 +417,7 @@ export const SettingsPage: React.FC = () => {
             <div className="flex items-center justify-between pb-1 border-b border-rose-200/60">
               <div className="font-extrabold text-xs text-rose-900 flex items-center gap-1.5">
                 <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                <span>Tables Yang Akan Dikosongkan (5 Tables):</span>
+                <span>Tables Yang Akan Dikosongkan (6 Tables):</span>
               </div>
               <span className="text-[10px] font-black uppercase tracking-wider bg-rose-200/70 text-rose-800 px-2 py-0.5 rounded-md">
                 Permanently Cleared
@@ -425,6 +425,14 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
+              <div className="p-2.5 rounded-xl bg-white border border-rose-100 flex items-start gap-2 shadow-xs">
+                <FolderKanban className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-rose-950">projects</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua projek induk organisasi Mega Projects (#MTP)</div>
+                </div>
+              </div>
+
               <div className="p-2.5 rounded-xl bg-white border border-rose-100 flex items-start gap-2 shadow-xs">
                 <FileText className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                 <div className="min-w-0">
@@ -467,7 +475,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div className="text-[10px] text-rose-700 font-bold bg-rose-100/60 p-2 rounded-lg flex items-center gap-1.5">
-              <span>⚡ ID Sequence: Auto-increment tiket & rekod di atas di-reset ke 1.</span>
+              <span>⚡ ID Sequence: Auto-increment projek, tiket & rekod di atas di-reset ke 1.</span>
             </div>
           </div>
 
@@ -476,7 +484,7 @@ export const SettingsPage: React.FC = () => {
             <div className="flex items-center justify-between pb-1 border-b border-emerald-200/60">
               <div className="font-extrabold text-xs text-emerald-900 flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Tables Yang Kekal Selamat (5 Tables):</span>
+                <span>Tables Yang Kekal Selamat (4 Tables):</span>
               </div>
               <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-200/70 text-emerald-800 px-2 py-0.5 rounded-md">
                 100% Preserved
@@ -505,14 +513,6 @@ export const SettingsPage: React.FC = () => {
                 <div className="min-w-0">
                   <div className="font-mono font-bold text-xs text-emerald-950">departments</div>
                   <div className="text-[10px] text-slate-500 font-medium">Semua struktur hierarki jabatan & lantikan pengurus jabatan</div>
-                </div>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-white border border-emerald-100 flex items-start gap-2 shadow-xs">
-                <FolderKanban className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <div className="font-mono font-bold text-xs text-emerald-950">projects</div>
-                  <div className="text-[10px] text-slate-500 font-medium">Semua projek induk organisasi Mega Projects (#MTP)</div>
                 </div>
               </div>
 
@@ -574,11 +574,11 @@ export const SettingsPage: React.FC = () => {
                   <span>Tindakan ini adalah KEKAL dan TIDAK BOLEH diundur!</span>
                 </div>
                 <p className="text-[11px] text-rose-800 font-medium leading-relaxed">
-                  Semua rekod dalam 5 table transaksi (<strong>job_requests</strong>, <strong>job_tasks</strong>, <strong>staff_reports</strong>, <strong>workflow_logs</strong>, <strong>delegations</strong>) akan dipadamkan dari Cloudflare D1.
+                  Semua rekod dalam 6 table transaksi (<strong>projects</strong>, <strong>job_requests</strong>, <strong>job_tasks</strong>, <strong>staff_reports</strong>, <strong>workflow_logs</strong>, <strong>delegations</strong>) akan dipadamkan dari Cloudflare D1.
                 </p>
                 <div className="text-[10px] text-emerald-800 font-bold bg-emerald-50/80 p-2 rounded-lg border border-emerald-200 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>5 Table Master (<strong>users</strong>, <strong>units</strong>, <strong>departments</strong>, <strong>projects</strong>, <strong>system_settings</strong>) kekal 100% selamat.</span>
+                  <span>4 Table Master (<strong>users</strong>, <strong>units</strong>, <strong>departments</strong>, <strong>system_settings</strong>) kekal 100% selamat.</span>
                 </div>
               </div>
 
