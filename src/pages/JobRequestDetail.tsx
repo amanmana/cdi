@@ -1303,7 +1303,7 @@ export const JobRequestDetail: React.FC = () => {
 
                   {/* List of Resolved (Accepted / Declined) Requests */}
                   {resolvedList.length > 0 && (
-                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <div className={`${pendingList.length > 0 ? 'pt-3 border-t border-slate-100' : 'pt-0'} space-y-2`}>
                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                         Assistance History
                       </span>
