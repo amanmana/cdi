@@ -64,6 +64,8 @@ export const Navbar: React.FC = () => {
     };
   }, [mobileMenuOpen]);
 
+  const isHeadUnit = Boolean(user?.is_unit_head);
+
   // Portal sidebar links list (exact mirror of Sidebar.tsx)
   const sidebarLinks = [
     { to: '/portal/director-dashboard', label: 'Executive Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'director'] },
@@ -72,7 +74,7 @@ export const Navbar: React.FC = () => {
     { to: '/portal/job-requests', label: user?.role === 'client' ? 'My Requests' : 'Job Requests', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'client', 'director'] },
     { to: '/portal/reports', label: 'Weekly Reports', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'director'] },
     { to: '/portal/team', label: 'Team Members', icon: <Users className="w-5 h-5" />, roles: ['admin', 'manager'] },
-    { to: '/portal/units', label: user?.role === 'manager' ? 'Form' : 'Units & Org', icon: <FolderGit2 className="w-5 h-5" />, roles: ['admin', 'manager'] },
+    { to: '/portal/units', label: isHeadUnit ? 'Form' : 'Units & Org', icon: <FolderGit2 className="w-5 h-5" />, roles: ['admin'] },
     { to: '/portal/users', label: 'User Management', icon: <Shield className="w-5 h-5" />, roles: ['admin'] },
     { to: '/portal/settings', label: 'System Settings', icon: <Settings className="w-5 h-5" />, roles: ['admin'] },
     { to: '/portal/backup', label: 'Backup & Restore', icon: <HardDrive className="w-5 h-5" />, roles: ['admin'] },
@@ -80,7 +82,8 @@ export const Navbar: React.FC = () => {
 
   const allowedSidebarLinks = sidebarLinks.filter((link) => {
     if (!user) return false;
-    if (link.to === '/portal/dashboard' && user.is_unit_head) return true;
+    if (link.to === '/portal/dashboard' && isHeadUnit) return true;
+    if (link.to === '/portal/units' && isHeadUnit) return true;
     return link.roles.includes(user.role);
   });
 

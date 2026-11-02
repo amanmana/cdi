@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   FolderGit2,
@@ -35,7 +36,13 @@ interface SchemaField {
 
 export const UnitsManagement: React.FC = () => {
   const { token, user } = useAuth();
-  const isManager = user?.role === 'manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'director';
+  const isHeadUnit = Boolean(user?.is_unit_head);
+
+  // If user is not Admin or Head Unit (e.g. Manager or regular staff), redirect to Dashboard
+  if (user && !isAdmin && !isHeadUnit) {
+    return <Navigate to="/portal/dashboard" replace />;
+  }
 
   // Navigation tab for Admin
   const [activeTab, setActiveTab] = useState<'structure' | 'builder'>('structure');
@@ -143,34 +150,34 @@ export const UnitsManagement: React.FC = () => {
     }
   }, [token]);
 
-  // Filter accessible units for Manager vs Admin
+  // Filter accessible units for Head Unit vs Admin
   const accessibleUnits = useMemo(() => {
-    if (user?.role === 'admin' || user?.role === 'director') return units;
-    if (isManager) {
-      const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+    if (isAdmin) return units;
+    if (isHeadUnit) {
       const filtered = units.filter((u) => {
-        if (userDeptId && u.department_id && String(u.department_id) === String(userDeptId)) return true;
-        if (u.name === user?.unit || u.name === user?.acting_manager_unit) return true;
+        if (u.head_id && user?.id && Number(u.head_id) === Number(user.id)) return true;
+        if (user?.unit_id && u.id && Number(u.id) === Number(user.unit_id)) return true;
+        if (user?.unit && u.name && u.name.toLowerCase().trim() === user.unit.toLowerCase().trim()) return true;
         const managedUnits: string[] = (user as any)?.managed_units || [];
-        if (managedUnits.includes(u.name)) return true;
+        if (managedUnits.some((m) => m.toLowerCase().trim() === u.name.toLowerCase().trim())) return true;
         const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
         if (managedUnitIds.includes(u.id)) return true;
         return false;
       });
-      return filtered.length > 0 ? filtered : units;
+      return filtered;
     }
-    return units;
-  }, [units, user, isManager]);
+    return [];
+  }, [units, user, isAdmin, isHeadUnit]);
 
-  // For manager: auto-select their first accessible unit and lock to builder view
+  // For Head Unit: auto-select their first accessible unit and lock to builder view
   useEffect(() => {
-    if (isManager) {
+    if (isHeadUnit && !isAdmin) {
       setActiveTab('builder');
       if (accessibleUnits.length > 0 && !selectedUnit) {
         handleOpenBuilder(accessibleUnits[0]);
       }
     }
-  }, [isManager, accessibleUnits, selectedUnit]);
+  }, [isHeadUnit, isAdmin, accessibleUnits, selectedUnit]);
 
   // ==========================================
   // DEPARTMENT HANDLERS
@@ -522,18 +529,18 @@ export const UnitsManagement: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {isManager ? 'Form Builder' : 'Organization Structure & Units'}
+              {isHeadUnit && !isAdmin ? 'Form Builder' : 'Organization Structure & Units'}
             </h1>
             <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
-              {isManager
-                ? 'Manage dynamic form schemas and additional requirements for units under your department.'
+              {isHeadUnit && !isAdmin
+                ? 'Manage dynamic form schemas and additional requirements for your unit.'
                 : 'Manage departments, unit public labels, visibility, unit heads, and custom dynamic forms.'}
             </p>
           </div>
         </div>
 
         {/* Tab switch for Admin */}
-        {!isManager && (
+        {isAdmin && (
           <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 shrink-0">
             <button
               type="button"
@@ -566,7 +573,7 @@ export const UnitsManagement: React.FC = () => {
       {/* ========================================================= */}
       {/* TAB 1: DEPARTMENTS & ORG STRUCTURE (ADMIN ONLY)           */}
       {/* ========================================================= */}
-      {!isManager && activeTab === 'structure' && (
+      {isAdmin && activeTab === 'structure' && (
         <div className="space-y-10 animate-in fade-in duration-200">
           {/* SECTION 1: DEPARTMENTS */}
           <div className="space-y-4">
@@ -888,7 +895,7 @@ export const UnitsManagement: React.FC = () => {
       {/* ========================================================= */}
       {/* TAB 2: FORM BUILDER VIEW                                   */}
       {/* ========================================================= */}
-      {(isManager || activeTab === 'builder') && (
+      {(isHeadUnit || activeTab === 'builder') && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-in fade-in duration-200">
           {/* Left: Units List */}
           <div
@@ -900,9 +907,11 @@ export const UnitsManagement: React.FC = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-slate-900">
-                {isManager ? 'Department Units' : 'Select Unit'}
+                {isHeadUnit && !isAdmin ? (accessibleUnits.length > 1 ? 'My Units' : 'My Unit') : 'Select Unit'}
               </h2>
-              <span className="text-xs text-slate-400 font-medium">{accessibleUnits.length} Units</span>
+              <span className="text-xs text-slate-400 font-medium">
+                {accessibleUnits.length} {accessibleUnits.length === 1 ? 'Unit' : 'Units'}
+              </span>
             </div>
 
             <div className="space-y-2">
@@ -1254,9 +1263,13 @@ export const UnitsManagement: React.FC = () => {
             ) : (
               <div className="py-20 text-center">
                 <Sliders className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="font-extrabold text-base text-slate-700">No Unit Selected</h3>
+                <h3 className="font-extrabold text-base text-slate-700">
+                  {accessibleUnits.length === 0 ? 'No Assigned Unit Found' : 'No Unit Selected'}
+                </h3>
                 <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto mt-1">
-                  Please pick a unit from the left panel to build and customize its dynamic form schema.
+                  {accessibleUnits.length === 0
+                    ? 'Your account is not assigned as Head of any unit. Please contact an administrator.'
+                    : 'Please pick a unit from the left panel to build and customize its dynamic form schema.'}
                 </p>
               </div>
             )}

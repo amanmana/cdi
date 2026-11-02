@@ -454,12 +454,39 @@ admin.post('/units', async (c) => {
 // Update Unit (name, department, public_label, is_public, head_id, form_schema)
 admin.put('/units/:id', async (c) => {
   const db = c.env.DB;
+  const user = c.get('user');
   const id = c.req.param('id');
   const numId = parseInt(id, 10);
   const { name, department_id, public_label, is_public, head_id, form_schema } = await c.req.json();
 
-  // Fetch current unit info before update (needed for cascade)
+  const isAdmin = user.role === 'admin' || user.role === 'director';
+  const isHeadUnit = Boolean(user.is_unit_head);
+
+  if (!isAdmin && !isHeadUnit) {
+    return c.json({ error: 'Unauthorized: Only Unit Heads and Admins can configure unit form schemas.' }, 403);
+  }
+
+  // Fetch current unit info before update (needed for cascade and scope validation)
   const existing = await db.prepare('SELECT name, head_id FROM units WHERE id = ?').bind(numId).first<any>();
+  if (!existing) return c.json({ error: 'Unit not found' }, 404);
+
+  // If Head Unit, enforce scope to their own unit and restrict update to form_schema only
+  if (!isAdmin && isHeadUnit) {
+    const isOwnUnit = (existing.head_id && Number(existing.head_id) === Number(user.id)) ||
+                      (user.unit_id && Number(user.unit_id) === numId) ||
+                      (user.unit && existing.name && user.unit.toLowerCase().trim() === existing.name.toLowerCase().trim());
+    if (!isOwnUnit) {
+      return c.json({ error: 'Forbidden: You can only configure the form schema for your own unit.' }, 403);
+    }
+
+    if (form_schema !== undefined) {
+      await db.prepare('UPDATE units SET form_schema = ? WHERE id = ?')
+        .bind(JSON.stringify(form_schema || []), numId)
+        .run();
+    }
+    return c.json({ success: true, message: 'Form schema updated successfully.' });
+  }
+
   const oldName = existing?.name;
   const oldHeadId = existing?.head_id;
 
