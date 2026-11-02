@@ -12,6 +12,19 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.12.0',
+    date: '2026-11-02',
+    items: [
+      'Feature: Cross-Unit Staff Assistance & Collaboration — Assigned staff can now request support from another specialized unit directly within an active job (e.g. 3D/Video requesting a Writer for scriptwriting) without creating a separate ticket.',
+      'Workflow: Target Unit Head Endorsement & Assignment — Cross-unit assistance requests route straight to the Target Unit Head with 1-click "Accept & Assign Suggested Staff", custom staff reassignment options, or decline with written feedback.',
+      'Architecture: Head Unit Dynamic Form Builder Delegation — Transferred ownership of unit "Additional Requirements" form schema builder from Department Managers to Head Units and Admins, distributing administrative workload and empowering units to tailor their intake requirements.',
+      'Security & Scoping: Form Builder Route Guarding & API Access Control — Head Units are strictly scoped to edit form schemas for their own unit(s) via a dedicated "Form" navigation menu; Managers are redirected and restricted via backend authorization checks on PUT /api/admin/units/:id.',
+      'Fix: Public Job Request Validation & Dynamic Fallbacks — Resolved blocking validation issue on public submission where empty options in schema fields prevented completion; introduced graceful text fallback rendering and option validation in the form builder.',
+      'Fix: Inter-Unit Assistance Parameter Normalization — Resolved "Invalid parameters" error during unit head review by standardizing request_item_id and request_id parameters across client and server.',
+      'UI/UX: Workspace Cleanliness & Hover State Contrast — Eliminated redundant "Request Unit Assistant" buttons, corrected button rollover text contrast, and removed duplicate divider lines on the collaboration workbench.',
+    ],
+  },
+  {
     version: '1.11.0',
     date: '2026-10-30',
     items: [
