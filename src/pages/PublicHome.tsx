@@ -467,7 +467,7 @@ export const PublicHome: React.FC = () => {
                           </span>
                         </label>
 
-                        {field.type === 'select' && (
+                        {field.type === 'select' && field.options && field.options.length > 0 && (
                           <select
                             required={field.required}
                             value={dynamicFields[field.id] || ''}
@@ -493,7 +493,7 @@ export const PublicHome: React.FC = () => {
                           ></textarea>
                         )}
                         
-                        {field.type === 'radio' && (
+                        {field.type === 'radio' && field.options && field.options.length > 0 && (
                           <div className="space-y-2 mt-1">
                             {field.options?.map((opt) => (
                               <label key={opt} className="flex items-center gap-2 cursor-pointer">
@@ -512,7 +512,7 @@ export const PublicHome: React.FC = () => {
                           </div>
                         )}
                         
-                        {field.type === 'checkbox' && (
+                        {field.type === 'checkbox' && field.options && field.options.length > 0 && (
                           <div className="space-y-2 mt-1">
                             {field.options?.map((opt) => {
                               const currentValues = dynamicFields[field.id] ? dynamicFields[field.id].split(', ') : [];
@@ -542,9 +542,12 @@ export const PublicHome: React.FC = () => {
                           </div>
                         )}
 
-                        {['text', 'number', 'date'].includes(field.type) && (
+                        {((['text', 'number', 'date'].includes(field.type)) ||
+                          (['select', 'radio', 'checkbox'].includes(field.type) && (!field.options || field.options.length === 0)) ||
+                          field.type === 'file'
+                        ) && (
                           <input
-                            type={field.type}
+                            type={['number', 'date'].includes(field.type) ? field.type : 'text'}
                             required={field.required}
                             placeholder={field.placeholder || `Enter ${field.label}...`}
                             value={dynamicFields[field.id] || ''}

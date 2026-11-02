@@ -412,12 +412,18 @@ export const UnitsManagement: React.FC = () => {
     if (!fieldLabel.trim()) return;
     const fieldId = fieldLabel.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const isOptionsType = ['select', 'radio', 'checkbox'].includes(fieldType);
+    const parsedOptions = isOptionsType ? fieldOptions.split(',').map((o) => o.trim()).filter(Boolean) : undefined;
+
+    if (isOptionsType && (!parsedOptions || parsedOptions.length === 0)) {
+      alert('Sila masukkan sekurang-kurangnya satu pilihan (diasingkan dengan koma) untuk medan jenis Dropdown, Radio, atau Checkbox.');
+      return;
+    }
 
     const newField: SchemaField = {
       id: fieldId,
       label: fieldLabel.trim(),
       type: fieldType,
-      options: isOptionsType ? fieldOptions.split(',').map((o) => o.trim()).filter((o) => o) : undefined,
+      options: parsedOptions,
       required: fieldRequired,
       placeholder: fieldPlaceholder.trim() || undefined,
     };
