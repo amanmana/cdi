@@ -947,26 +947,60 @@ admin.post('/clear-transactions', async (c) => {
 // Backup export
 admin.get('/backup/export', async (c) => {
   const db = c.env.DB;
-  const users = await db.prepare('SELECT * FROM users').all();
-  const units = await db.prepare('SELECT * FROM units').all();
-  const settings = await db.prepare('SELECT * FROM system_settings').all();
-  const requests = await db.prepare('SELECT * FROM job_requests').all();
-  const tasks = await db.prepare('SELECT * FROM job_tasks').all();
-  const logs = await db.prepare('SELECT * FROM workflow_logs').all();
-  const reports = await db.prepare('SELECT * FROM staff_reports').all();
-  const delegations = await db.prepare('SELECT * FROM delegations').all();
+  const departments = await db.prepare('SELECT * FROM departments ORDER BY id ASC').all();
+  const units = await db.prepare('SELECT * FROM units ORDER BY id ASC').all();
+  const users = await db.prepare('SELECT * FROM users ORDER BY id ASC').all();
+  const projects = await db.prepare('SELECT * FROM projects ORDER BY id ASC').all();
+  const requests = await db.prepare('SELECT * FROM job_requests ORDER BY id ASC').all();
+  const tasks = await db.prepare('SELECT * FROM job_tasks ORDER BY id ASC').all();
+  const reports = await db.prepare('SELECT * FROM staff_reports ORDER BY id ASC').all();
+  const logs = await db.prepare('SELECT * FROM workflow_logs ORDER BY id ASC').all();
+  const delegations = await db.prepare('SELECT * FROM delegations ORDER BY id ASC').all();
+  const settings = await db.prepare('SELECT * FROM system_settings ORDER BY key ASC').all();
+
+  const deptList = departments.results || [];
+  const unitList = units.results || [];
+  const userList = users.results || [];
+  const projList = projects.results || [];
+  const reqList = requests.results || [];
+  const taskList = tasks.results || [];
+  const repList = reports.results || [];
+  const logList = logs.results || [];
+  const delegList = delegations.results || [];
+  const settList = settings.results || [];
+
+  const tableSummary: Record<string, number> = {
+    departments: deptList.length,
+    units: unitList.length,
+    users: userList.length,
+    projects: projList.length,
+    job_requests: reqList.length,
+    job_tasks: taskList.length,
+    staff_reports: repList.length,
+    workflow_logs: logList.length,
+    delegations: delegList.length,
+    system_settings: settList.length,
+  };
+
+  const totalRecords = Object.values(tableSummary).reduce((a, b) => a + b, 0);
 
   return c.json({
-    version: '1.0',
+    version: '2.0',
     timestamp: new Date().toISOString(),
-    users: users.results || [],
-    units: units.results || [],
-    system_settings: settings.results || [],
-    job_requests: requests.results || [],
-    job_tasks: tasks.results || [],
-    workflow_logs: logs.results || [],
-    staff_reports: reports.results || [],
-    delegations: delegations.results || [],
+    system: 'CDI Management Portal',
+    tables: tableSummary,
+    total_records: totalRecords,
+    // Root-level arrays for maximum compatibility
+    departments: deptList,
+    units: unitList,
+    users: userList,
+    projects: projList,
+    job_requests: reqList,
+    job_tasks: taskList,
+    staff_reports: repList,
+    workflow_logs: logList,
+    delegations: delegList,
+    system_settings: settList,
   });
 });
 
@@ -981,59 +1015,119 @@ admin.post('/backup/import', async (c) => {
   }
 
   // Validate that the JSON file contains recognized system tables
+  const rawData = data.data || data;
   const hasValidTables =
-    Array.isArray(data.users) ||
-    Array.isArray(data.units) ||
-    Array.isArray(data.job_requests) ||
-    Array.isArray(data.system_settings) ||
-    Array.isArray(data.job_tasks);
+    Array.isArray(rawData.users) ||
+    Array.isArray(rawData.units) ||
+    Array.isArray(rawData.job_requests) ||
+    Array.isArray(rawData.system_settings) ||
+    Array.isArray(rawData.departments) ||
+    Array.isArray(rawData.projects) ||
+    Array.isArray(rawData.job_tasks);
 
   if (!hasValidTables) {
     return c.json({
-      error: 'Invalid backup file! The uploaded JSON does not contain CDI system database tables. Import aborted.',
+      error: 'Invalid backup file! The uploaded JSON does not contain recognized CDI system database tables. Import aborted.',
     }, 400);
   }
 
   const isOverwrite = mode === 'overwrite';
   const stmts: D1PreparedStatement[] = [];
 
+  // If overwrite mode, purge in reverse dependency order (child tables first)
   if (isOverwrite) {
     stmts.push(
-      db.prepare('DELETE FROM job_tasks'),
-      db.prepare('DELETE FROM staff_reports'),
       db.prepare('DELETE FROM workflow_logs'),
-      db.prepare('DELETE FROM delegations'),
+      db.prepare('DELETE FROM staff_reports'),
+      db.prepare('DELETE FROM job_tasks'),
       db.prepare('DELETE FROM job_requests'),
+      db.prepare('DELETE FROM projects'),
+      db.prepare('DELETE FROM delegations'),
       db.prepare('DELETE FROM users'),
       db.prepare('DELETE FROM units'),
+      db.prepare('DELETE FROM departments'),
       db.prepare('DELETE FROM system_settings'),
       db.prepare('DELETE FROM sqlite_sequence')
     );
   }
 
-  // Restore units
-  if (Array.isArray(data.units)) {
-    for (const u of data.units) {
+  // 1. Restore departments
+  if (Array.isArray(rawData.departments)) {
+    for (const d of rawData.departments) {
       stmts.push(
-        db.prepare('INSERT OR REPLACE INTO units (id, name, form_schema, created_at) VALUES (?, ?, ?, ?)')
-          .bind(u.id, u.name, typeof u.form_schema === 'object' ? JSON.stringify(u.form_schema) : u.form_schema || null, u.created_at || null)
+        db.prepare('INSERT OR REPLACE INTO departments (id, name, manager_id, description, created_at) VALUES (?, ?, ?, ?, ?)')
+          .bind(d.id, d.name, d.manager_id || null, d.description || null, d.created_at || null)
       );
     }
   }
 
-  // Restore users
-  if (Array.isArray(data.users)) {
-    for (const u of data.users) {
+  // 2. Restore units
+  if (Array.isArray(rawData.units)) {
+    for (const u of rawData.units) {
       stmts.push(
-        db.prepare('INSERT OR REPLACE INTO users (id, name, email, password_hash, role, unit_id, unit, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(u.id, u.name, u.email, u.password_hash, u.role, u.unit_id || null, u.unit || null, u.created_at || null)
+        db.prepare('INSERT OR REPLACE INTO units (id, name, department_id, public_label, is_public, head_id, form_schema, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(
+            u.id,
+            u.name,
+            u.department_id || null,
+            u.public_label || null,
+            u.is_public !== undefined ? (u.is_public ? 1 : 0) : 1,
+            u.head_id || null,
+            typeof u.form_schema === 'object' ? JSON.stringify(u.form_schema) : u.form_schema || '[]',
+            u.created_at || null
+          )
       );
     }
   }
 
-  // Restore system_settings
-  if (Array.isArray(data.system_settings)) {
-    for (const s of data.system_settings) {
+  // 3. Restore users
+  if (Array.isArray(rawData.users)) {
+    for (const u of rawData.users) {
+      stmts.push(
+        db.prepare('INSERT OR REPLACE INTO users (id, name, email, password_hash, role, unit_id, unit, department_id, is_unit_head, phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(
+            u.id,
+            u.name,
+            u.email,
+            u.password_hash,
+            u.role || 'client',
+            u.unit_id || null,
+            u.unit || null,
+            u.department_id || null,
+            u.is_unit_head ? 1 : 0,
+            u.phone || null,
+            u.created_at || null
+          )
+      );
+    }
+  }
+
+  // 4. Restore projects (Mega Projects)
+  if (Array.isArray(rawData.projects)) {
+    for (const p of rawData.projects) {
+      stmts.push(
+        db.prepare('INSERT OR REPLACE INTO projects (id, code, title, description, created_by_user_id, status, status_note, start_date, target_deadline, assigned_unit_ids, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(
+            p.id,
+            p.code,
+            p.title,
+            p.description || null,
+            p.created_by_user_id || 1,
+            p.status || 'active',
+            p.status_note || null,
+            p.start_date || null,
+            p.target_deadline || null,
+            p.assigned_unit_ids || null,
+            p.created_at || null,
+            p.updated_at || null
+          )
+      );
+    }
+  }
+
+  // 5. Restore system_settings
+  if (Array.isArray(rawData.system_settings)) {
+    for (const s of rawData.system_settings) {
       stmts.push(
         db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)')
           .bind(s.key, String(s.value))
@@ -1041,12 +1135,32 @@ admin.post('/backup/import', async (c) => {
     }
   }
 
-  // Restore job_requests
-  if (Array.isArray(data.job_requests)) {
-    for (const r of data.job_requests) {
+  // 6. Restore delegations
+  if (Array.isArray(rawData.delegations)) {
+    for (const d of rawData.delegations) {
       stmts.push(
-        db.prepare(`INSERT OR REPLACE INTO job_requests (id, ticket_no, client_name, client_email, title, description, unit_id, unit, status, current_step_name, assigned_staff_ids, start_date, deadline, additional_data, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        db.prepare('INSERT OR REPLACE INTO delegations (id, manager_id, delegate_id, unit_id, unit, start_date, end_date, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(
+            d.id,
+            d.manager_id,
+            d.delegate_id,
+            d.unit_id || null,
+            d.unit,
+            d.start_date,
+            d.end_date,
+            d.status || 'active',
+            d.created_at || null
+          )
+      );
+    }
+  }
+
+  // 7. Restore job_requests
+  if (Array.isArray(rawData.job_requests)) {
+    for (const r of rawData.job_requests) {
+      stmts.push(
+        db.prepare(`INSERT OR REPLACE INTO job_requests (id, ticket_no, client_name, client_email, title, description, unit_id, unit, department_id, project_id, status, current_step_name, assigned_staff_ids, start_date, deadline, additional_data, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
           .bind(
             r.id,
             r.ticket_no,
@@ -1056,6 +1170,8 @@ admin.post('/backup/import', async (c) => {
             r.description || null,
             r.unit_id || null,
             r.unit,
+            r.department_id || null,
+            r.project_id || null,
             r.status,
             r.current_step_name || null,
             r.assigned_staff_ids || null,
@@ -1069,19 +1185,30 @@ admin.post('/backup/import', async (c) => {
     }
   }
 
-  // Restore job_tasks
-  if (Array.isArray(data.job_tasks)) {
-    for (const t of data.job_tasks) {
+  // 8. Restore job_tasks
+  if (Array.isArray(rawData.job_tasks)) {
+    for (const t of rawData.job_tasks) {
       stmts.push(
         db.prepare('INSERT OR REPLACE INTO job_tasks (id, job_request_id, title, description, assigned_to_user_id, assigned_by_user_id, status, due_date, completed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(t.id, t.job_request_id, t.title, t.description || null, t.assigned_to_user_id, t.assigned_by_user_id, t.status, t.due_date || null, t.completed_at || null, t.created_at || null)
+          .bind(
+            t.id,
+            t.job_request_id,
+            t.title,
+            t.description || null,
+            t.assigned_to_user_id,
+            t.assigned_by_user_id,
+            t.status || 'pending',
+            t.due_date || null,
+            t.completed_at || null,
+            t.created_at || null
+          )
       );
     }
   }
 
-  // Restore staff_reports
-  if (Array.isArray(data.staff_reports)) {
-    for (const rep of data.staff_reports) {
+  // 9. Restore staff_reports
+  if (Array.isArray(rawData.staff_reports)) {
+    for (const rep of rawData.staff_reports) {
       stmts.push(
         db.prepare('INSERT OR REPLACE INTO staff_reports (id, job_request_id, staff_id, report_text, created_at) VALUES (?, ?, ?, ?, ?)')
           .bind(rep.id, rep.job_request_id, rep.staff_id, rep.report_text, rep.created_at || null)
@@ -1089,22 +1216,22 @@ admin.post('/backup/import', async (c) => {
     }
   }
 
-  // Restore workflow_logs
-  if (Array.isArray(data.workflow_logs)) {
-    for (const l of data.workflow_logs) {
+  // 10. Restore workflow_logs
+  if (Array.isArray(rawData.workflow_logs)) {
+    for (const l of rawData.workflow_logs) {
       stmts.push(
         db.prepare('INSERT OR REPLACE INTO workflow_logs (id, job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(l.id, l.job_request_id, l.action, l.actor_id || null, l.actor_name || null, l.from_step_name || null, l.to_step_name || null, l.comment || null, l.created_at || null)
-      );
-    }
-  }
-
-  // Restore delegations
-  if (Array.isArray(data.delegations)) {
-    for (const d of data.delegations) {
-      stmts.push(
-        db.prepare('INSERT OR REPLACE INTO delegations (id, manager_id, delegate_id, unit_id, unit, start_date, end_date, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(d.id, d.manager_id, d.delegate_id, d.unit_id || null, d.unit, d.start_date, d.end_date, d.status, d.created_at || null)
+          .bind(
+            l.id,
+            l.job_request_id,
+            l.action,
+            l.actor_id || null,
+            l.actor_name || null,
+            l.from_step_name || null,
+            l.to_step_name || null,
+            l.comment || null,
+            l.created_at || null
+          )
       );
     }
   }
