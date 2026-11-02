@@ -644,6 +644,7 @@ export const JobRequestDetail: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          request_item_id: showRespondAssistanceModal.id,
           request_id: showRespondAssistanceModal.id,
           action,
           assigned_staff_id: action === 'accept' ? Number(respondAssignedStaffId) : undefined,

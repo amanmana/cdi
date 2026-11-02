@@ -2050,9 +2050,10 @@ jobRequestsRouter.post('/:id/respond-assistance', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const idParam = c.req.param('id');
-  const { request_item_id, action, assigned_staff_id, task_description, decline_reason } = await c.req.json();
+  const { request_item_id, request_id, action, assigned_staff_id, task_description, decline_reason } = await c.req.json();
+  const targetItemId = request_item_id || request_id;
 
-  if (!request_item_id || !action || !['accept', 'decline'].includes(action)) {
+  if (!targetItemId || !action || !['accept', 'decline'].includes(action)) {
     return c.json({ error: 'Invalid parameters.' }, 400);
   }
 
@@ -2067,7 +2068,7 @@ jobRequestsRouter.post('/:id/respond-assistance', async (c) => {
   }
 
   const astList: any[] = Array.isArray(addData.assistance_requests) ? addData.assistance_requests : [];
-  const astReq = astList.find((r: any) => r.id === request_item_id);
+  const astReq = astList.find((r: any) => r.id === targetItemId);
 
   if (!astReq) {
     return c.json({ error: 'Assistance request record not found.' }, 404);
