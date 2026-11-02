@@ -1,6 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Settings, Save, CheckCircle2, Trash2, AlertTriangle, Database, X, ShieldAlert, Mail, Clock } from 'lucide-react';
+import {
+  Settings,
+  Save,
+  CheckCircle2,
+  Trash2,
+  AlertTriangle,
+  Database,
+  X,
+  ShieldAlert,
+  ShieldCheck,
+  Mail,
+  Clock,
+  FileText,
+  CheckSquare,
+  ClipboardList,
+  History,
+  Users,
+  Layers,
+  Building2,
+  FolderKanban,
+} from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { token } = useAuth();
@@ -389,20 +409,127 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-100 text-xs text-rose-800 space-y-1.5 font-medium">
-          <div className="font-bold flex items-center gap-1.5 text-rose-900">
-            <Database className="w-4 h-4 text-rose-600" />
-            What will be cleared:
+        {/* Transparent Table Comparison Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Column 1: Tables to be Cleared */}
+          <div className="p-4 bg-rose-50/70 rounded-2xl border border-rose-200/80 space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-rose-200/60">
+              <div className="font-extrabold text-xs text-rose-900 flex items-center gap-1.5">
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>Tables Yang Akan Dikosongkan (5 Tables):</span>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-rose-200/70 text-rose-800 px-2 py-0.5 rounded-md">
+                Permanently Cleared
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <div className="p-2.5 rounded-xl bg-white border border-rose-100 flex items-start gap-2 shadow-xs">
+                <FileText className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-rose-950">job_requests</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua tiket permohonan kerja client & metadata penugasan</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white border border-rose-100 flex items-start gap-2 shadow-xs">
+                <CheckSquare className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-rose-950">job_tasks</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua sub-tugasan staf & status kerja pereka/penulis</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white border border-rose-100 flex items-start gap-2 shadow-xs">
+                <ClipboardList className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-rose-950">staff_reports</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua laporan kemajuan & entri pelaporan mingguan staf</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white border border-rose-100 flex items-start gap-2 shadow-xs">
+                <History className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-rose-950">workflow_logs</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua sejarah log audit & transaksi status permohonan</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white border border-rose-100 flex items-start gap-2 shadow-xs">
+                <Clock className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-rose-950">delegations</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua jadual lantikan pemangku pengurus terdahulu</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-rose-700 font-bold bg-rose-100/60 p-2 rounded-lg flex items-center gap-1.5">
+              <span>⚡ ID Sequence: Auto-increment tiket & rekod di atas di-reset ke 1.</span>
+            </div>
           </div>
-          <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1 text-[11px]">
-            <li>All Job Requests (`job_requests`)</li>
-            <li>All Sub-Tasks (`job_tasks`) & Staff Reports (`staff_reports`)</li>
-            <li>All Workflow History Logs (`workflow_logs`) & Delegations (`delegations`)</li>
-            <li>Ticket ID sequence will be reset to 1</li>
-          </ul>
-          <div className="font-bold text-emerald-700 pt-1 text-[11px]">
-            ✅ Users table (`users`), Units (`units`), and System Settings will remain untouched.
+
+          {/* Column 2: Tables Preserved / Untouched */}
+          <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-emerald-200/60">
+              <div className="font-extrabold text-xs text-emerald-900 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Tables Yang Kekal Selamat (5 Tables):</span>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-200/70 text-emerald-800 px-2 py-0.5 rounded-md">
+                100% Preserved
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <div className="p-2.5 rounded-xl bg-white border border-emerald-100 flex items-start gap-2 shadow-xs">
+                <Users className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-emerald-950">users</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua akaun pengguna, peranan, kata laluan & profil kakitangan</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white border border-emerald-100 flex items-start gap-2 shadow-xs">
+                <Layers className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-emerald-950">units</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua unit perkhidmatan, ketua unit & dynamic form schema</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white border border-emerald-100 flex items-start gap-2 shadow-xs">
+                <Building2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-emerald-950">departments</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua struktur hierarki jabatan & lantikan pengurus jabatan</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white border border-emerald-100 flex items-start gap-2 shadow-xs">
+                <FolderKanban className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-emerald-950">projects</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua projek induk organisasi Mega Projects (#MTP)</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white border border-emerald-100 flex items-start gap-2 shadow-xs">
+                <Settings className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-xs text-emerald-950">system_settings</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Semua konfigurasi sistem, emel, notis & parameter keselamatan</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-emerald-800 font-bold bg-emerald-100/60 p-2 rounded-lg flex items-center gap-1.5">
+              <span>✅ Akaun login kakitangan & konfigurasi sistem dijamin tidak terjejas sama sekali.</span>
+            </div>
           </div>
+
         </div>
 
         <button
@@ -441,14 +568,18 @@ export const SettingsPage: React.FC = () => {
 
             {/* Modal Content Form */}
             <form onSubmit={handleExecuteClearTransactions} className="p-6 space-y-5">
-              <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 space-y-2">
+              <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 space-y-2.5">
                 <div className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
                   <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>This action CANNOT be undone!</span>
+                  <span>Tindakan ini adalah KEKAL dan TIDAK BOLEH diundur!</span>
                 </div>
                 <p className="text-[11px] text-rose-800 font-medium leading-relaxed">
-                  You are about to permanently delete all <strong>Job Requests</strong>, <strong>Tasks</strong>, <strong>Reports</strong>, and <strong>Logs</strong> from Cloudflare D1 database.
+                  Semua rekod dalam 5 table transaksi (<strong>job_requests</strong>, <strong>job_tasks</strong>, <strong>staff_reports</strong>, <strong>workflow_logs</strong>, <strong>delegations</strong>) akan dipadamkan dari Cloudflare D1.
                 </p>
+                <div className="text-[10px] text-emerald-800 font-bold bg-emerald-50/80 p-2 rounded-lg border border-emerald-200 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>5 Table Master (<strong>users</strong>, <strong>units</strong>, <strong>departments</strong>, <strong>projects</strong>, <strong>system_settings</strong>) kekal 100% selamat.</span>
+                </div>
               </div>
 
               <div>
