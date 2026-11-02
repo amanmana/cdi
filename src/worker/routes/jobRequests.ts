@@ -2074,15 +2074,19 @@ jobRequestsRouter.post('/:id/respond-assistance', async (c) => {
     return c.json({ error: 'Assistance request record not found.' }, 404);
   }
 
-  // Authorization check: User must be unit head of target unit, manager of target unit's department, or admin
+  // Authorization check: User must be unit head of target unit or admin/director
+  // Managers are explicitly excluded to keep cross-unit assistance strictly between Unit Heads
+  if (user.role === 'manager' || user.is_acting_manager) {
+    return c.json({ error: 'Unauthorized. Cross-unit assistance review is handled exclusively by the Head of ' + astReq.target_unit + '.' }, 403);
+  }
+
   const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
-  const isAuthorized =
-    user.role === 'admin' ||
-    user.role === 'director' ||
-    Boolean(user.is_acting_manager) ||
+  const isTargetHead =
     (astReq.head_id && Number(user.id) === Number(astReq.head_id)) ||
-    userManagedUnits.some(u => u.toLowerCase().trim() === astReq.target_unit?.toLowerCase().trim()) ||
-    (user.unit && user.unit.toLowerCase().trim() === astReq.target_unit?.toLowerCase().trim());
+    (Boolean(user.is_unit_head) && user.unit && user.unit.toLowerCase().trim() === astReq.target_unit?.toLowerCase().trim()) ||
+    (Boolean(user.is_unit_head) && userManagedUnits.some(u => u.toLowerCase().trim() === astReq.target_unit?.toLowerCase().trim()));
+
+  const isAuthorized = user.role === 'admin' || user.role === 'director' || isTargetHead;
 
   if (!isAuthorized) {
     return c.json({ error: 'Unauthorized. Only the Head of ' + astReq.target_unit + ' or Admin can respond to this request.' }, 403);

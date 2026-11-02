@@ -890,7 +890,11 @@ export const JobRequestDetail: React.FC = () => {
   );
 
   const canUserRespondToAst = (ast: any) => {
-    if (user?.role === 'admin' || user?.role === 'director' || user?.role === 'manager' || user?.is_acting_manager) {
+    // Managers must NOT review or assign staff for cross-unit assistance (strictly between Unit Heads)
+    if (user?.role === 'manager' || user?.is_acting_manager) {
+      return false;
+    }
+    if (user?.role === 'admin' || user?.role === 'director') {
       return true;
     }
     if (ast.head_id && Number(user?.id) === Number(ast.head_id)) {
@@ -1292,7 +1296,7 @@ export const JobRequestDetail: React.FC = () => {
                             ) : (
                               <div className="text-[11px] text-amber-800 font-medium italic flex items-center gap-1.5">
                                 <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                Waiting for {ast.target_unit} Head ({ast.head_name || 'Unit Head'}) or Manager to review and assign staff.
+                                Waiting for {ast.target_unit} Head ({ast.head_name || 'Unit Head'}) to review and assign staff.
                               </div>
                             )}
                           </div>
