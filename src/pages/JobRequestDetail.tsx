@@ -929,8 +929,8 @@ export const JobRequestDetail: React.FC = () => {
     return 'bg-indigo-50 text-indigo-700 border-indigo-200/90 ring-indigo-100';
   };
 
-  // Compute all participating units involved in this project for transparent oversight
-  const { participatingUnits, unitStaffCounts } = useMemo(() => {
+  // Compute all participating units involved in this project for transparent oversight (pure calculation, no hook)
+  const { participatingUnits, unitStaffCounts } = (() => {
     const canonicalMap = new Map<string, string>();
     const counts: Record<string, number> = {};
 
@@ -984,7 +984,7 @@ export const JobRequestDetail: React.FC = () => {
       participatingUnits: Array.from(canonicalMap.values()),
       unitStaffCounts: counts,
     };
-  }, [request, data?.staffDetails]);
+  })();
 
   // True when the logged-in user is the origin staff of an Inter-Unit job
   // (the person from the requester's unit who was assigned to do the requester-side work)
