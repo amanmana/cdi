@@ -30,7 +30,8 @@ import {
   Send,
   CalendarDays,
   TrendingUp,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  GripVertical
 } from 'lucide-react';
 
 interface KanbanColumn {
@@ -79,6 +80,10 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [newColumnName, setNewColumnName] = useState<string>('');
   const [editingColumn, setEditingColumn] = useState<KanbanColumn | null>(null);
   const [selectedTaskPreview, setSelectedTaskPreview] = useState<any | null>(null);
+
+  // Drag and Drop State
+  const [draggedJobId, setDraggedJobId] = useState<number | null>(null);
+  const [dragOverColId, setDragOverColId] = useState<string | null>(null);
 
   // Calendar State
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
@@ -779,11 +784,43 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           <div className="flex gap-4 overflow-x-auto pb-6 pt-1 min-h-[550px] items-start">
             {kanbanColumns.map((col, index) => {
               const colJobs = filteredJobs.filter((job) => getJobStageId(job) === col.id);
+              const isColumnDraggedOver = dragOverColId === col.id;
 
               return (
                 <div
                   key={col.id}
-                  className="w-80 shrink-0 bg-slate-100/90 rounded-3xl border border-slate-200/80 p-4 space-y-3.5 flex flex-col shadow-xs"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverColId !== col.id) {
+                      setDragOverColId(col.id);
+                    }
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    setDragOverColId(col.id);
+                  }}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                    if (dragOverColId === col.id) {
+                      setDragOverColId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOverColId(null);
+                    const idStr = e.dataTransfer.getData('text/plain');
+                    const jobId = idStr ? Number(idStr) : draggedJobId;
+                    if (jobId) {
+                      handleMoveCard(jobId, col.id);
+                    }
+                    setDraggedJobId(null);
+                  }}
+                  className={`w-80 shrink-0 rounded-3xl border p-4 space-y-3.5 flex flex-col transition-all duration-200 ${
+                    isColumnDraggedOver
+                      ? 'bg-indigo-50/90 border-indigo-400 ring-2 ring-indigo-500/60 shadow-lg scale-[1.01]'
+                      : 'bg-slate-100/90 border-slate-200/80 shadow-xs'
+                  }`}
                 >
                   {/* Column Header */}
                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
@@ -841,8 +878,14 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   {/* Cards inside this Column */}
                   <div className="space-y-3 flex-1 overflow-y-auto max-h-[70vh] pr-1">
                     {colJobs.length === 0 ? (
-                      <div className="p-6 text-center text-slate-400 border border-dashed border-slate-300 rounded-2xl text-xs font-semibold">
-                        No tasks in this stage
+                      <div
+                        className={`p-6 text-center border-2 border-dashed rounded-2xl text-xs font-semibold transition-all ${
+                          isColumnDraggedOver
+                            ? 'border-indigo-400 bg-indigo-100/50 text-indigo-700 animate-pulse'
+                            : 'border-slate-300 text-slate-400'
+                        }`}
+                      >
+                        {isColumnDraggedOver ? '⇩ Lepaskan kad di sini' : 'No tasks in this stage'}
                       </div>
                     ) : (
                       colJobs.map((job) => {
@@ -850,21 +893,39 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                         const cFields = job.additional_data?.custom_fields_data || {};
                         const pillars = cFields.pillar || cFields.Pillar;
                         const category = cFields.category || cFields.Category;
+                        const isThisCardDragged = draggedJobId === job.id;
 
                         return (
                           <div
                             key={job.id}
-                            className={`p-4 rounded-2xl transition-all duration-150 space-y-2.5 ${
+                            draggable={true}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', String(job.id));
+                              e.dataTransfer.effectAllowed = 'move';
+                              setDraggedJobId(job.id);
+                            }}
+                            onDragEnd={() => {
+                              setDraggedJobId(null);
+                              setDragOverColId(null);
+                            }}
+                            className={`p-4 rounded-2xl transition-all duration-150 space-y-2.5 cursor-grab active:cursor-grabbing select-none ${
+                              isThisCardDragged
+                                ? 'opacity-40 scale-[0.98] border-dashed border-indigo-500 shadow-inner rotate-1'
+                                : ''
+                            } ${
                               isDone
-                                ? 'bg-white border-l-4 border-l-emerald-500 border border-emerald-200/80 shadow-xs hover:border-emerald-400'
-                                : 'bg-white border-l-4 border-l-rose-500 border border-rose-200/80 shadow-xs hover:border-rose-400'
+                                ? 'bg-white border-l-4 border-l-emerald-500 border border-emerald-200/80 shadow-xs hover:shadow-md hover:border-emerald-400'
+                                : 'bg-white border-l-4 border-l-rose-500 border border-rose-200/80 shadow-xs hover:shadow-md hover:border-rose-400'
                             }`}
                           >
                             {/* Card Header: Ticket No + Red / Green Status Badge */}
                             <div className="flex items-center justify-between gap-1.5">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                                {job.ticket_no}
-                              </span>
+                              <div className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600">
+                                <GripVertical className="w-3.5 h-3.5 shrink-0" />
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                  {job.ticket_no}
+                                </span>
+                              </div>
                               {isDone ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
                                   <Check className="w-2.5 h-2.5" />
@@ -954,6 +1015,13 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                           </div>
                         );
                       })
+                    )}
+
+                    {/* Drop target indicator when dragging over a column that already has cards */}
+                    {isColumnDraggedOver && colJobs.length > 0 && (
+                      <div className="p-3 rounded-2xl border-2 border-dashed border-indigo-400 bg-indigo-100/50 text-indigo-700 text-xs font-extrabold text-center animate-pulse flex items-center justify-center gap-2">
+                        <span>⇩ Lepaskan untuk pindah ke {col.label}</span>
+                      </div>
                     )}
                   </div>
                 </div>
