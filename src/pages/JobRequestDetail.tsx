@@ -1956,6 +1956,24 @@ export const JobRequestDetail: React.FC = () => {
                           // Active turn is only held if user has NOT finished their part yet
                           const isUserTurn = !isCurrentUserDone && (!holderId || Number(user?.id) === holderId);
 
+                          // Extract latest collab message (from handoff state or history logs fallback)
+                          let latestCollabNote = handoff?.last_note || '';
+                          let latestCollabActor = handoff?.last_actor_name || '';
+                          let latestCollabDraftUrl = handoff?.last_draft_url || '';
+
+                          if (!latestCollabNote && history && history.length > 0) {
+                            const lastCollabEntry = history.find(
+                              (h: any) => h.action === 'COLLAB_HANDOFF' || h.action === 'COLLAB_REVISION_REQUEST'
+                            );
+                            if (lastCollabEntry && lastCollabEntry.comment) {
+                              const noteMatch = lastCollabEntry.comment.match(/Note:\s*"([^"]+)"/i);
+                              if (noteMatch && noteMatch[1]) {
+                                latestCollabNote = noteMatch[1];
+                                latestCollabActor = lastCollabEntry.actor_name || '';
+                              }
+                            }
+                          }
+
                           return (
                             <div className="bg-slate-50/70 border border-slate-200/90 rounded-3xl p-4 space-y-3.5 text-left mb-3 shadow-xs">
                               {/* Header: Turn pill */}
@@ -1984,17 +2002,44 @@ export const JobRequestDetail: React.FC = () => {
 
                                 {/* Active Turn Sub-Banner */}
                                 {holderId && Number(user?.id) === holderId ? (
-                                  <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200/70 flex items-start gap-2">
+                                  <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-start gap-2.5 shadow-xs">
                                     <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                                    <div className="min-w-0 flex-1">
-                                      <div className="text-xs font-black text-emerald-950">Active Action Required</div>
-                                      <div className="text-[11px] font-medium text-emerald-800 leading-snug">
-                                        {collaboratorCompletedNotice
-                                          ? 'Collaborator has finalized their part. Ready to finalize.'
-                                          : handoff?.last_action === 'REVISION_REQUESTED'
-                                          ? 'Revision requested — please review changes and update.'
-                                          : 'You hold the turn — prepare drafts and hand over when ready.'}
+                                    <div className="min-w-0 flex-1 space-y-1.5">
+                                      <div>
+                                        <div className="text-xs font-black text-emerald-950">Active Action Required</div>
+                                        <div className="text-[11px] font-medium text-emerald-800 leading-snug">
+                                          {collaboratorCompletedNotice
+                                            ? 'Collaborator has finalized their part. Ready to finalize.'
+                                            : handoff?.last_action === 'REVISION_REQUESTED'
+                                            ? 'Revision requested — please review changes and update.'
+                                            : 'You hold the turn — prepare drafts and hand over when ready.'}
+                                        </div>
                                       </div>
+
+                                      {/* Message from Collaborator */}
+                                      {latestCollabNote && (
+                                        <div className="pt-2 border-t border-emerald-200/70 text-[11px] leading-snug">
+                                          <div className="font-extrabold text-emerald-950 flex items-center gap-1.5">
+                                            <MessageSquare className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                            <span>Message from {latestCollabActor || 'Collaborator'}:</span>
+                                          </div>
+                                          <div className="mt-1 pl-5 text-xs font-semibold italic text-emerald-900 bg-white/80 py-1.5 px-2.5 rounded-xl border border-emerald-200/70 shadow-xs">
+                                            "{latestCollabNote}"
+                                          </div>
+                                          {latestCollabDraftUrl && (
+                                            <div className="mt-1 pl-5">
+                                              <a
+                                                href={latestCollabDraftUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline"
+                                              >
+                                                <ExternalLink className="w-3 h-3" /> View Shared Draft
+                                              </a>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 ) : holderId ? (
@@ -2005,13 +2050,19 @@ export const JobRequestDetail: React.FC = () => {
                                       <div className="text-[11px] font-medium text-slate-500 leading-snug">
                                         Currently with <strong className="text-slate-700">{holderName}</strong> ({holderUnit})
                                       </div>
+                                      {latestCollabNote && (
+                                        <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[11px] text-slate-600">
+                                          <span className="font-bold text-slate-700">{latestCollabActor || 'Sender'}:</span>{' '}
+                                          <span className="italic">"{latestCollabNote}"</span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 ) : null}
                               </div>
 
-                              {/* Latest Note / History */}
-                              {collaboratorCompletedNotice ? (
+                              {/* Collaborator Finalized Notification Banner */}
+                              {collaboratorCompletedNotice && (
                                 <div className="p-3 bg-white border border-emerald-200 rounded-2xl space-y-1">
                                   <div className="text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -2021,7 +2072,10 @@ export const JobRequestDetail: React.FC = () => {
                                     {finishedCollaborators.map((s: any) => s.name).join(', ')} has marked their portion as complete.
                                   </div>
                                 </div>
-                              ) : request.additional_data?.handoff?.last_note ? (
+                              )}
+
+                              {/* Standalone Latest Note / Draft Link (when not already rendered in user's active turn box) */}
+                              {latestCollabNote && !(holderId && Number(user?.id) === holderId) && (
                                 <div className="p-3 bg-white border border-slate-200/80 rounded-2xl space-y-1.5">
                                   <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                                     <span className="flex items-center gap-1">
@@ -2029,16 +2083,16 @@ export const JobRequestDetail: React.FC = () => {
                                       Latest Note
                                     </span>
                                     <span className="text-slate-600 lowercase font-medium">
-                                      {request.additional_data.handoff.last_actor_name} ({request.additional_data.handoff.last_actor_unit || 'Unit'})
+                                      {latestCollabActor} ({handoff?.last_actor_unit || 'Unit'})
                                     </span>
                                   </div>
                                   <p className="text-xs text-slate-800 font-medium italic leading-relaxed pl-2.5 border-l-2 border-indigo-500">
-                                    "{request.additional_data.handoff.last_note}"
+                                    "{latestCollabNote}"
                                   </p>
-                                  {request.additional_data.handoff.last_draft_url && (
+                                  {latestCollabDraftUrl && (
                                     <div className="pt-1">
                                       <a
-                                        href={request.additional_data.handoff.last_draft_url}
+                                        href={latestCollabDraftUrl}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
@@ -2048,7 +2102,7 @@ export const JobRequestDetail: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
-                              ) : null}
+                              )}
 
                               {/* Collaborative Action Buttons - Clean, spacious & designer-ready */}
                               {isUserTurn ? (

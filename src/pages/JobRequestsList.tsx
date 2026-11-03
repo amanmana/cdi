@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus, ChevronDown, Sliders } from 'lucide-react';
+import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus, ChevronDown, Sliders, MessageSquare } from 'lucide-react';
 
 export const JobRequestsList: React.FC = () => {
   const { token, user } = useAuth();
@@ -959,33 +959,49 @@ export const JobRequestsList: React.FC = () => {
 
                               if (holderId && Number(user?.id) === holderId) {
                                 return (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black animate-pulse">
-                                    <span>⚡ YOUR ACTION REQUIRED</span>
-                                    {handoff?.last_action === "REVISION_REQUESTED" && (
-                                      <span className="bg-emerald-600 text-white text-[9px] px-1 rounded">Revision</span>
+                                  <>
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black animate-pulse">
+                                      <span>⚡ YOUR ACTION REQUIRED</span>
+                                      {handoff?.last_action === "REVISION_REQUESTED" && (
+                                        <span className="bg-emerald-600 text-white text-[9px] px-1 rounded">Revision</span>
+                                      )}
+                                      {(!handoff || handoff?.last_action === "INITIAL_DRAFTING") && (
+                                        <span className="bg-emerald-600 text-white text-[9px] px-1 rounded">Drafting</span>
+                                      )}
+                                    </span>
+                                    {handoff?.last_note && (
+                                      <span
+                                        className="inline-flex items-center gap-1 text-[10px] text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 font-semibold truncate max-w-xs"
+                                        title={`Message from ${handoff.last_actor_name || 'Collaborator'}: "${handoff.last_note}"`}
+                                      >
+                                        <MessageSquare className="w-3 h-3 text-emerald-600 shrink-0" />
+                                        <span className="font-extrabold text-emerald-950">
+                                          {handoff.last_actor_name ? `${handoff.last_actor_name}:` : 'Note:'}
+                                        </span>
+                                        <span className="italic truncate font-medium">"{handoff.last_note}"</span>
+                                      </span>
                                     )}
-                                    {(!handoff || handoff?.last_action === "INITIAL_DRAFTING") && (
-                                      <span className="bg-emerald-600 text-white text-[9px] px-1 rounded">Drafting</span>
-                                    )}
-                                  </span>
+                                  </>
                                 );
                               }
 
                               if (holderId) {
                                 return (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-50 text-sky-800 border border-sky-200 text-[10px] font-bold">
-                                    <span>⏳ WAITING FOR HANDOVER ({holderName} - {holderUnit})</span>
-                                  </span>
+                                  <>
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-50 text-sky-800 border border-sky-200 text-[10px] font-bold">
+                                      <span>⏳ WAITING FOR HANDOVER ({holderName} - {holderUnit})</span>
+                                    </span>
+                                    {handoff?.last_note && (
+                                      <span className="text-[10px] text-slate-400 italic truncate max-w-xs" title={handoff.last_note}>
+                                        "{handoff.last_note}"
+                                      </span>
+                                    )}
+                                  </>
                                 );
                               }
 
                               return null;
                             })()}
-                            {req.additional_data?.handoff?.last_note && (
-                              <span className="text-[10px] text-slate-400 italic truncate max-w-xs" title={req.additional_data.handoff.last_note}>
-                                "{req.additional_data.handoff.last_note}"
-                              </span>
-                            )}
                           </div>
                         )}
 
