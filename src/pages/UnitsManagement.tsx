@@ -84,15 +84,15 @@ export const UnitsManagement: React.FC = () => {
   // Builder state
   const [selectedUnit, setSelectedUnit] = useState<any>(null);
   const [schemaFields, setSchemaFields] = useState<SchemaField[]>([]);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [builderTab, setBuilderTab] = useState<'public' | 'internal'>('public');
   const [fieldLabel, setFieldLabel] = useState('');
   const [fieldType, setFieldType] = useState('text');
   const [fieldOptions, setFieldOptions] = useState('');
   const [fieldRequired, setFieldRequired] = useState(false);
   const [fieldPlaceholder, setFieldPlaceholder] = useState('');
-  const [fieldScope, setFieldScope] = useState<'public' | 'internal' | 'both'>('both');
-  const [previewScope, setPreviewScope] = useState<'all' | 'public' | 'internal'>('all');
+  const [shareWithOtherForm, setShareWithOtherForm] = useState(false);
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
+  const [isSavingSchema, setIsSavingSchema] = useState(false);
 
   // Unit deletion state
   const [unitToDelete, setUnitToDelete] = useState<any | null>(null);
@@ -422,14 +422,23 @@ export const UnitsManagement: React.FC = () => {
   const handleOpenBuilder = (unit: any) => {
     setSelectedUnit(unit);
     setSchemaFields(unit.form_schema || []);
+    resetFieldForm();
+    setActiveTab('builder');
+  };
+
+  const resetFieldForm = () => {
     setEditingFieldIndex(null);
     setFieldLabel('');
     setFieldType('text');
     setFieldOptions('');
     setFieldRequired(false);
     setFieldPlaceholder('');
-    setFieldScope('both');
-    setActiveTab('builder');
+    setShareWithOtherForm(false);
+  };
+
+  const switchBuilderTab = (tab: 'public' | 'internal') => {
+    setBuilderTab(tab);
+    resetFieldForm();
   };
 
   const handleAddField = () => {
@@ -443,14 +452,20 @@ export const UnitsManagement: React.FC = () => {
       return;
     }
 
+    const targetScope: 'public' | 'internal' | 'both' = shareWithOtherForm
+      ? 'both'
+      : builderTab === 'public'
+      ? 'public'
+      : 'internal';
+
     const newField: SchemaField = {
-      id: fieldId,
+      id: editingFieldIndex !== null ? schemaFields[editingFieldIndex].id : fieldId,
       label: fieldLabel.trim(),
       type: fieldType,
       options: parsedOptions,
       required: fieldRequired,
       placeholder: fieldPlaceholder.trim() || undefined,
-      scope: fieldScope,
+      scope: targetScope,
     };
 
     if (editingFieldIndex !== null) {
@@ -462,68 +477,82 @@ export const UnitsManagement: React.FC = () => {
       setSchemaFields([...schemaFields, newField]);
     }
 
-    setFieldLabel('');
-    setFieldType('text');
-    setFieldOptions('');
-    setFieldRequired(false);
-    setFieldPlaceholder('');
-    setFieldScope('both');
+    resetFieldForm();
   };
 
   const handleEditField = (index: number) => {
     const field = schemaFields[index];
+    if (!field) return;
     setFieldLabel(field.label);
     setFieldType(field.type);
     setFieldOptions(field.options ? field.options.join(', ') : '');
     setFieldRequired(field.required);
     setFieldPlaceholder(field.placeholder || '');
-    setFieldScope(field.scope || 'both');
+    setShareWithOtherForm(field.scope === 'both');
     setEditingFieldIndex(index);
   };
 
-  const handleMoveField = (index: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === schemaFields.length - 1) return;
+  const handleMoveFieldInTab = (indexInSchema: number, direction: 'up' | 'down') => {
+    const currentTabFields = schemaFields.filter((f) =>
+      builderTab === 'public' ? f.scope !== 'internal' : f.scope !== 'public'
+    );
+    const targetField = schemaFields[indexInSchema];
+    if (!targetField) return;
+    const tabIdx = currentTabFields.findIndex((f) => f.id === targetField.id);
+    if (tabIdx === -1) return;
+    if (direction === 'up' && tabIdx === 0) return;
+    if (direction === 'down' && tabIdx === currentTabFields.length - 1) return;
 
-    const updatedFields = [...schemaFields];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    const temp = updatedFields[index];
-    updatedFields[index] = updatedFields[targetIndex];
-    updatedFields[targetIndex] = temp;
-    setSchemaFields(updatedFields);
+    const swapWithField = currentTabFields[direction === 'up' ? tabIdx - 1 : tabIdx + 1];
+    const idxA = indexInSchema;
+    const idxB = schemaFields.findIndex((f) => f.id === swapWithField.id);
+    if (idxB === -1) return;
+
+    const next = [...schemaFields];
+    const temp = next[idxA];
+    next[idxA] = next[idxB];
+    next[idxB] = temp;
+    setSchemaFields(next);
   };
 
   const handleRemoveField = (index: number) => {
     setSchemaFields(schemaFields.filter((_, i) => i !== index));
     if (editingFieldIndex === index) {
-      setEditingFieldIndex(null);
-      setFieldLabel('');
-      setFieldPlaceholder('');
-      setFieldOptions('');
-      setFieldRequired(false);
-      setFieldScope('both');
+      resetFieldForm();
     }
   };
 
   const handleSaveSchema = async () => {
     if (!selectedUnit) return;
-    await fetch(`/api/admin/units/${selectedUnit.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ form_schema: schemaFields }),
-    });
+    setIsSavingSchema(true);
+    try {
+      await fetch(`/api/admin/units/${selectedUnit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ form_schema: schemaFields }),
+      });
 
-    setSelectedUnit({
-      ...selectedUnit,
-      form_schema: schemaFields,
-    });
+      setSelectedUnit({
+        ...selectedUnit,
+        form_schema: schemaFields,
+      });
 
-    refreshAll();
-    setAlertModal({
-      title: 'Form Schema Saved',
-      message: 'Form schema saved successfully!',
-      type: 'success',
-    });
+      refreshAll();
+      setAlertModal({
+        title: 'Form Schema Saved',
+        message: 'Skema borang telah berjaya disimpan!',
+        type: 'success',
+      });
+    } catch (err: any) {
+      console.error('Failed to save schema:', err);
+      setAlertModal({
+        title: 'Error',
+        message: 'Gagal menyimpan skema borang.',
+        type: 'error',
+      });
+    } finally {
+      setIsSavingSchema(false);
+    }
   };
 
   // Managers/Admin list for department manager selection
@@ -903,203 +932,272 @@ export const UnitsManagement: React.FC = () => {
       )}
 
       {/* ========================================================= */}
-      {/* TAB 2: FORM BUILDER VIEW                                   */}
+      {/* TAB 2: FORM BUILDER VIEW (VERTICAL STACK LAYOUT)          */}
       {/* ========================================================= */}
       {(isHeadUnit || activeTab === 'builder') && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-in fade-in duration-200">
-          {/* Left: Units List */}
-          <div
-            className={`bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 transition-all duration-300 ${
-              isSidebarCollapsed && selectedUnit
-                ? 'hidden lg:none lg:w-0 lg:p-0 lg:opacity-0 lg:overflow-hidden'
-                : 'block'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900">
-                {isHeadUnit && !isAdmin ? (accessibleUnits.length > 1 ? 'My Units' : 'My Unit') : 'Select Unit'}
-              </h2>
-              <span className="text-xs text-slate-400 font-medium">
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* 1. TOP CARD: MY UNITS / SELECT UNIT */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">
+                    {isHeadUnit && !isAdmin ? (accessibleUnits.length > 1 ? 'My Units' : 'My Unit') : 'Select Unit'}
+                  </h2>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Pilih unit di bawah untuk menguruskan borang dinamik bagi unit tersebut.
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl self-start sm:self-auto border border-slate-200/60">
                 {accessibleUnits.length} {accessibleUnits.length === 1 ? 'Unit' : 'Units'}
               </span>
             </div>
 
-            <div className="space-y-2">
+            {/* Grid of Unit Selection Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {accessibleUnits.map((u) => {
                 const isSelected = selectedUnit?.id === u.id;
+                const pubCount = (u.form_schema || []).filter((f: any) => f.scope !== 'internal').length;
+                const intCount = (u.form_schema || []).filter((f: any) => f.scope !== 'public').length;
                 return (
-                  <div
+                  <button
                     key={u.id}
+                    type="button"
                     onClick={() => handleOpenBuilder(u)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden group ${
                       isSelected
-                        ? 'bg-blue-50/80 border-blue-300 shadow-sm'
-                        : 'bg-slate-50 border-slate-100 hover:bg-slate-100/70 hover:border-slate-200'
+                        ? 'bg-blue-50/70 border-blue-500 shadow-md shadow-blue-500/10 ring-2 ring-blue-500/20'
+                        : 'bg-slate-50/80 border-slate-200/80 hover:bg-white hover:border-slate-300 hover:shadow-sm'
                     }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`font-bold text-xs truncate ${
-                            isSelected ? 'text-blue-900' : 'text-slate-900'
-                          }`}
-                        >
-                          {u.name}
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`font-bold text-sm truncate ${
+                          isSelected ? 'text-blue-900' : 'text-slate-800'
+                        }`}
+                      >
+                        {u.name}
+                      </span>
+                      {isSelected && (
+                        <span className="flex items-center gap-1 text-[11px] font-black text-blue-600 bg-blue-100/80 px-2 py-0.5 rounded-lg shrink-0">
+                          <Check className="w-3 h-3 stroke-[3]" /> Active
                         </span>
-                        {u.department_name && (
-                          <span className="text-[10px] bg-white/80 border border-slate-200 text-slate-500 font-extrabold px-1.5 py-0.2 rounded-md">
-                            {u.department_name}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                        {u.form_schema?.length || 0} custom fields
-                      </div>
+                      )}
                     </div>
-                    <ChevronRight
-                      className={`w-4 h-4 shrink-0 transition-transform ${
-                        isSelected ? 'text-blue-600 translate-x-0.5' : 'text-slate-300'
-                      }`}
-                    />
-                  </div>
+
+                    {u.department_name && (
+                      <div className="text-[11px] text-slate-500 font-semibold mt-1 truncate">
+                        🏢 {u.department_name}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-slate-200/60 text-[10px] font-bold">
+                      <span className="text-blue-600">🌐 {pubCount} Public</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-purple-600">🏢 {intCount} Internal</span>
+                    </div>
+                  </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Right: Form Builder Panel */}
-          <div
-            className={`bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 transition-all duration-300 ${
-              isSidebarCollapsed && selectedUnit ? 'lg:col-span-3' : 'lg:col-span-2'
-            }`}
-          >
+          {/* 2. MAIN SECTION: FORM BUILDER WORKBENCH (FULL WIDTH) */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
             {selectedUnit ? (
-              <>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 mb-6 gap-4">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      className="btn btn-outline btn-sm rounded-xl px-3 border-slate-200 hover:bg-slate-50 hover:text-slate-800 text-slate-500 hidden lg:flex items-center gap-1.5 font-bold text-xs"
-                      title={isSidebarCollapsed ? 'Show Units List' : 'Minimize Units List'}
-                    >
-                      {isSidebarCollapsed ? (
-                        <>
-                          <ChevronRight className="w-4 h-4 text-blue-600" />
-                          Show Units List
-                        </>
-                      ) : (
-                        <>
-                          <ChevronLeft className="w-4 h-4 text-blue-600" />
-                          Minimize List
-                        </>
-                      )}
-                    </button>
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900">
-                        Dynamic Form Builder: {selectedUnit.name}
+              <div className="space-y-6">
+                {/* Header Bar with Save Button */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between pb-5 border-b border-slate-100 gap-4">
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
+                        Dynamic Form Builder
+                      </span>
+                      <h2 className="text-xl md:text-2xl font-black text-slate-900">
+                        {selectedUnit.name}
                       </h2>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">
-                        Add custom fields required when clients submit a job request for this unit.
-                      </p>
                     </div>
+                    <p className="text-xs text-slate-500 font-medium mt-1">
+                      Ubah suai medan borang untuk permohonan awam klien dan rekod tugasan staf dalaman bagi unit ini.
+                    </p>
                   </div>
+
                   <button
                     onClick={handleSaveSchema}
-                    className="btn bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl px-5 h-10 border-none shadow-md shadow-blue-500/20 shrink-0"
+                    disabled={isSavingSchema}
+                    className="btn bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl px-6 h-11 border-none shadow-md shadow-blue-500/25 shrink-0 flex items-center gap-2"
                   >
-                    Save Form Schema
+                    {isSavingSchema ? (
+                      <>
+                        <span className="loading loading-spinner loading-xs" />
+                        <span>Menyimpan...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 stroke-[2.5]" />
+                        <span>Save Form Schema</span>
+                      </>
+                    )}
                   </button>
                 </div>
 
-                {/* Side-by-Side Builder Grid */}
+                {/* PRIMARY TABS: PUBLIC INTAKE vs INTERNAL STAFF TASK */}
+                <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-px">
+                  <button
+                    type="button"
+                    onClick={() => switchBuilderTab('public')}
+                    className={`flex items-center gap-2.5 px-5 py-3 border-b-2 font-bold text-xs sm:text-sm transition-all -mb-px rounded-t-xl ${
+                      builderTab === 'public'
+                        ? 'border-blue-600 text-blue-600 bg-blue-50/60 font-black'
+                        : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Globe className="w-4 h-4" />
+                    <span>🌐 Client Intake Form (Borang Awam Klien)</span>
+                    <span
+                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                        builderTab === 'public' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {schemaFields.filter((f) => f.scope !== 'internal').length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => switchBuilderTab('internal')}
+                    className={`flex items-center gap-2.5 px-5 py-3 border-b-2 font-bold text-xs sm:text-sm transition-all -mb-px rounded-t-xl ${
+                      builderTab === 'internal'
+                        ? 'border-purple-600 text-purple-600 bg-purple-50/60 font-black'
+                        : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>🏢 Internal Staff Task Form (Borang Tugasan Staf)</span>
+                    <span
+                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                        builderTab === 'internal' ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {schemaFields.filter((f) => f.scope !== 'public').length}
+                    </span>
+                  </button>
+                </div>
+
+                {/* TAB EXPLANATION BANNER */}
+                {builderTab === 'public' ? (
+                  <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-4 flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-xs text-blue-900">
+                        🌐 Client Intake Form (Borang Permohonan Awam)
+                      </h3>
+                      <p className="text-[11px] text-blue-700/80 mt-0.5 font-medium leading-relaxed">
+                        Medan-medan di bawah akan dipaparkan di Portal Awam untuk diisi oleh klien apabila membuat permohonan kerja baharu bagi unit ini.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-purple-50/60 border border-purple-200/80 rounded-2xl p-4 flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-xs text-purple-900">
+                        🏢 Internal Staff Task Form (Borang Tugasan Dalaman Staf)
+                      </h3>
+                      <p className="text-[11px] text-purple-700/80 mt-0.5 font-medium leading-relaxed">
+                        Medan-medan di bawah akan dipaparkan secara khusus dalam tetingkap <strong>"+ Add Task"</strong> apabila staf atau Ketua Unit merekod tugasan terus bagi unit ini (contoh: Social Media pillar/category, asset specs, dll).
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* WORKBENCH: SIDE-BY-SIDE BUILDER GRID */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-                  {/* Left: Vertical Field Creator Card */}
+                  {/* Left Column: Vertical Field Creator Card */}
                   <div className="xl:col-span-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 flex flex-col gap-4">
                     <h3 className="font-bold text-xs text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5">
-                      {editingFieldIndex !== null ? '⚡ Edit Field Settings' : '✨ Add New Field'}
+                      {editingFieldIndex !== null
+                        ? builderTab === 'public'
+                          ? '⚡ Edit Medan Borang Awam'
+                          : '⚡ Edit Medan Tugasan Staf'
+                        : builderTab === 'public'
+                        ? '✨ Tambah Medan ke Borang Awam'
+                        : '✨ Tambah Medan ke Borang Staf'}
                     </h3>
 
                     <div>
                       <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                        Field Label
+                        Label Medan *
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Artwork Dimension (cm)"
+                        placeholder={
+                          builderTab === 'public'
+                            ? 'cth: Artwork Dimension (cm), Target Audience'
+                            : 'cth: Content Pillar, Campaign Tag, Asset Format'
+                        }
                         value={fieldLabel}
                         onChange={(e) => setFieldLabel(e.target.value)}
-                        className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10"
+                        className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-semibold focus:border-blue-500"
                       />
                     </div>
 
                     <div>
                       <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                        Input Type
+                        Jenis Input (Field Type)
                       </label>
                       <select
                         value={fieldType}
                         onChange={(e) => setFieldType(e.target.value)}
-                        className="select select-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10"
+                        className="select select-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
                       >
-                        <option value="text">Text Input</option>
-                        <option value="textarea">Textarea (Long Text)</option>
-                        <option value="number">Number Input</option>
-                        <option value="date">Date Picker</option>
-                        <option value="select">Select Dropdown</option>
-                        <option value="radio">Radio Buttons</option>
-                        <option value="checkbox">Checkboxes</option>
+                        <option value="text">Text Input (Satu Baris)</option>
+                        <option value="textarea">Textarea (Teks Panjang)</option>
+                        <option value="number">Number Input (Nombor)</option>
+                        <option value="date">Date Picker (Tarikh)</option>
+                        <option value="select">Dropdown Select (Pilihan Tunggal)</option>
+                        <option value="radio">Radio Buttons (Pilihan Tunggal)</option>
+                        <option value="checkbox">Checkboxes (Pelbagai Pilihan)</option>
                       </select>
                     </div>
 
                     {['select', 'radio', 'checkbox'].includes(fieldType) && (
                       <div>
                         <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                          Options (comma separated)
+                          Pilihan (Diasingkan dengan koma) *
                         </label>
                         <input
                           type="text"
-                          placeholder="Print, Digital, Video"
+                          placeholder="Pilihan 1, Pilihan 2, Pilihan 3"
                           value={fieldOptions}
                           onChange={(e) => setFieldOptions(e.target.value)}
-                          className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10"
+                          className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
                         />
                       </div>
                     )}
 
                     <div>
                       <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                        Placeholder / Hint Text
+                        Placeholder / Teks Pembantu
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. 1920x1080 px"
+                        placeholder="cth: 1920x1080 px atau Pilih kategori..."
                         value={fieldPlaceholder}
                         onChange={(e) => setFieldPlaceholder(e.target.value)}
-                        className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10"
+                        className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
                       />
                     </div>
 
-                    <div>
-                      <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                        Form Usage / Target Scope
-                      </label>
-                      <select
-                        value={fieldScope}
-                        onChange={(e) => setFieldScope(e.target.value as any)}
-                        className="select select-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-bold text-slate-700"
-                      >
-                        <option value="both">🔄 Both Public Intake & Internal Staff Form</option>
-                        <option value="internal">🏢 Internal Staff Only (Direct Task Form)</option>
-                        <option value="public">🌐 Public Intake Only (External Clients)</option>
-                      </select>
-                      <p className="text-[10px] text-slate-400 mt-1 leading-tight">
-                        {fieldScope === 'internal' && 'Field will ONLY appear when unit members log tasks via "Add Task".'}
-                        {fieldScope === 'public' && 'Field will ONLY appear for external clients submitting requests.'}
-                        {fieldScope === 'both' && 'Field will appear on BOTH public portal and internal direct task form.'}
-                      </p>
-                    </div>
-
+                    {/* Mandatory Checkbox */}
                     <div className="flex items-center gap-2 pt-1">
                       <input
                         type="checkbox"
@@ -1109,291 +1207,353 @@ export const UnitsManagement: React.FC = () => {
                         className="checkbox checkbox-primary checkbox-sm rounded-lg"
                       />
                       <label htmlFor="reqCheck" className="text-xs font-bold text-slate-700 cursor-pointer">
-                        Mark field as Mandatory (Required)
+                        Wajib Diisi (Mandatory Field)
                       </label>
+                    </div>
+
+                    {/* Intuitive Cross-Form Share Checkbox */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-200/80">
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          id="shareOtherFormCheck"
+                          checked={shareWithOtherForm}
+                          onChange={(e) => setShareWithOtherForm(e.target.checked)}
+                          className="checkbox checkbox-sm rounded-lg mt-0.5 checkbox-accent"
+                        />
+                        <label htmlFor="shareOtherFormCheck" className="text-[11px] font-semibold text-slate-700 cursor-pointer leading-tight">
+                          {builderTab === 'public'
+                            ? '🔄 Kongsi medan ini juga dalam Borang Tugasan Staf (+ Add Task)'
+                            : '🔄 Kongsi medan ini juga dalam Borang Permohonan Awam Klien'}
+                        </label>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1 pl-6">
+                        {shareWithOtherForm
+                          ? 'Medan ini akan wujud dalam KEDUA-DUA borang (Awam & Dalaman).'
+                          : builderTab === 'public'
+                          ? 'Medan ini hanya akan wujud dalam Borang Permohonan Awam sahaja.'
+                          : 'Medan ini hanya akan wujud dalam Borang Tugasan Staf sahaja.'}
+                      </p>
                     </div>
 
                     <div className="flex gap-2 pt-2">
                       <button
                         onClick={handleAddField}
-                        className="btn bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex-1 h-10 border-none shadow-sm"
+                        className={`btn text-white font-bold text-xs rounded-xl flex-1 h-10 border-none shadow-sm ${
+                          builderTab === 'public' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'
+                        }`}
                       >
-                        {editingFieldIndex !== null ? 'Update Field' : 'Insert Field'}
+                        {editingFieldIndex !== null
+                          ? 'Kemaskini Medan'
+                          : builderTab === 'public'
+                          ? 'Tambah ke Borang Awam'
+                          : 'Tambah ke Borang Staf'}
                       </button>
                       {editingFieldIndex !== null && (
                         <button
-                          onClick={() => {
-                            setEditingFieldIndex(null);
-                            setFieldLabel('');
-                            setFieldPlaceholder('');
-                            setFieldOptions('');
-                            setFieldRequired(false);
-                            setFieldScope('both');
-                          }}
+                          onClick={resetFieldForm}
                           className="btn btn-ghost text-slate-500 font-bold text-xs rounded-xl h-10"
                         >
-                          Cancel
+                          Batal
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* Right: Active Fields List & Live Client Preview */}
+                  {/* Right Column: Filtered Configured Fields List & Live Preview */}
                   <div className="xl:col-span-8 flex flex-col gap-6">
-                    {/* Active Fields list */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-xs text-slate-800 uppercase tracking-widest">
-                          Configured Form Fields ({schemaFields.length})
-                        </h3>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Both</span>
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Internal</span>
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Public</span>
-                        </div>
-                      </div>
-                      {schemaFields.length === 0 ? (
-                        <div className="p-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-xs font-medium">
-                          No custom fields added yet. Use the panel on the left to add your first field.
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {schemaFields.map((f, idx) => (
-                            <div
-                              key={idx}
-                              className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
-                                editingFieldIndex === idx
-                                   ? 'bg-blue-50/60 border-blue-300'
-                                   : 'bg-white border-slate-200 hover:border-slate-300'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 font-extrabold text-[11px] flex items-center justify-center shrink-0">
-                                  {idx + 1}
-                                </span>
-                                <div>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-bold text-xs text-slate-900">{f.label}</span>
-                                    {f.required && (
-                                      <span className="text-[9px] text-rose-600 font-black uppercase tracking-wider bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100">
-                                        Required
-                                      </span>
-                                    )}
-                                    {f.scope === 'internal' ? (
-                                      <span className="text-[9px] bg-purple-50 text-purple-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-purple-200">
-                                        🏢 Internal Only
-                                      </span>
-                                    ) : f.scope === 'public' ? (
-                                      <span className="text-[9px] bg-blue-50 text-blue-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-blue-200">
-                                        🌐 Public Only
-                                      </span>
-                                    ) : (
-                                      <span className="text-[9px] bg-emerald-50 text-emerald-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-emerald-200">
-                                        🔄 Both Forms
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-[10px] text-slate-400 font-medium">
-                                    Type: <span className="capitalize text-slate-600">{f.type}</span>
-                                    {f.options && f.options.length > 0 && (
-                                      <span> • Options: {f.options.join(', ')}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
+                    {/* Active Fields List for this Tab */}
+                    {(() => {
+                      const displayedFields = schemaFields
+                        .map((f, rawIdx) => ({ f, rawIdx }))
+                        .filter(({ f }) => (builderTab === 'public' ? f.scope !== 'internal' : f.scope !== 'public'));
 
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveField(idx, 'up')}
-                                  disabled={idx === 0}
-                                  className="btn btn-ghost btn-xs text-slate-400 hover:text-slate-700 disabled:opacity-20"
-                                  title="Move Up"
-                                >
-                                  ▲
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveField(idx, 'down')}
-                                  disabled={idx === schemaFields.length - 1}
-                                  className="btn btn-ghost btn-xs text-slate-400 hover:text-slate-700 disabled:opacity-20"
-                                  title="Move Down"
-                                >
-                                  ▼
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditField(idx)}
-                                  className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-lg p-1.5"
-                                  title="Edit"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveField(idx)}
-                                  className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-lg p-1.5"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-bold text-xs text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                              {builderTab === 'public' ? (
+                                <>
+                                  <Globe className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Medan Borang Awam Klien ({displayedFields.length})</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                                  <span>Medan Borang Tugasan Staf ({displayedFields.length})</span>
+                                </>
+                              )}
+                            </h3>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
+                              {builderTab === 'public' ? (
+                                <>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Awam Sahaja</span>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Dikongsi (Kedua-dua)</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Dalaman Sahaja</span>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Dikongsi (Kedua-dua)</span>
+                                </>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Live Preview Box */}
-                    {schemaFields.length > 0 && (
-                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <Eye className="w-4 h-4 text-blue-600" />
-                            <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-widest">
-                              Live Form Preview
-                            </h4>
                           </div>
 
-                          {/* Preview Filter Pills */}
-                          <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
-                            <button
-                              type="button"
-                              onClick={() => setPreviewScope('all')}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all ${
-                                previewScope === 'all'
-                                  ? 'bg-slate-900 text-white shadow-xs'
-                                  : 'text-slate-500 hover:text-slate-800'
-                              }`}
-                            >
-                              All ({schemaFields.length})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPreviewScope('public')}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all ${
-                                previewScope === 'public'
-                                  ? 'bg-blue-600 text-white shadow-xs'
-                                  : 'text-slate-500 hover:text-slate-800'
-                              }`}
-                            >
-                              🌐 Public Intake ({schemaFields.filter((f) => f.scope !== 'internal').length})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPreviewScope('internal')}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all ${
-                                previewScope === 'internal'
-                                  ? 'bg-purple-600 text-white shadow-xs'
-                                  : 'text-slate-500 hover:text-slate-800'
-                              }`}
-                            >
-                              🏢 Internal Staff ({schemaFields.filter((f) => f.scope !== 'public').length})
-                            </button>
-                          </div>
-                        </div>
-
-                        {(() => {
-                          const displayed = schemaFields.filter((f) => {
-                            if (previewScope === 'public') return f.scope !== 'internal';
-                            if (previewScope === 'internal') return f.scope !== 'public';
-                            return true;
-                          });
-
-                          if (displayed.length === 0) {
-                            return (
-                              <div className="p-6 text-center bg-white rounded-xl border border-slate-200 text-slate-400 text-xs font-semibold">
-                                No fields configured for this view ({previewScope === 'public' ? 'Public Intake' : 'Internal Staff'}).
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div className="space-y-3 bg-white p-5 rounded-xl border border-slate-200">
-                              {displayed.map((field) => (
-                                <div key={field.id} className="space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                                      {field.label}
-                                      {field.required && <span className="text-rose-500">*</span>}
-                                    </label>
-                                    {field.scope === 'internal' ? (
-                                      <span className="text-[9px] text-purple-600 font-extrabold bg-purple-50 px-1 rounded">
-                                        Internal
-                                      </span>
-                                    ) : field.scope === 'public' ? (
-                                      <span className="text-[9px] text-blue-600 font-extrabold bg-blue-50 px-1 rounded">
-                                        Public
-                                      </span>
-                                    ) : (
-                                      <span className="text-[9px] text-emerald-600 font-extrabold bg-emerald-50 px-1 rounded">
-                                        Both
-                                      </span>
-                                    )}
+                          {displayedFields.length === 0 ? (
+                            <div className="p-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-xs font-medium">
+                              Belum ada medan dikonfigurasikan untuk {builderTab === 'public' ? 'Borang Awam Klien' : 'Borang Tugasan Staf'}. Gunakan panel di sebelah kiri untuk menambah medan pertama.
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {displayedFields.map(({ f, rawIdx }, tabIdx) => (
+                                <div
+                                  key={f.id || rawIdx}
+                                  className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
+                                    editingFieldIndex === rawIdx
+                                      ? 'bg-blue-50/60 border-blue-300'
+                                      : 'bg-white border-slate-200 hover:border-slate-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                                      {tabIdx + 1}
+                                    </span>
+                                    <div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-bold text-xs text-slate-900">{f.label}</span>
+                                        {f.required && (
+                                          <span className="text-[9px] text-rose-600 font-black uppercase tracking-wider bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100">
+                                            Required
+                                          </span>
+                                        )}
+                                        {f.scope === 'both' ? (
+                                          <span className="text-[9px] bg-emerald-50 text-emerald-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-emerald-200">
+                                            🔄 Dikongsi (Awam & Staf)
+                                          </span>
+                                        ) : f.scope === 'internal' ? (
+                                          <span className="text-[9px] bg-purple-50 text-purple-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-purple-200">
+                                            🏢 Tugasan Staf Sahaja
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] bg-blue-50 text-blue-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-blue-200">
+                                            🌐 Awam Sahaja
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 font-medium">
+                                        Jenis: <span className="capitalize text-slate-600">{f.type}</span>
+                                        {f.options && f.options.length > 0 && (
+                                          <span> • Pilihan: {f.options.join(', ')}</span>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                  {field.type === 'textarea' ? (
-                                    <textarea
-                                      placeholder={field.placeholder || ''}
-                                      disabled
-                                      rows={2}
-                                      className="textarea textarea-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200"
-                                    />
-                                  ) : field.type === 'select' ? (
-                                    <select
-                                      disabled
-                                      className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-9"
+
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveFieldInTab(rawIdx, 'up')}
+                                      disabled={tabIdx === 0}
+                                      className="btn btn-ghost btn-xs text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                                      title="Alih ke Atas"
                                     >
-                                      <option>{field.placeholder || 'Select an option...'}</option>
-                                      {field.options?.map((opt, i) => (
-                                        <option key={i}>{opt}</option>
-                                      ))}
-                                    </select>
-                                  ) : field.type === 'radio' ? (
-                                    <div className="flex flex-wrap gap-3 pt-1">
-                                      {field.options?.map((opt, i) => (
-                                        <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
-                                          <input type="radio" disabled name={field.id} className="radio radio-xs" />
-                                          {opt}
-                                        </label>
-                                      ))}
-                                    </div>
-                                  ) : field.type === 'checkbox' ? (
-                                    <div className="flex flex-wrap gap-3 pt-1">
-                                      {field.options?.map((opt, i) => (
-                                        <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
-                                          <input type="checkbox" disabled className="checkbox checkbox-xs" />
-                                          {opt}
-                                        </label>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <input
-                                      type={field.type}
-                                      placeholder={field.placeholder || ''}
-                                      disabled
-                                      className="input input-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-9"
-                                    />
-                                  )}
+                                      ▲
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveFieldInTab(rawIdx, 'down')}
+                                      disabled={tabIdx === displayedFields.length - 1}
+                                      className="btn btn-ghost btn-xs text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                                      title="Alih ke Bawah"
+                                    >
+                                      ▼
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEditField(rawIdx)}
+                                      className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-lg p-1.5"
+                                      title="Edit Medan"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveField(rawIdx)}
+                                      className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-lg p-1.5"
+                                      title="Padam Medan"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
-                          );
-                        })()}
-                      </div>
-                    )}
+                          )}
+
+                          {/* Live Preview Dedicated to this Tab */}
+                          {displayedFields.length > 0 && (
+                            <div className="mt-6 bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Eye className={`w-4 h-4 ${builderTab === 'public' ? 'text-blue-600' : 'text-purple-600'}`} />
+                                  <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-widest">
+                                    {builderTab === 'public'
+                                      ? 'Live Form Preview: Borang Permohonan Awam'
+                                      : 'Live Form Preview: Borang Tugasan Staf (+ Add Task)'}
+                                  </h4>
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                  builderTab === 'public'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                  {builderTab === 'public' ? 'Client View' : 'Staff Modal View'}
+                                </span>
+                              </div>
+
+                              {builderTab === 'internal' ? (
+                                /* Internal Task Modal Spec Card Style */
+                                <div className="p-4 rounded-2xl bg-purple-50/40 border border-purple-200 space-y-4">
+                                  <div className="flex items-center justify-between pb-2 border-b border-purple-100">
+                                    <div className="flex items-center gap-2">
+                                      <Sliders className="w-3.5 h-3.5 text-purple-600" />
+                                      <span className="text-xs font-black text-purple-950 uppercase tracking-wide">
+                                        {selectedUnit.name.toUpperCase()} SPECIFICATIONS
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-purple-600 bg-purple-100/60 border border-purple-200 px-2 py-0.5 rounded-full">
+                                      Internal Form
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {displayedFields.map(({ f }) => (
+                                      <div key={f.id} className="space-y-1">
+                                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                          {f.label}
+                                          {f.required && <span className="text-rose-500">*</span>}
+                                        </label>
+                                        {f.type === 'textarea' ? (
+                                          <textarea
+                                            placeholder={f.placeholder || ''}
+                                            disabled
+                                            rows={2}
+                                            className="textarea textarea-bordered w-full text-xs rounded-xl bg-white border-purple-200"
+                                          />
+                                        ) : f.type === 'select' ? (
+                                          <select
+                                            disabled
+                                            className="select select-bordered w-full text-xs rounded-xl bg-white border-purple-200 h-9 font-medium"
+                                          >
+                                            <option>{f.placeholder || '-- Select an option --'}</option>
+                                            {f.options?.map((opt, i) => (
+                                              <option key={i}>{opt}</option>
+                                            ))}
+                                          </select>
+                                        ) : f.type === 'radio' ? (
+                                          <div className="flex flex-wrap gap-3 pt-1">
+                                            {f.options?.map((opt, i) => (
+                                              <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
+                                                <input type="radio" disabled name={f.id} className="radio radio-xs radio-primary" />
+                                                {opt}
+                                              </label>
+                                            ))}
+                                          </div>
+                                        ) : f.type === 'checkbox' ? (
+                                          <div className="flex flex-wrap gap-2 pt-1">
+                                            {f.options?.map((opt, i) => (
+                                              <span key={i} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-purple-200 bg-white text-[11px] font-semibold text-slate-700">
+                                                <input type="checkbox" disabled className="checkbox checkbox-xs checkbox-primary" />
+                                                {opt}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <input
+                                            type={f.type}
+                                            placeholder={f.placeholder || ''}
+                                            disabled
+                                            className="input input-bordered w-full text-xs rounded-xl bg-white border-purple-200 h-9 font-medium"
+                                          />
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                /* Public Portal Style */
+                                <div className="space-y-4 bg-white p-5 rounded-xl border border-slate-200">
+                                  {displayedFields.map(({ f }) => (
+                                    <div key={f.id} className="space-y-1">
+                                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                        {f.label}
+                                        {f.required && <span className="text-rose-500">*</span>}
+                                      </label>
+                                      {f.type === 'textarea' ? (
+                                        <textarea
+                                          placeholder={f.placeholder || ''}
+                                          disabled
+                                          rows={2}
+                                          className="textarea textarea-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200"
+                                        />
+                                      ) : f.type === 'select' ? (
+                                        <select
+                                          disabled
+                                          className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-9"
+                                        >
+                                          <option>{f.placeholder || '-- Select an option --'}</option>
+                                          {f.options?.map((opt, i) => (
+                                            <option key={i}>{opt}</option>
+                                          ))}
+                                        </select>
+                                      ) : f.type === 'radio' ? (
+                                        <div className="flex flex-wrap gap-3 pt-1">
+                                          {f.options?.map((opt, i) => (
+                                            <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
+                                              <input type="radio" disabled name={f.id} className="radio radio-xs" />
+                                              {opt}
+                                            </label>
+                                          ))}
+                                        </div>
+                                      ) : f.type === 'checkbox' ? (
+                                        <div className="flex flex-wrap gap-3 pt-1">
+                                          {f.options?.map((opt, i) => (
+                                            <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
+                                              <input type="checkbox" disabled className="checkbox checkbox-xs" />
+                                              {opt}
+                                            </label>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <input
+                                          type={f.type}
+                                          placeholder={f.placeholder || ''}
+                                          disabled
+                                          className="input input-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-9"
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-              </>
+              </div>
             ) : (
               <div className="py-20 text-center">
                 <Sliders className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                 <h3 className="font-extrabold text-base text-slate-700">
-                  {accessibleUnits.length === 0 ? 'No Assigned Unit Found' : 'No Unit Selected'}
+                  {accessibleUnits.length === 0 ? 'Tiada Unit Ditemui' : 'Sila Pilih Unit di Atas'}
                 </h3>
                 <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto mt-1">
                   {accessibleUnits.length === 0
-                    ? 'Your account is not assigned as Head of any unit. Please contact an administrator.'
-                    : 'Please pick a unit from the left panel to build and customize its dynamic form schema.'}
+                    ? 'Akaun anda tidak ditugaskan sebagai Ketua Unit bagi mana-mana unit. Sila hubungi pentadbir.'
+                    : 'Sila klik salah satu unit pada kad di atas untuk membina dan menyesuaikan skema borang dinamik unit tersebut.'}
                 </p>
               </div>
             )}
