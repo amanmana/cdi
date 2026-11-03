@@ -7,12 +7,19 @@ export const Sidebar: React.FC = () => {
   const { user } = useAuth();
   const isHeadUnit = Boolean(user?.is_unit_head);
 
+  const getWorkspaceLabel = () => {
+    if (['admin', 'director', 'manager'].includes(user?.role) || (user as any)?.is_acting_manager) {
+      return 'Unit Workspaces';
+    }
+    return user?.unit || 'My Workspace';
+  };
+
   const links = [
     { to: '/portal/director-dashboard', label: 'Executive Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'director'] },
     { to: '/portal/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'manager', 'client'] },
     { to: '/portal/projects', label: 'Mega Projects', icon: <FolderKanban className="w-5 h-5" />, roles: ['admin', 'director', 'manager', 'staff'] },
     { to: '/portal/job-requests', label: user?.role === 'client' ? 'My Requests' : 'Job Requests', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'client', 'director'] },
-    { to: '/portal/reports', label: 'Weekly Reports', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'director'] },
+    { to: '/portal/workspace', label: getWorkspaceLabel(), icon: <FolderKanban className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'director'] },
     { to: '/portal/team', label: 'Team Members', icon: <Users className="w-5 h-5" />, roles: ['admin', 'manager'] },
     { to: '/portal/units', label: isHeadUnit ? 'Form' : 'Units & Org', icon: <FolderGit2 className="w-5 h-5" />, roles: ['admin'] },
     { to: '/portal/users', label: 'User Management', icon: <Shield className="w-5 h-5" />, roles: ['admin'] },
@@ -69,7 +76,7 @@ export const Sidebar: React.FC = () => {
             <GitBranch className="w-5 h-5 text-slate-400" />
             <span>Changelogs</span>
             <span className="ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-              v1.14.0
+              v1.15.0
             </span>
           </Link>
         </li>

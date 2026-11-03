@@ -713,6 +713,111 @@ jobRequestsRouter.post('/presets/add', async (c) => {
   }
 });
 
+// ==========================================
+// UNIT WORKSPACE KANBAN BOARD & COLUMNS APIS
+// ==========================================
+
+// GET /api/job-requests/kanban-columns/:unitName - Get customized Kanban columns for a unit
+jobRequestsRouter.get('/kanban-columns/:unitName', async (c) => {
+  const db = c.env.DB;
+  const unitName = c.req.param('unitName');
+  const cleanKey = `kanban_cols_${unitName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+
+  try {
+    const row = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(cleanKey).first<{ value: string }>();
+    if (row && row.value) {
+      const parsed = JSON.parse(row.value);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return c.json({ success: true, columns: parsed });
+      }
+    }
+  } catch (e) {
+    console.error('Error reading kanban columns:', e);
+  }
+
+  // Default initial columns
+  const defaultColumns = [
+    { id: 'planning', label: 'Planning / Idea', color: 'slate' },
+    { id: 'drafting', label: 'Drafting & Design', color: 'indigo' },
+    { id: 'review', label: 'Review & Approval', color: 'amber' },
+    { id: 'scheduled', label: 'Scheduled', color: 'blue' },
+    { id: 'published', label: 'Published / Done', color: 'emerald' },
+  ];
+
+  return c.json({ success: true, columns: defaultColumns });
+});
+
+// PUT /api/job-requests/kanban-columns/:unitName - Update customized Kanban columns (Head Unit, Manager, Admin, Director only)
+jobRequestsRouter.put('/kanban-columns/:unitName', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const unitName = c.req.param('unitName');
+  const { columns } = await c.req.json();
+
+  if (!Array.isArray(columns) || columns.length === 0) {
+    return c.json({ error: 'Columns must be a non-empty array.' }, 400);
+  }
+
+  const isHeadOfThisUnit = Boolean(
+    user?.is_unit_head && (
+      (user?.unit && user.unit.toLowerCase().trim() === unitName.toLowerCase().trim()) ||
+      ((user as any)?.managed_units && (user as any).managed_units.some((u: string) => u.toLowerCase().trim() === unitName.toLowerCase().trim()))
+    )
+  );
+  const isSuper = ['admin', 'manager', 'director'].includes(user?.role) || Boolean((user as any)?.is_acting_manager);
+
+  if (!isHeadOfThisUnit && !isSuper) {
+    return c.json({ error: 'Permission denied: Only Unit Heads, Managers, and Admins can configure board columns.' }, 403);
+  }
+
+  const cleanKey = `kanban_cols_${unitName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  await db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').bind(cleanKey, JSON.stringify(columns)).run();
+
+  return c.json({ success: true, message: 'Kanban columns saved successfully.', columns });
+});
+
+// PUT /api/job-requests/:id/kanban-stage - Update stage for a job card on Kanban
+jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const { stage_id, stage_label, is_completed } = await c.req.json();
+
+  const req = await db.prepare('SELECT * FROM job_requests WHERE id = ?').bind(id).first<any>();
+  if (!req) {
+    return c.json({ error: 'Job request not found.' }, 404);
+  }
+
+  let addData: any = {};
+  try {
+    addData = req.additional_data ? JSON.parse(req.additional_data) : {};
+  } catch {}
+
+  addData.kanban_stage = stage_id || stage_label;
+  addData.kanban_stage_label = stage_label;
+  addData.kanban_updated_at = new Date().toISOString();
+  addData.kanban_updated_by = user.name || user.email;
+
+  let newStatus = req.status;
+  if (is_completed) {
+    newStatus = 'completed';
+  } else if (req.status === 'completed' && !is_completed) {
+    newStatus = 'staff_processing';
+  }
+
+  await db.prepare('UPDATE job_requests SET additional_data = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .bind(JSON.stringify(addData), newStatus, id)
+    .run();
+
+  // Log workflow action
+  await db.prepare(`
+    INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment)
+    VALUES (?, 'KANBAN_STAGE_MOVED', ?, ?, ?)
+  `).bind(id, user.id, user.name, `Moved task to stage: ${stage_label || stage_id}`).run();
+
+  return c.json({ success: true, stage: stage_id, status: newStatus });
+});
+
 // Weekly Automated Reports Endpoint for Staff & Managers
 jobRequestsRouter.get('/reports/weekly', async (c) => {
   const db = c.env.DB;

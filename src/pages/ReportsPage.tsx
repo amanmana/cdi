@@ -45,7 +45,10 @@ interface StaffReportGroup {
   in_progress_count: number;
 }
 
-export const ReportsPage: React.FC = () => {
+export const ReportsPage: React.FC<{ embedded?: boolean; overrideUnit?: string }> = ({
+  embedded = false,
+  overrideUnit,
+}) => {
   const { token, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<StaffReportGroup[]>([]);
@@ -68,7 +71,13 @@ export const ReportsPage: React.FC = () => {
     return monday;
   });
 
-  const [selectedUnit, setSelectedUnit] = useState<string>('all');
+  const [selectedUnit, setSelectedUnit] = useState<string>(overrideUnit || 'all');
+
+  useEffect(() => {
+    if (overrideUnit) {
+      setSelectedUnit(overrideUnit);
+    }
+  }, [overrideUnit]);
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [staffListOptions, setStaffListOptions] = useState<any[]>([]);
@@ -270,40 +279,69 @@ export const ReportsPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner shrink-0">
-            <FileText className="w-5 h-5" />
+      {!embedded ? (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner shrink-0">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Weekly Work Reports
+              </h1>
+              <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
+                Automated weekly job & activity logs per staff member.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Weekly Work Reports
-            </h1>
-            <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
-              Automated weekly job & activity logs per staff member.
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-3 shrink-0 print:hidden">
-          {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+          <div className="flex items-center gap-3 shrink-0 print:hidden">
+            {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+              <button
+                onClick={handleCopyAllStaffReports}
+                className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-2xl px-4 h-11 border-none shadow-md flex items-center gap-2 transition-all"
+                title="Copy combined weekly report for all listed staff"
+              >
+                <Copy className="w-4 h-4" /> Copy All Reports
+              </button>
+            )}
+
             <button
-              onClick={handleCopyAllStaffReports}
-              className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-2xl px-4 h-11 border-none shadow-md flex items-center gap-2 transition-all"
-              title="Copy combined weekly report for all listed staff"
+              onClick={() => window.print()}
+              className="btn bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md flex items-center gap-2 transition-all"
             >
-              <Copy className="w-4 h-4" /> Copy All Reports
+              <Printer className="w-4 h-4" /> Print / Export PDF
             </button>
-          )}
-
-          <button
-            onClick={() => window.print()}
-            className="btn bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md flex items-center gap-2 transition-all"
-          >
-            <Printer className="w-4 h-4" /> Print / Export PDF
-          </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3 print:hidden pb-1">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+              <FileText className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+              Weekly Activity Log & Summary
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || user?.is_unit_head) && (
+              <button
+                onClick={handleCopyAllStaffReports}
+                className="btn btn-xs bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl px-3 h-8 border-none shadow-xs flex items-center gap-1.5"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copy All
+              </button>
+            )}
+            <button
+              onClick={() => window.print()}
+              className="btn btn-xs bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl px-3 h-8 border-none shadow-xs flex items-center gap-1.5"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print / PDF
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Week Navigator & Filters Bar */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4 print:hidden">

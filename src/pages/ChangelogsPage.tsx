@@ -12,6 +12,20 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.15.0',
+    date: '2026-11-03',
+    items: [
+      'Feature: Dedicated Unit Workspaces & Social Media Hub — Replaced generic Weekly Reports with personalized unit workspaces in the navigation (e.g. "📱 Social Media" for unit staff, "🎨 Graphic", and "🏢 Unit Workspaces" for Director/Manager/Admin).',
+      'Feature: Interactive Kanban Board with Lead Controls — Deployed custom workflow stages where Head Units and Admins can dynamically Add, Edit, Reorder, and Delete board columns tailored to unit operations.',
+      'Workflow: Staff Card Movement & Self-Service Handoff — Allowed assigned staff members to move their own task cards between workflow columns with real-time stage persistence.',
+      'UX/Visual Standards: Red vs Green Task Color Indicators — Applied strict high-visibility color coding across all workspace views: RED (🔴 Belum Siap) for pending/in-progress tasks, and GREEN (🟢 Siap) for completed/published tasks.',
+      'Feature: Interactive Content Calendar (Job by Date) — Visual monthly scheduling calendar mapping both official Job Requests and Direct Work Tasks by deadline and execution date.',
+      'Feature: Unit Analytics & Metrics Dashboard — Real-time data visualization covering completion rates, Social Media content pillar distribution, content categories, and staff workload distribution.',
+      'Integration: Consolidated Weekly Reports Suite — Embedded the entire automated weekly work reporting, date filtering, print, and copy-all suite into Tab 4 of the Unit Workspace.',
+      'Executive: Instant Unit Switcher for Director & Managers — Provided a top-level dropdown enabling executive leadership to toggle and audit any unit workspace with a single click.',
+    ],
+  },
+  {
     version: '1.14.0',
     date: '2026-11-03',
     items: [

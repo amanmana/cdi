@@ -12,6 +12,7 @@ import { Dashboard } from './pages/Dashboard';
 import { JobRequestsList } from './pages/JobRequestsList';
 import { JobRequestDetail } from './pages/JobRequestDetail';
 import { ReportsPage } from './pages/ReportsPage';
+import { UnitWorkspacePage } from './pages/UnitWorkspacePage';
 import { TeamManagement } from './pages/TeamManagement';
 import { UsersManagement } from './pages/UsersManagement';
 import { UnitsManagement } from './pages/UnitsManagement';
@@ -92,8 +93,9 @@ export const App: React.FC = () => {
                 <Route path="projects/:id" element={<ProjectDetailPage />} />
                 <Route path="job-requests" element={<JobRequestsList />} />
                 <Route path="job-requests/:id" element={<JobRequestDetail />} />
-                <Route path="reports" element={<ReportsPage />} />
-                <Route path="gantt" element={<Navigate to="/portal/reports" replace />} />
+                <Route path="workspace" element={<UnitWorkspacePage />} />
+                <Route path="reports" element={<UnitWorkspacePage defaultTab="reports" />} />
+                <Route path="gantt" element={<Navigate to="/portal/workspace?tab=calendar" replace />} />
                 <Route path="team" element={<TeamManagement />} />
                 <Route path="team-members" element={<TeamManagement />} />
                 <Route path="users" element={<UsersManagement />} />
