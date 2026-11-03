@@ -741,9 +741,9 @@ export const JobRequestsList: React.FC = () => {
             : [];
           return astList.some((ast: any) => {
             if (ast.status !== 'pending') return false;
-            // Managers are not tasked with reviewing assistance requests
-            if (user?.role === 'manager' || user?.is_acting_manager) return false;
-            if (user?.role === 'admin' || user?.role === 'director') return true;
+            // Managers and Directors are not tasked with reviewing assistance requests (strictly between Unit Heads)
+            if (user?.role === 'manager' || user?.is_acting_manager || user?.role === 'director') return false;
+            if (user?.role === 'admin') return true;
             if (ast.head_id && Number(user?.id) === Number(ast.head_id)) return true;
             if (user?.is_unit_head && user?.unit && user.unit.toLowerCase().trim() === ast.target_unit?.toLowerCase().trim()) return true;
             return false;
@@ -1014,9 +1014,8 @@ export const JobRequestsList: React.FC = () => {
                           if (!pendingAst) return null;
 
                           const isForMe = Boolean(
-                            !(user?.role === 'manager' || user?.is_acting_manager) && (
+                            !(user?.role === 'manager' || user?.is_acting_manager || user?.role === 'director') && (
                               user?.role === 'admin' ||
-                              user?.role === 'director' ||
                               (pendingAst.head_id && Number(user?.id) === Number(pendingAst.head_id)) ||
                               (user?.is_unit_head && user?.unit && user.unit.toLowerCase().trim() === pendingAst.target_unit?.toLowerCase().trim())
                             )

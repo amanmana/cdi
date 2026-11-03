@@ -890,11 +890,11 @@ export const JobRequestDetail: React.FC = () => {
   );
 
   const canUserRespondToAst = (ast: any) => {
-    // Managers must NOT review or assign staff for cross-unit assistance (strictly between Unit Heads)
-    if (user?.role === 'manager' || user?.is_acting_manager) {
+    // Managers and Directors must NOT review or assign staff for cross-unit assistance (strictly between Unit Heads, with Admin override if needed)
+    if (user?.role === 'manager' || user?.is_acting_manager || user?.role === 'director') {
       return false;
     }
-    if (user?.role === 'admin' || user?.role === 'director') {
+    if (user?.role === 'admin') {
       return true;
     }
     if (ast.head_id && Number(user?.id) === Number(ast.head_id)) {
