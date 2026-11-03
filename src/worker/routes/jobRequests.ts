@@ -778,7 +778,7 @@ jobRequestsRouter.put('/kanban-columns/:unitName', async (c) => {
   return c.json({ success: true, message: 'Kanban columns saved successfully.', columns });
 });
 
-// PUT /api/job-requests/:id/kanban-stage - Update stage for a job card on Kanban
+// PUT /api/job-requests/:id/kanban-stage - Update stage for a job card on Kanban (Head Unit and Admin only)
 jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
@@ -788,6 +788,21 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
   const req = await db.prepare('SELECT * FROM job_requests WHERE id = ?').bind(id).first<any>();
   if (!req) {
     return c.json({ error: 'Job request not found.' }, 404);
+  }
+
+  // Permission: Only the Head Unit (of this job's unit) or Admin can move cards
+  const isSuperAdmin = user?.role === 'admin';
+  const reqUnit = req.unit || '';
+  const isHeadOfThisUnit = Boolean(
+    user?.is_unit_head && (
+      (user?.unit && user.unit.toLowerCase().trim() === reqUnit.toLowerCase().trim()) ||
+      ((user as any)?.managed_units && (user as any).managed_units.some((u: string) => u.toLowerCase().trim() === reqUnit.toLowerCase().trim())) ||
+      ((user as any)?.managed_unit_ids && req.unit_id && (user as any).managed_unit_ids.includes(req.unit_id))
+    )
+  );
+
+  if (!isSuperAdmin && !isHeadOfThisUnit) {
+    return c.json({ error: 'Permission denied: Only the Head Unit has permission to move workflow cards.' }, 403);
   }
 
   let addData: any = {};

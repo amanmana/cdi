@@ -146,6 +146,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   // Permissions:
   // - Managers and Directors are strictly VIEW-ONLY on Kanban columns (cannot Add/Edit/Delete/Reorder columns)
   // - Strictly only the actual Head Unit of the current unit (or Admin) can Add, Edit, Delete, or Reorder columns
+  // - Strictly only the actual Head Unit of the current unit (or Admin) can move cards between stages
   const isHeadOfCurrentUnit = Boolean(
     user?.is_unit_head && (
       (user?.unit && user.unit.toLowerCase().trim() === currentUnit.toLowerCase().trim()) ||
@@ -153,6 +154,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     )
   );
   const canManageColumns = Boolean(user?.role === 'admin' || isHeadOfCurrentUnit);
+  const canMoveCards = canManageColumns;
 
   // Modals
   const [showAddColumnModal, setShowAddColumnModal] = useState<boolean>(false);
@@ -380,6 +382,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
   // Move Card to a New Kanban Stage
   const handleMoveCard = async (jobId: number, targetStageId: string) => {
+    if (!canMoveCards) return;
     const targetCol = kanbanColumns.find((c) => c.id === targetStageId);
     if (!targetCol) return;
 
@@ -857,7 +860,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
               </span>
             </div>
             <span className="text-[11px] text-slate-400 font-medium">
-              💡 Staff can drag and drop cards between workflow stages
+              {canMoveCards
+                ? '💡 Head Unit can drag and drop cards or select stage to reorder workflow'
+                : '🔒 Workflow planning and stages are managed exclusively by the Head Unit'}
             </span>
           </div>
 
@@ -865,12 +870,13 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           <div className="flex gap-4 overflow-x-auto pb-6 pt-1 min-h-[550px] items-start">
             {kanbanColumns.map((col, index) => {
               const colJobs = filteredJobs.filter((job) => getJobStageId(job) === col.id);
-              const isColumnDraggedOver = dragOverColId === col.id;
+              const isColumnDraggedOver = Boolean(canMoveCards && dragOverColId === col.id);
 
               return (
                 <div
                   key={col.id}
                   onDragOver={(e) => {
+                    if (!canMoveCards) return;
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
                     if (dragOverColId !== col.id) {
@@ -878,16 +884,19 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     }
                   }}
                   onDragEnter={(e) => {
+                    if (!canMoveCards) return;
                     e.preventDefault();
                     setDragOverColId(col.id);
                   }}
                   onDragLeave={(e) => {
+                    if (!canMoveCards) return;
                     if (e.currentTarget.contains(e.relatedTarget as Node)) return;
                     if (dragOverColId === col.id) {
                       setDragOverColId(null);
                     }
                   }}
                   onDrop={(e) => {
+                    if (!canMoveCards) return;
                     e.preventDefault();
                     setDragOverColId(null);
                     const idStr = e.dataTransfer.getData('text/plain');
@@ -979,8 +988,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                         return (
                           <div
                             key={job.id}
-                            draggable={true}
+                            draggable={canMoveCards}
                             onDragStart={(e) => {
+                              if (!canMoveCards) return;
                               e.dataTransfer.setData('text/plain', String(job.id));
                               e.dataTransfer.effectAllowed = 'move';
                               setDraggedJobId(job.id);
@@ -989,7 +999,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                               setDraggedJobId(null);
                               setDragOverColId(null);
                             }}
-                            className={`p-4 rounded-2xl transition-all duration-150 space-y-2.5 cursor-grab active:cursor-grabbing select-none ${
+                            className={`p-4 rounded-2xl transition-all duration-150 space-y-2.5 select-none ${
+                              canMoveCards ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+                            } ${
                               isThisCardDragged
                                 ? 'opacity-40 scale-[0.98] border-dashed border-indigo-500 shadow-inner rotate-1'
                                 : ''
@@ -1001,8 +1013,8 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                           >
                             {/* Card Header: Ticket No + Red / Green Status Badge */}
                             <div className="flex items-center justify-between gap-1.5">
-                              <div className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600">
-                                <GripVertical className="w-3.5 h-3.5 shrink-0" />
+                              <div className="flex items-center gap-1.5 text-slate-400">
+                                {canMoveCards && <GripVertical className="w-3.5 h-3.5 shrink-0 hover:text-slate-600" />}
                                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                                   {job.ticket_no}
                                 </span>
@@ -1076,23 +1088,34 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                               </div>
                             </div>
 
-                            {/* Quick Move Stage Dropdown */}
-                            <div className="pt-1 flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                Move to:
-                              </span>
-                              <select
-                                value={col.id}
-                                onChange={(e) => handleMoveCard(job.id, e.target.value)}
-                                className="select select-xs select-bordered bg-slate-50 border-slate-200 rounded-lg text-[10px] font-bold text-slate-700"
-                              >
-                                {kanbanColumns.map((targetOption) => (
-                                  <option key={targetOption.id} value={targetOption.id}>
-                                    {targetOption.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                            {/* Quick Move Stage Dropdown (Head Unit / Admin only) or Read-Only Stage Badge */}
+                            {canMoveCards ? (
+                              <div className="pt-1 flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                  Move to:
+                                </span>
+                                <select
+                                  value={col.id}
+                                  onChange={(e) => handleMoveCard(job.id, e.target.value)}
+                                  className="select select-xs select-bordered bg-slate-50 border-slate-200 rounded-lg text-[10px] font-bold text-slate-700"
+                                >
+                                  {kanbanColumns.map((targetOption) => (
+                                    <option key={targetOption.id} value={targetOption.id}>
+                                      {targetOption.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ) : (
+                              <div className="pt-1 flex items-center justify-between gap-2 border-t border-slate-50">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  Stage:
+                                </span>
+                                <span className="text-[10px] font-black text-indigo-700 bg-indigo-50/80 border border-indigo-100/80 px-2 py-0.5 rounded-md truncate max-w-[170px]">
+                                  {col.label}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         );
                       })
