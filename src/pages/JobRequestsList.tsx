@@ -64,6 +64,7 @@ export const JobRequestsList: React.FC = () => {
   const [selfStatus, setSelfStatus] = useState('staff_processing');
   const [selfDescription, setSelfDescription] = useState('');
   const [selfCustomFields, setSelfCustomFields] = useState<Record<string, any>>({});
+  const [selfAssigneeId, setSelfAssigneeId] = useState<string>('');
   const [submittingSelf, setSubmittingSelf] = useState(false);
 
   // Inter-Unit Request State (for Unit Heads)
@@ -89,6 +90,7 @@ export const JobRequestsList: React.FC = () => {
     setSelfDescription('');
     setSelfStatus('staff_processing');
     setSelfCustomFields({});
+    setSelfAssigneeId('');
     setShowSelfModal(true);
   };
 
@@ -119,6 +121,11 @@ export const JobRequestsList: React.FC = () => {
   const unitInternalFields = (myUnitObj?.form_schema || []).filter(
     (f: any) => f.scope === 'internal' || f.scope === 'both'
   );
+  const unitStaffList = staffMembers.filter((s: any) => {
+    if (userUnitId && s.unit_id && Number(s.unit_id) === Number(userUnitId)) return true;
+    if (userUnitName && s.unit && s.unit.toLowerCase().trim() === userUnitName.toLowerCase().trim()) return true;
+    return false;
+  });
 
   // Manage Presets State
   const [showManagePresetsModal, setShowManagePresetsModal] = useState(false);
@@ -257,6 +264,7 @@ export const JobRequestsList: React.FC = () => {
           status: selfStatus,
           start_date: selfStartDate,
           custom_fields_data: selfCustomFields,
+          assigned_staff_id: selfAssigneeId ? Number(selfAssigneeId) : null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -269,6 +277,7 @@ export const JobRequestsList: React.FC = () => {
         setSelfDescription('');
         setSelfStatus('staff_processing');
         setSelfCustomFields({});
+        setSelfAssigneeId('');
         fetchRequests();
       } else {
         alert(data.error || `Server responded with status ${res.status}. Please try again.`);
@@ -619,7 +628,7 @@ export const JobRequestsList: React.FC = () => {
         <div className="flex items-center gap-3 w-full md:w-auto">
           {/* Action Buttons: Split Button for Unit Heads and Managers/Admins */}
           {user?.is_unit_head ? (
-            /* Split Button for Unit Heads (Combines Add Task & Inter-Unit Request) */
+            /* Split Button for Unit Heads: 1-click Add Task + Dropdown for Inter-Unit */
             <div className="join shadow-md shadow-purple-500/20 shrink-0">
               <button
                 type="button"
@@ -641,26 +650,19 @@ export const JobRequestsList: React.FC = () => {
                 </button>
                 <ul
                   tabIndex={0}
-                  className="dropdown-content z-50 menu p-2 shadow-2xl bg-white rounded-2xl w-56 border border-slate-100 text-xs mt-1"
+                  className="dropdown-content z-50 menu p-2 shadow-2xl bg-white rounded-2xl w-60 border border-slate-100 text-xs mt-1"
                 >
                   <li>
                     <button
                       type="button"
-                      onClick={handleOpenDirectTaskModal}
-                      className="font-bold py-2.5 text-slate-700 hover:text-purple-700 hover:bg-purple-50 rounded-xl flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4 text-purple-600" />
-                      <span>Direct Unit Task</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
                       onClick={handleOpenInterUnitModal}
-                      className="font-bold py-2.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 rounded-xl flex items-center gap-2"
+                      className="font-bold py-2.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 rounded-xl flex items-center gap-2.5"
                     >
-                      <ArrowLeftRight className="w-4 h-4 text-indigo-600" />
-                      <span>Inter-Unit Request</span>
+                      <ArrowLeftRight className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <div className="text-left">
+                        <div className="font-extrabold text-xs">Inter-Unit Request</div>
+                        <div className="text-[10px] text-slate-400 font-medium">Request job from another unit</div>
+                      </div>
                     </button>
                   </li>
                 </ul>
@@ -698,26 +700,19 @@ export const JobRequestsList: React.FC = () => {
                 </button>
                 <ul
                   tabIndex={0}
-                  className="dropdown-content z-50 menu p-2 shadow-2xl bg-white rounded-2xl w-56 border border-slate-100 text-xs mt-1"
+                  className="dropdown-content z-50 menu p-2 shadow-2xl bg-white rounded-2xl w-60 border border-slate-100 text-xs mt-1"
                 >
                   <li>
                     <button
                       type="button"
-                      onClick={handleOpenCreateModal}
-                      className="font-bold py-2.5 text-slate-700 hover:text-blue-700 hover:bg-blue-50 rounded-xl flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4 text-blue-600" />
-                      <span>Create Internal Job</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
                       onClick={handleOpenInterUnitModal}
-                      className="font-bold py-2.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 rounded-xl flex items-center gap-2"
+                      className="font-bold py-2.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 rounded-xl flex items-center gap-2.5"
                     >
-                      <ArrowLeftRight className="w-4 h-4 text-indigo-600" />
-                      <span>Inter-Unit Request</span>
+                      <ArrowLeftRight className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <div className="text-left">
+                        <div className="font-extrabold text-xs">Inter-Unit Request</div>
+                        <div className="text-[10px] text-slate-400 font-medium">Request job from another unit</div>
+                      </div>
                     </button>
                   </li>
                 </ul>
@@ -1398,6 +1393,30 @@ export const JobRequestsList: React.FC = () => {
                   ))}
                 </select>
               </div>
+
+              {/* ASSIGN TO (Visible to Head Unit if team has other staff) */}
+              {user?.is_unit_head && unitStaffList.length > 0 && (
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>ASSIGN TO (OPTIONAL)</span>
+                    <span className="text-[10px] text-purple-600 font-extrabold lowercase">assign to self or unit staff</span>
+                  </label>
+                  <select
+                    value={selfAssigneeId}
+                    onChange={(e) => setSelfAssigneeId(e.target.value)}
+                    className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-purple-600"
+                  >
+                    <option value="">👤 Myself ({user?.name})</option>
+                    {unitStaffList
+                      .filter((s: any) => Number(s.id) !== Number(user?.id))
+                      .map((s: any) => (
+                        <option key={s.id} value={s.id}>
+                          👤 {s.name} ({s.email})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
 
               {/* 4 & 5. EXECUTION DATE & TASK STATUS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
