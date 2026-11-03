@@ -44,10 +44,6 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const { user, token } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Active Tab: 'kanban' | 'calendar' | 'analytics' | 'reports'
-  const tabParam = searchParams.get('tab') || defaultTab;
-  const [activeTab, setActiveTab] = useState<string>(tabParam);
-
   // Available Units
   const [unitsList, setUnitsList] = useState<any[]>([]);
 
@@ -56,6 +52,22 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const userUnitName = user?.unit || 'Social Media';
   const initialUnit = searchParams.get('unit') || userUnitName;
   const [currentUnit, setCurrentUnit] = useState<string>(initialUnit);
+
+  // Active Tab Policy:
+  // - Currently, ONLY Social Media requested a Kanban board workflow. All other units have Kanban hidden.
+  // - Even for Social Media, Managers and Directors do not see Kanban (leadership operates at Calendar, Metrics, and Weekly Reports level).
+  // - Head Unit (Azni) & Staff of Social Media (and Admin) have access to the Kanban board.
+  const isSocialMediaUnit = currentUnit.toLowerCase().trim() === 'social media' || currentUnit.toLowerCase().includes('social');
+  const isLeadership = user?.role === 'manager' || user?.role === 'director' || Boolean((user as any)?.is_acting_manager);
+  const isKanbanEnabled = Boolean(isSocialMediaUnit && (!isLeadership || user?.role === 'admin'));
+
+  // Active Tab: 'kanban' | 'calendar' | 'analytics' | 'reports'
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (tabParam && tabParam !== 'kanban') return tabParam;
+    if (tabParam === 'kanban') return isKanbanEnabled ? 'kanban' : 'calendar';
+    return isKanbanEnabled ? defaultTab : 'calendar';
+  });
 
   // Data State
   const [loading, setLoading] = useState<boolean>(true);
@@ -169,17 +181,32 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   // Calendar State
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
 
-  // Sync tab with URL
+  // Sync tab with URL and enforce valid tab when Kanban is disabled
   useEffect(() => {
-    if (tabParam && tabParam !== activeTab) {
-      setActiveTab(tabParam);
+    if (!isKanbanEnabled && activeTab === 'kanban') {
+      setActiveTab('calendar');
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('tab', 'calendar');
+      setSearchParams(newParams);
+      return;
     }
-  }, [tabParam]);
+    if (tabParam && tabParam !== activeTab) {
+      if (!isKanbanEnabled && tabParam === 'kanban') {
+        setActiveTab('calendar');
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('tab', 'calendar');
+        setSearchParams(newParams);
+      } else {
+        setActiveTab(tabParam);
+      }
+    }
+  }, [tabParam, isKanbanEnabled, activeTab, searchParams, setSearchParams]);
 
   const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
+    const targetTab = (!isKanbanEnabled && tab === 'kanban') ? 'calendar' : tab;
+    setActiveTab(targetTab);
     const newParams = new URLSearchParams(searchParams);
-    newParams.set('tab', tab);
+    newParams.set('tab', targetTab);
     setSearchParams(newParams);
   };
 
@@ -187,6 +214,12 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     setCurrentUnit(unitName);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('unit', unitName);
+    const targetIsSocMed = unitName.toLowerCase().trim() === 'social media' || unitName.toLowerCase().includes('social');
+    const targetKanbanEnabled = Boolean(targetIsSocMed && (!isLeadership || user?.role === 'admin'));
+    if (!targetKanbanEnabled && activeTab === 'kanban') {
+      setActiveTab('calendar');
+      newParams.set('tab', 'calendar');
+    }
     setSearchParams(newParams);
   };
 
@@ -651,14 +684,16 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                 <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                   {currentUnit} Unit Hub
                 </span>
-                {canManageColumns && (
+                {isKanbanEnabled && canManageColumns && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-100 text-purple-800">
                     ★ Lead Controls Active
                   </span>
                 )}
               </div>
               <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
-                Custom workflow board, content calendar by date, analytics, and weekly activity reports.
+                {isKanbanEnabled
+                  ? 'Custom workflow board, content calendar by date, analytics, and weekly activity reports.'
+                  : 'Content calendar by date, analytics metrics, and weekly activity reports.'}
               </p>
             </div>
           </div>
@@ -747,20 +782,22 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
       {/* 2. TAB NAVIGATION BAR */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
-        <button
-          onClick={() => handleTabChange('kanban')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${
-            activeTab === 'kanban'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70'
-          }`}
-        >
-          <FolderKanban className="w-4 h-4" />
-          <span>Kanban Board</span>
-          <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${activeTab === 'kanban' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
-            {filteredJobs.length}
-          </span>
-        </button>
+        {isKanbanEnabled && (
+          <button
+            onClick={() => handleTabChange('kanban')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${
+              activeTab === 'kanban'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70'
+            }`}
+          >
+            <FolderKanban className="w-4 h-4" />
+            <span>Kanban Board</span>
+            <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${activeTab === 'kanban' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {filteredJobs.length}
+            </span>
+          </button>
+        )}
 
         <button
           onClick={() => handleTabChange('calendar')}
@@ -799,8 +836,8 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
         </button>
       </div>
 
-      {/* 3. TAB 1: KANBAN BOARD */}
-      {activeTab === 'kanban' && (
+      {/* 3. TAB 1: KANBAN BOARD (Exclusively for Social Media Unit) */}
+      {isKanbanEnabled && activeTab === 'kanban' && (
         <div className="space-y-4">
           {/* Board Filters & Actions */}
           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-3">
