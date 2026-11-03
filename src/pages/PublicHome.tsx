@@ -148,7 +148,8 @@ export const PublicHome: React.FC = () => {
     }
 
     const missing: Record<string, string> = {};
-    currentUnitObj?.form_schema.forEach(field => {
+    const publicFields = (currentUnitObj?.form_schema || []).filter((f: any) => f.scope !== 'internal');
+    publicFields.forEach(field => {
       if (field.required && !dynamicFields[field.id]) {
         missing[field.id] = field.label;
       }
@@ -449,17 +450,20 @@ export const PublicHome: React.FC = () => {
               </div>
 
               {/* Dynamic Unit Schema Fields */}
-              {currentUnitObj && currentUnitObj.form_schema && currentUnitObj.form_schema.length > 0 && (
-                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-                  <div className="border-b border-slate-200/80 pb-2 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Additional Requirements: {selectedUnit} Unit
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-medium">Unit-Specific Specifications</span>
-                  </div>
+              {(() => {
+                const publicFields = (currentUnitObj?.form_schema || []).filter((f: any) => f.scope !== 'internal');
+                if (publicFields.length === 0) return null;
+                return (
+                  <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                    <div className="border-b border-slate-200/80 pb-2 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Additional Requirements: {selectedUnit} Unit
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-medium">Unit-Specific Specifications</span>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {currentUnitObj.form_schema.map((field) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {publicFields.map((field) => (
                       <div key={field.id} className={`form-control ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
                         <label className="label pt-0 pb-1">
                           <span className="label-text font-bold text-slate-700 text-xs">
@@ -559,7 +563,8 @@ export const PublicHome: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              )}
+              );
+            })()}
 
               {/* Turnstile verification */}
               <div className="pt-2 flex justify-center">

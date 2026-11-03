@@ -1556,7 +1556,7 @@ export const JobRequestDetail: React.FC = () => {
                       // Hide raw database IDs
                       if (lower.endsWith('_id') || lower === 'id' || lower.endsWith('_ids')) return false;
                       // Hide internal routing/type flags
-                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice'].includes(lower)) return false;
+                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields'].includes(lower)) return false;
                       return true;
                     })
                     .map(([k, v]) => {

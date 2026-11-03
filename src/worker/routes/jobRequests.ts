@@ -1026,7 +1026,7 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
   const user = c.get('user');
 
   try {
-    const { title, description, client_name, project_name, status, start_date, deadline, project_id } = await c.req.json();
+    const { title, description, client_name, project_name, status, start_date, deadline, project_id, custom_fields_data } = await c.req.json();
 
     if (!title || !title.trim()) {
       return c.json({ error: 'Work title is required.' }, 400);
@@ -1089,10 +1089,20 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
       }
     }
 
+    let additionalDataObj: any = null;
+    if (custom_fields_data && typeof custom_fields_data === 'object' && Object.keys(custom_fields_data).length > 0) {
+      additionalDataObj = {
+        ...custom_fields_data,
+        custom_fields: custom_fields_data,
+        is_direct_task: true,
+      };
+    }
+    const additionalDataStr = additionalDataObj ? JSON.stringify(additionalDataObj) : null;
+
     const res = await db
       .prepare(
-        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, unit, unit_id, department_id, status, current_step_name, assigned_staff_ids, start_date, deadline, project_id, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, unit, unit_id, department_id, status, current_step_name, assigned_staff_ids, start_date, deadline, project_id, additional_data, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
       .bind(
         ticketNo,
@@ -1108,7 +1118,8 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
         assignedStr,
         start_date || new Date().toISOString().split('T')[0],
         deadline || null,
-        project_id ? Number(project_id) : null
+        project_id ? Number(project_id) : null,
+        additionalDataStr
       )
       .run();
 

@@ -12,6 +12,18 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.13.0',
+    date: '2026-11-03',
+    items: [
+      'UI/UX: Unified Split Button on Job Requests — Replaced crowded side-by-side buttons with a modern Split Button for Unit Heads and Managers/Admins, keeping 1-click speed for adding direct tasks while offering an intuitive dropdown for Inter-Unit requests.',
+      'Feature: Universal Dynamic Custom Form Schema for All Units — Extended the Form Builder so any Unit Head (Social Media, Graphic, Web, 3D/Video, Writer, Rapid Prototyping, Event Management, etc.) can configure specialized custom form fields for their respective unit.',
+      'Architecture: Field Usage Scope (Public, Internal, Both) — Form fields can now be targeted to "Client Intake Only (Public)", "Internal Staff Only (Add Task)", or "Both Forms", giving units full flexibility without creating separate forms or database migrations.',
+      'Workflow: Dynamic Direct Task Specifications Modal — When unit members or unit heads log tasks via "Add Task", unit-specific specifications are dynamically fetched and rendered with interactive input controls (Text, Textarea, Select, Radio, Checkboxes, Dates, Numbers).',
+      'Data Integrity & Storage: Safe JSON Extension in additional_data — All custom field answers are stored inside job_requests.additional_data without altering database tables or breaking backward compatibility with existing jobs.',
+      'Builder: Real-Time Multi-Scope Live Preview — Head Units can now toggle live previews between "Public Intake" and "Internal Staff" views in the Form Builder to test validation and field appearances instantly.',
+    ],
+  },
+  {
     version: '1.12.0',
     date: '2026-11-02',
     items: [

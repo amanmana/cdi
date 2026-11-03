@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus } from 'lucide-react';
+import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus, ChevronDown, Sliders } from 'lucide-react';
 
 export const JobRequestsList: React.FC = () => {
   const { token, user } = useAuth();
@@ -63,6 +63,7 @@ export const JobRequestsList: React.FC = () => {
   const [selfStartDate, setSelfStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [selfStatus, setSelfStatus] = useState('completed');
   const [selfDescription, setSelfDescription] = useState('');
+  const [selfCustomFields, setSelfCustomFields] = useState<Record<string, any>>({});
   const [submittingSelf, setSubmittingSelf] = useState(false);
 
   // Inter-Unit Request State (for Unit Heads)
@@ -80,8 +81,44 @@ export const JobRequestsList: React.FC = () => {
   const [interUnitSubmitting, setInterUnitSubmitting] = useState(false);
   const [interUnitError, setInterUnitError] = useState('');
 
+  const handleOpenDirectTaskModal = () => {
+    setSelfTitle('');
+    setSelfClient('');
+    setSelfProject('');
+    setSelfProjectId('');
+    setSelfDescription('');
+    setSelfStatus('completed');
+    setSelfCustomFields({});
+    setShowSelfModal(true);
+  };
+
+  const handleOpenInterUnitModal = () => {
+    setInterUnitTitle('');
+    setInterUnitDescription('');
+    setInterUnitTargetUnit('');
+    setInterUnitTargetUnits([]);
+    setInterUnitPriority('normal');
+    setInterUnitStartDate(new Date().toISOString().split('T')[0]);
+    setInterUnitDeadline('');
+    setInterUnitParentJobId('');
+    setInterUnitError('');
+    setShowInterUnitModal(true);
+  };
+
   // Mega Projects List for Dropdowns
   const [megaProjectsList, setMegaProjectsList] = useState<{ id: number; code: string; title: string; status: string }[]>([]);
+
+  // User's Unit & Custom Form Schema
+  const userUnitName = (user as any)?.acting_manager_unit || user?.unit;
+  const userUnitId = (user as any)?.acting_manager_unit_id || user?.unit_id;
+  const myUnitObj = unitsList.find(
+    (u: any) =>
+      (userUnitId && Number(u.id) === Number(userUnitId)) ||
+      (userUnitName && u.name?.toLowerCase().trim() === userUnitName.toLowerCase().trim())
+  );
+  const unitInternalFields = (myUnitObj?.form_schema || []).filter(
+    (f: any) => f.scope === 'internal' || f.scope === 'both'
+  );
 
   // Manage Presets State
   const [showManagePresetsModal, setShowManagePresetsModal] = useState(false);
@@ -184,6 +221,28 @@ export const JobRequestsList: React.FC = () => {
       alert('Work title is required.');
       return;
     }
+
+    const userUnitName = (user as any)?.acting_manager_unit || user?.unit;
+    const userUnitId = (user as any)?.acting_manager_unit_id || user?.unit_id;
+    const myUnitObj = unitsList.find(
+      (u: any) =>
+        (userUnitId && Number(u.id) === Number(userUnitId)) ||
+        (userUnitName && u.name?.toLowerCase().trim() === userUnitName.toLowerCase().trim())
+    );
+    const unitInternalFields = (myUnitObj?.form_schema || []).filter(
+      (f: any) => f.scope === 'internal' || f.scope === 'both'
+    );
+
+    for (const field of unitInternalFields) {
+      if (field.required) {
+        const val = selfCustomFields[field.id];
+        if (val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) {
+          alert(`Sila lengkapkan medan: ${field.label}`);
+          return;
+        }
+      }
+    }
+
     setSubmittingSelf(true);
     try {
       const res = await fetch('/api/job-requests/self-initiated', {
@@ -197,6 +256,7 @@ export const JobRequestsList: React.FC = () => {
           project_id: selfProjectId ? Number(selfProjectId) : null,
           status: selfStatus,
           start_date: selfStartDate,
+          custom_fields_data: selfCustomFields,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -207,6 +267,7 @@ export const JobRequestsList: React.FC = () => {
         setSelfProject('');
         setSelfProjectId('');
         setSelfDescription('');
+        setSelfCustomFields({});
         fetchRequests();
       } else {
         alert(data.error || `Server responded with status ${res.status}. Please try again.`);
@@ -307,8 +368,13 @@ export const JobRequestsList: React.FC = () => {
   };
 
   const fetchUnits = () => {
-    fetch('/api/public/units')
-      .then((res) => res.json())
+    fetch('/api/admin/units', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((res) => {
+        if (res.ok) return res.json();
+        return fetch('/api/public/units').then((r) => r.json());
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           const filtered = data.filter((u: any) => u.name !== 'Administrator');
@@ -550,55 +616,113 @@ export const JobRequestsList: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {/* Button for Staff only to Add Tasks (Hidden for Admin & Manager) */}
-          {user?.role === 'staff' && (
+          {/* Action Buttons: Split Button for Unit Heads and Managers/Admins */}
+          {user?.is_unit_head ? (
+            /* Split Button for Unit Heads (Combines Add Task & Inter-Unit Request) */
+            <div className="join shadow-md shadow-purple-500/20 shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenDirectTaskModal}
+                className="btn join-item bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs h-11 border-none px-4 gap-2 normal-case"
+                title="Log direct task for your unit"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Task</span>
+              </button>
+              <div className="dropdown dropdown-end join-item">
+                <button
+                  tabIndex={0}
+                  type="button"
+                  className="btn join-item bg-purple-700 hover:bg-purple-800 text-white border-none h-11 px-2.5"
+                  title="More actions"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content z-50 menu p-2 shadow-2xl bg-white rounded-2xl w-56 border border-slate-100 text-xs mt-1"
+                >
+                  <li>
+                    <button
+                      type="button"
+                      onClick={handleOpenDirectTaskModal}
+                      className="font-bold py-2.5 text-slate-700 hover:text-purple-700 hover:bg-purple-50 rounded-xl flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4 text-purple-600" />
+                      <span>Direct Unit Task</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={handleOpenInterUnitModal}
+                      className="font-bold py-2.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 rounded-xl flex items-center gap-2"
+                    >
+                      <ArrowLeftRight className="w-4 h-4 text-indigo-600" />
+                      <span>Inter-Unit Request</span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          ) : user?.role === 'staff' ? (
+            /* Single Button for regular Staff */
             <button
-              onClick={() => {
-                setSelfTitle('');
-                setSelfClient('');
-                setSelfProject('');
-                setSelfDescription('');
-                setSelfStatus('completed');
-                setShowSelfModal(true);
-              }}
+              type="button"
+              onClick={handleOpenDirectTaskModal}
               className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md shadow-purple-500/25 flex items-center gap-2 shrink-0 transition-all"
             >
               <Plus className="w-4 h-4" />
               <span>Add My Task</span>
             </button>
-          )}
-
-          {/* Special Button for Unit Heads to Request Jobs from other units */}
-          {Boolean(user?.is_unit_head || isManagerOrAdmin) && (
-            <button
-              onClick={() => {
-                setInterUnitTitle('');
-                setInterUnitDescription('');
-                setInterUnitTargetUnit('');
-                setInterUnitPriority('normal');
-                setInterUnitStartDate(new Date().toISOString().split('T')[0]);
-                setInterUnitDeadline('');
-                setInterUnitParentJobId('');
-                setInterUnitError('');
-                setShowInterUnitModal(true);
-              }}
-              className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl px-4 h-11 border-none shadow-md shadow-indigo-500/25 flex items-center gap-2 shrink-0 transition-all"
-              title="Request job from another unit head"
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-              <span>Inter-Unit Request</span>
-            </button>
-          )}
-
-          {isManagerOrAdmin && (
-            <button
-              onClick={handleOpenCreateModal}
-              className="btn bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-2xl px-5 h-11 border-none shadow-md shadow-blue-500/25 flex items-center gap-2 shrink-0 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Internal Job</span>
-            </button>
-          )}
+          ) : isManagerOrAdmin ? (
+            /* Split Button for Manager & Admin */
+            <div className="join shadow-md shadow-blue-500/20 shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="btn join-item bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs h-11 border-none px-5 gap-2 normal-case"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Internal Job</span>
+              </button>
+              <div className="dropdown dropdown-end join-item">
+                <button
+                  tabIndex={0}
+                  type="button"
+                  className="btn join-item bg-blue-700 hover:bg-blue-800 text-white border-none h-11 px-2.5"
+                  title="More actions"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content z-50 menu p-2 shadow-2xl bg-white rounded-2xl w-56 border border-slate-100 text-xs mt-1"
+                >
+                  <li>
+                    <button
+                      type="button"
+                      onClick={handleOpenCreateModal}
+                      className="font-bold py-2.5 text-slate-700 hover:text-blue-700 hover:bg-blue-50 rounded-xl flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4 text-blue-600" />
+                      <span>Create Internal Job</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={handleOpenInterUnitModal}
+                      className="font-bold py-2.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 rounded-xl flex items-center gap-2"
+                    >
+                      <ArrowLeftRight className="w-4 h-4 text-indigo-600" />
+                      <span>Inter-Unit Request</span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          ) : null}
 
           <div className="relative w-full md:w-72">
             <input
@@ -1302,6 +1426,138 @@ export const JobRequestsList: React.FC = () => {
                   </select>
                 </div>
               </div>
+
+              {/* Dynamic Unit Internal Custom Fields (Universal for All Units) */}
+              {unitInternalFields.length > 0 && (
+                <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-100 space-y-3">
+                  <div className="flex items-center justify-between border-b border-purple-200/60 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Sliders className="w-3.5 h-3.5 text-purple-600" />
+                      <span className="text-[11px] font-black text-purple-950 uppercase tracking-wider">
+                        {myUnitObj?.name || 'Unit'} Specifications
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-purple-700 font-extrabold bg-white px-2 py-0.5 rounded-full border border-purple-200 shadow-xs">
+                      Internal Form
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
+                    {unitInternalFields.map((field: any) => (
+                      <div
+                        key={field.id}
+                        className={field.type === 'textarea' ? 'sm:col-span-2' : ''}
+                      >
+                        <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">
+                          {field.label} {field.required && <span className="text-rose-500">*</span>}
+                        </label>
+
+                        {field.type === 'select' && (
+                          <select
+                            value={selfCustomFields[field.id] || ''}
+                            onChange={(e) =>
+                              setSelfCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                            }
+                            required={field.required}
+                            className="select select-bordered w-full h-10 bg-white border-purple-200 rounded-xl text-xs font-semibold focus:border-purple-600"
+                          >
+                            <option value="">-- {field.placeholder || `Select ${field.label}`} --</option>
+                            {field.options?.map((opt: string, i: number) => (
+                              <option key={i} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        {field.type === 'textarea' && (
+                          <textarea
+                            rows={2}
+                            value={selfCustomFields[field.id] || ''}
+                            onChange={(e) =>
+                              setSelfCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                            }
+                            placeholder={field.placeholder || `Enter ${field.label}...`}
+                            required={field.required}
+                            className="w-full rounded-xl border border-purple-200 bg-white p-2.5 text-xs font-medium text-slate-800 focus:border-purple-600 focus:outline-none resize-none"
+                          />
+                        )}
+
+                        {field.type === 'checkbox' && (
+                          <div className="flex flex-wrap gap-2 pt-0.5">
+                            {field.options?.map((opt: string, i: number) => {
+                              const currentVals: string[] = Array.isArray(selfCustomFields[field.id])
+                                ? selfCustomFields[field.id]
+                                : typeof selfCustomFields[field.id] === 'string'
+                                ? selfCustomFields[field.id].split(', ').filter(Boolean)
+                                : [];
+                              const isChecked = currentVals.includes(opt);
+                              return (
+                                <label
+                                  key={i}
+                                  className="flex items-center gap-1.5 text-xs text-slate-700 bg-white px-2.5 py-1.5 rounded-xl border border-purple-200 cursor-pointer hover:border-purple-400 shadow-xs"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const updated = e.target.checked
+                                        ? [...currentVals, opt]
+                                        : currentVals.filter((v: string) => v !== opt);
+                                      setSelfCustomFields((prev) => ({
+                                        ...prev,
+                                        [field.id]: updated.join(', '),
+                                      }));
+                                    }}
+                                    className="checkbox checkbox-primary checkbox-xs rounded"
+                                  />
+                                  <span className="font-bold text-[11px] text-slate-800">{opt}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {field.type === 'radio' && (
+                          <div className="flex flex-wrap gap-2 pt-0.5">
+                            {field.options?.map((opt: string, i: number) => (
+                              <label
+                                key={i}
+                                className="flex items-center gap-1.5 text-xs text-slate-700 bg-white px-2.5 py-1.5 rounded-xl border border-purple-200 cursor-pointer hover:border-purple-400 shadow-xs"
+                              >
+                                <input
+                                  type="radio"
+                                  name={`direct_task_${field.id}`}
+                                  value={opt}
+                                  checked={selfCustomFields[field.id] === opt}
+                                  onChange={(e) =>
+                                    setSelfCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                                  }
+                                  className="radio radio-primary radio-xs"
+                                />
+                                <span className="font-bold text-[11px] text-slate-800">{opt}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+
+                        {!['select', 'textarea', 'checkbox', 'radio'].includes(field.type) && (
+                          <input
+                            type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                            value={selfCustomFields[field.id] || ''}
+                            onChange={(e) =>
+                              setSelfCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                            }
+                            placeholder={field.placeholder || `Enter ${field.label}...`}
+                            required={field.required}
+                            className="input input-bordered w-full h-10 bg-white border-purple-200 rounded-xl text-xs font-semibold focus:border-purple-600"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* 6. WORK DETAILS & OUTCOME SUMMARY */}
               <div>

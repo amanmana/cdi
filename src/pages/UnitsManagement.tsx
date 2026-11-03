@@ -32,6 +32,7 @@ interface SchemaField {
   options?: string[];
   required: boolean;
   placeholder?: string;
+  scope?: 'public' | 'internal' | 'both';
 }
 
 export const UnitsManagement: React.FC = () => {
@@ -89,6 +90,8 @@ export const UnitsManagement: React.FC = () => {
   const [fieldOptions, setFieldOptions] = useState('');
   const [fieldRequired, setFieldRequired] = useState(false);
   const [fieldPlaceholder, setFieldPlaceholder] = useState('');
+  const [fieldScope, setFieldScope] = useState<'public' | 'internal' | 'both'>('both');
+  const [previewScope, setPreviewScope] = useState<'all' | 'public' | 'internal'>('all');
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
 
   // Unit deletion state
@@ -425,6 +428,7 @@ export const UnitsManagement: React.FC = () => {
     setFieldOptions('');
     setFieldRequired(false);
     setFieldPlaceholder('');
+    setFieldScope('both');
     setActiveTab('builder');
   };
 
@@ -446,6 +450,7 @@ export const UnitsManagement: React.FC = () => {
       options: parsedOptions,
       required: fieldRequired,
       placeholder: fieldPlaceholder.trim() || undefined,
+      scope: fieldScope,
     };
 
     if (editingFieldIndex !== null) {
@@ -462,6 +467,7 @@ export const UnitsManagement: React.FC = () => {
     setFieldOptions('');
     setFieldRequired(false);
     setFieldPlaceholder('');
+    setFieldScope('both');
   };
 
   const handleEditField = (index: number) => {
@@ -471,6 +477,7 @@ export const UnitsManagement: React.FC = () => {
     setFieldOptions(field.options ? field.options.join(', ') : '');
     setFieldRequired(field.required);
     setFieldPlaceholder(field.placeholder || '');
+    setFieldScope(field.scope || 'both');
     setEditingFieldIndex(index);
   };
 
@@ -492,6 +499,9 @@ export const UnitsManagement: React.FC = () => {
       setEditingFieldIndex(null);
       setFieldLabel('');
       setFieldPlaceholder('');
+      setFieldOptions('');
+      setFieldRequired(false);
+      setFieldScope('both');
     }
   };
 
@@ -1070,6 +1080,26 @@ export const UnitsManagement: React.FC = () => {
                       />
                     </div>
 
+                    <div>
+                      <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
+                        Form Usage / Target Scope
+                      </label>
+                      <select
+                        value={fieldScope}
+                        onChange={(e) => setFieldScope(e.target.value as any)}
+                        className="select select-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-bold text-slate-700"
+                      >
+                        <option value="both">🔄 Both Public Intake & Internal Staff Form</option>
+                        <option value="internal">🏢 Internal Staff Only (Direct Task Form)</option>
+                        <option value="public">🌐 Public Intake Only (External Clients)</option>
+                      </select>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                        {fieldScope === 'internal' && 'Field will ONLY appear when unit members log tasks via "Add Task".'}
+                        {fieldScope === 'public' && 'Field will ONLY appear for external clients submitting requests.'}
+                        {fieldScope === 'both' && 'Field will appear on BOTH public portal and internal direct task form.'}
+                      </p>
+                    </div>
+
                     <div className="flex items-center gap-2 pt-1">
                       <input
                         type="checkbox"
@@ -1098,6 +1128,7 @@ export const UnitsManagement: React.FC = () => {
                             setFieldPlaceholder('');
                             setFieldOptions('');
                             setFieldRequired(false);
+                            setFieldScope('both');
                           }}
                           className="btn btn-ghost text-slate-500 font-bold text-xs rounded-xl h-10"
                         >
@@ -1111,9 +1142,16 @@ export const UnitsManagement: React.FC = () => {
                   <div className="xl:col-span-8 flex flex-col gap-6">
                     {/* Active Fields list */}
                     <div className="space-y-3">
-                      <h3 className="font-bold text-xs text-slate-800 uppercase tracking-widest">
-                        Configured Form Fields ({schemaFields.length})
-                      </h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-xs text-slate-800 uppercase tracking-widest">
+                          Configured Form Fields ({schemaFields.length})
+                        </h3>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Both</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Internal</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Public</span>
+                        </div>
+                      </div>
                       {schemaFields.length === 0 ? (
                         <div className="p-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-xs font-medium">
                           No custom fields added yet. Use the panel on the left to add your first field.
@@ -1125,8 +1163,8 @@ export const UnitsManagement: React.FC = () => {
                               key={idx}
                               className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
                                 editingFieldIndex === idx
-                                  ? 'bg-blue-50/60 border-blue-300'
-                                  : 'bg-white border-slate-200 hover:border-slate-300'
+                                   ? 'bg-blue-50/60 border-blue-300'
+                                   : 'bg-white border-slate-200 hover:border-slate-300'
                               }`}
                             >
                               <div className="flex items-center gap-3">
@@ -1134,11 +1172,24 @@ export const UnitsManagement: React.FC = () => {
                                   {idx + 1}
                                 </span>
                                 <div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-bold text-xs text-slate-900">{f.label}</span>
                                     {f.required && (
-                                      <span className="text-[10px] text-rose-600 font-extrabold uppercase tracking-wider bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100">
+                                      <span className="text-[9px] text-rose-600 font-black uppercase tracking-wider bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100">
                                         Required
+                                      </span>
+                                    )}
+                                    {f.scope === 'internal' ? (
+                                      <span className="text-[9px] bg-purple-50 text-purple-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-purple-200">
+                                        🏢 Internal Only
+                                      </span>
+                                    ) : f.scope === 'public' ? (
+                                      <span className="text-[9px] bg-blue-50 text-blue-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-blue-200">
+                                        🌐 Public Only
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] bg-emerald-50 text-emerald-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-emerald-200">
+                                        🔄 Both Forms
                                       </span>
                                     )}
                                   </div>
@@ -1196,65 +1247,138 @@ export const UnitsManagement: React.FC = () => {
                     {/* Live Preview Box */}
                     {schemaFields.length > 0 && (
                       <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Eye className="w-4 h-4 text-blue-600" />
-                          <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-widest">
-                            Client Form Preview
-                          </h4>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Eye className="w-4 h-4 text-blue-600" />
+                            <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-widest">
+                              Live Form Preview
+                            </h4>
+                          </div>
+
+                          {/* Preview Filter Pills */}
+                          <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScope('all')}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all ${
+                                previewScope === 'all'
+                                  ? 'bg-slate-900 text-white shadow-xs'
+                                  : 'text-slate-500 hover:text-slate-800'
+                              }`}
+                            >
+                              All ({schemaFields.length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScope('public')}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all ${
+                                previewScope === 'public'
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'text-slate-500 hover:text-slate-800'
+                              }`}
+                            >
+                              🌐 Public Intake ({schemaFields.filter((f) => f.scope !== 'internal').length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScope('internal')}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all ${
+                                previewScope === 'internal'
+                                  ? 'bg-purple-600 text-white shadow-xs'
+                                  : 'text-slate-500 hover:text-slate-800'
+                              }`}
+                            >
+                              🏢 Internal Staff ({schemaFields.filter((f) => f.scope !== 'public').length})
+                            </button>
+                          </div>
                         </div>
-                        <div className="space-y-3 bg-white p-5 rounded-xl border border-slate-200">
-                          {schemaFields.map((field) => (
-                            <div key={field.id} className="space-y-1">
-                              <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                                {field.label}
-                                {field.required && <span className="text-rose-500">*</span>}
-                              </label>
-                              {field.type === 'textarea' ? (
-                                <textarea
-                                  placeholder={field.placeholder || ''}
-                                  disabled
-                                  rows={2}
-                                  className="textarea textarea-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200"
-                                />
-                              ) : field.type === 'select' ? (
-                                <select
-                                  disabled
-                                  className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-9"
-                                >
-                                  <option>{field.placeholder || 'Select an option...'}</option>
-                                  {field.options?.map((opt, i) => (
-                                    <option key={i}>{opt}</option>
-                                  ))}
-                                </select>
-                              ) : field.type === 'radio' ? (
-                                <div className="flex flex-wrap gap-3 pt-1">
-                                  {field.options?.map((opt, i) => (
-                                    <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
-                                      <input type="radio" disabled name={field.id} className="radio radio-xs" />
-                                      {opt}
+
+                        {(() => {
+                          const displayed = schemaFields.filter((f) => {
+                            if (previewScope === 'public') return f.scope !== 'internal';
+                            if (previewScope === 'internal') return f.scope !== 'public';
+                            return true;
+                          });
+
+                          if (displayed.length === 0) {
+                            return (
+                              <div className="p-6 text-center bg-white rounded-xl border border-slate-200 text-slate-400 text-xs font-semibold">
+                                No fields configured for this view ({previewScope === 'public' ? 'Public Intake' : 'Internal Staff'}).
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-3 bg-white p-5 rounded-xl border border-slate-200">
+                              {displayed.map((field) => (
+                                <div key={field.id} className="space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                      {field.label}
+                                      {field.required && <span className="text-rose-500">*</span>}
                                     </label>
-                                  ))}
+                                    {field.scope === 'internal' ? (
+                                      <span className="text-[9px] text-purple-600 font-extrabold bg-purple-50 px-1 rounded">
+                                        Internal
+                                      </span>
+                                    ) : field.scope === 'public' ? (
+                                      <span className="text-[9px] text-blue-600 font-extrabold bg-blue-50 px-1 rounded">
+                                        Public
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] text-emerald-600 font-extrabold bg-emerald-50 px-1 rounded">
+                                        Both
+                                      </span>
+                                    )}
+                                  </div>
+                                  {field.type === 'textarea' ? (
+                                    <textarea
+                                      placeholder={field.placeholder || ''}
+                                      disabled
+                                      rows={2}
+                                      className="textarea textarea-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200"
+                                    />
+                                  ) : field.type === 'select' ? (
+                                    <select
+                                      disabled
+                                      className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-9"
+                                    >
+                                      <option>{field.placeholder || 'Select an option...'}</option>
+                                      {field.options?.map((opt, i) => (
+                                        <option key={i}>{opt}</option>
+                                      ))}
+                                    </select>
+                                  ) : field.type === 'radio' ? (
+                                    <div className="flex flex-wrap gap-3 pt-1">
+                                      {field.options?.map((opt, i) => (
+                                        <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
+                                          <input type="radio" disabled name={field.id} className="radio radio-xs" />
+                                          {opt}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  ) : field.type === 'checkbox' ? (
+                                    <div className="flex flex-wrap gap-3 pt-1">
+                                      {field.options?.map((opt, i) => (
+                                        <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
+                                          <input type="checkbox" disabled className="checkbox checkbox-xs" />
+                                          {opt}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <input
+                                      type={field.type}
+                                      placeholder={field.placeholder || ''}
+                                      disabled
+                                      className="input input-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-9"
+                                    />
+                                  )}
                                 </div>
-                              ) : field.type === 'checkbox' ? (
-                                <div className="flex flex-wrap gap-3 pt-1">
-                                  {field.options?.map((opt, i) => (
-                                    <label key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
-                                      <input type="checkbox" disabled className="checkbox checkbox-xs" />
-                                      {opt}
-                                    </label>
-                                  ))}
-                                </div>
-                              ) : (
-                                <input
-                                  type={field.type}
-                                  placeholder={field.placeholder || ''}
-                                  disabled
-                                  className="input input-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-9"
-                                />
-                              )}
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
