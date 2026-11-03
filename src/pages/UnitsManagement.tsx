@@ -35,6 +35,10 @@ interface SchemaField {
   scope?: 'public' | 'internal' | 'both';
 }
 
+const getFieldScope = (f: SchemaField | any): 'public' | 'internal' | 'both' => {
+  return f?.scope || 'public';
+};
+
 export const UnitsManagement: React.FC = () => {
   const { token, user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'director';
@@ -421,7 +425,11 @@ export const UnitsManagement: React.FC = () => {
   // ==========================================
   const handleOpenBuilder = (unit: any) => {
     setSelectedUnit(unit);
-    setSchemaFields(unit.form_schema || []);
+    const normalized = (unit.form_schema || []).map((f: any) => ({
+      ...f,
+      scope: getFieldScope(f),
+    }));
+    setSchemaFields(normalized);
     resetFieldForm();
     setActiveTab('builder');
   };
@@ -448,7 +456,7 @@ export const UnitsManagement: React.FC = () => {
     const parsedOptions = isOptionsType ? fieldOptions.split(',').map((o) => o.trim()).filter(Boolean) : undefined;
 
     if (isOptionsType && (!parsedOptions || parsedOptions.length === 0)) {
-      alert('Sila masukkan sekurang-kurangnya satu pilihan (diasingkan dengan koma) untuk medan jenis Dropdown, Radio, atau Checkbox.');
+      alert('Please enter at least one option (comma-separated) for Dropdown, Radio, or Checkbox fields.');
       return;
     }
 
@@ -494,7 +502,7 @@ export const UnitsManagement: React.FC = () => {
 
   const handleMoveFieldInTab = (indexInSchema: number, direction: 'up' | 'down') => {
     const currentTabFields = schemaFields.filter((f) =>
-      builderTab === 'public' ? f.scope !== 'internal' : f.scope !== 'public'
+      builderTab === 'public' ? getFieldScope(f) !== 'internal' : getFieldScope(f) !== 'public'
     );
     const targetField = schemaFields[indexInSchema];
     if (!targetField) return;
@@ -540,14 +548,14 @@ export const UnitsManagement: React.FC = () => {
       refreshAll();
       setAlertModal({
         title: 'Form Schema Saved',
-        message: 'Skema borang telah berjaya disimpan!',
+        message: 'The form schema has been saved successfully!',
         type: 'success',
       });
     } catch (err: any) {
       console.error('Failed to save schema:', err);
       setAlertModal({
         title: 'Error',
-        message: 'Gagal menyimpan skema borang.',
+        message: 'Failed to save form schema.',
         type: 'error',
       });
     } finally {
@@ -948,7 +956,7 @@ export const UnitsManagement: React.FC = () => {
                     {isHeadUnit && !isAdmin ? (accessibleUnits.length > 1 ? 'My Units' : 'My Unit') : 'Select Unit'}
                   </h2>
                   <p className="text-xs text-slate-400 font-medium">
-                    Pilih unit di bawah untuk menguruskan borang dinamik bagi unit tersebut.
+                    Select a unit below to configure its dynamic intake and task forms.
                   </p>
                 </div>
               </div>
@@ -961,8 +969,8 @@ export const UnitsManagement: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {accessibleUnits.map((u) => {
                 const isSelected = selectedUnit?.id === u.id;
-                const pubCount = (u.form_schema || []).filter((f: any) => f.scope !== 'internal').length;
-                const intCount = (u.form_schema || []).filter((f: any) => f.scope !== 'public').length;
+                const pubCount = (u.form_schema || []).filter((f: any) => getFieldScope(f) !== 'internal').length;
+                const intCount = (u.form_schema || []).filter((f: any) => getFieldScope(f) !== 'public').length;
                 return (
                   <button
                     key={u.id}
@@ -1022,7 +1030,7 @@ export const UnitsManagement: React.FC = () => {
                       </h2>
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                      Ubah suai medan borang untuk permohonan awam klien dan rekod tugasan staf dalaman bagi unit ini.
+                      Customize dynamic form fields for public client requests and internal staff tasks for this unit.
                     </p>
                   </div>
 
@@ -1034,7 +1042,7 @@ export const UnitsManagement: React.FC = () => {
                     {isSavingSchema ? (
                       <>
                         <span className="loading loading-spinner loading-xs" />
-                        <span>Menyimpan...</span>
+                        <span>Saving...</span>
                       </>
                     ) : (
                       <>
@@ -1057,13 +1065,13 @@ export const UnitsManagement: React.FC = () => {
                     }`}
                   >
                     <Globe className="w-4 h-4" />
-                    <span>🌐 Client Intake Form (Borang Awam Klien)</span>
+                    <span>🌐 Client Intake Form</span>
                     <span
                       className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
                         builderTab === 'public' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
                       }`}
                     >
-                      {schemaFields.filter((f) => f.scope !== 'internal').length}
+                      {schemaFields.filter((f) => getFieldScope(f) !== 'internal').length}
                     </span>
                   </button>
 
@@ -1077,13 +1085,13 @@ export const UnitsManagement: React.FC = () => {
                     }`}
                   >
                     <Building2 className="w-4 h-4" />
-                    <span>🏢 Internal Staff Task Form (Borang Tugasan Staf)</span>
+                    <span>🏢 Internal Staff Task Form</span>
                     <span
                       className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
                         builderTab === 'internal' ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'
                       }`}
                     >
-                      {schemaFields.filter((f) => f.scope !== 'public').length}
+                      {schemaFields.filter((f) => getFieldScope(f) !== 'public').length}
                     </span>
                   </button>
                 </div>
@@ -1096,10 +1104,10 @@ export const UnitsManagement: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-extrabold text-xs text-blue-900">
-                        🌐 Client Intake Form (Borang Permohonan Awam)
+                        🌐 Client Intake Form
                       </h3>
                       <p className="text-[11px] text-blue-700/80 mt-0.5 font-medium leading-relaxed">
-                        Medan-medan di bawah akan dipaparkan di Portal Awam untuk diisi oleh klien apabila membuat permohonan kerja baharu bagi unit ini.
+                        Fields configured below will be displayed on the Public Portal for clients to fill in when submitting a new job request for this unit.
                       </p>
                     </div>
                   </div>
@@ -1110,10 +1118,10 @@ export const UnitsManagement: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-extrabold text-xs text-purple-900">
-                        🏢 Internal Staff Task Form (Borang Tugasan Dalaman Staf)
+                        🏢 Internal Staff Task Form
                       </h3>
                       <p className="text-[11px] text-purple-700/80 mt-0.5 font-medium leading-relaxed">
-                        Medan-medan di bawah akan dipaparkan secara khusus dalam tetingkap <strong>"+ Add Task"</strong> apabila staf atau Ketua Unit merekod tugasan terus bagi unit ini (contoh: Social Media pillar/category, asset specs, dll).
+                        Fields configured below will be specifically displayed in the <strong>"+ Add Task"</strong> modal when staff or the Head Unit log direct work for this unit (e.g. Content Pillar, Category, Specifications, etc.).
                       </p>
                     </div>
                   </div>
@@ -1126,23 +1134,23 @@ export const UnitsManagement: React.FC = () => {
                     <h3 className="font-bold text-xs text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5">
                       {editingFieldIndex !== null
                         ? builderTab === 'public'
-                          ? '⚡ Edit Medan Borang Awam'
-                          : '⚡ Edit Medan Tugasan Staf'
+                          ? '⚡ Edit Public Form Field'
+                          : '⚡ Edit Staff Task Field'
                         : builderTab === 'public'
-                        ? '✨ Tambah Medan ke Borang Awam'
-                        : '✨ Tambah Medan ke Borang Staf'}
+                        ? '✨ Add Field to Public Form'
+                        : '✨ Add Field to Staff Task Form'}
                     </h3>
 
                     <div>
                       <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                        Label Medan *
+                        Field Label *
                       </label>
                       <input
                         type="text"
                         placeholder={
                           builderTab === 'public'
-                            ? 'cth: Artwork Dimension (cm), Target Audience'
-                            : 'cth: Content Pillar, Campaign Tag, Asset Format'
+                            ? 'e.g. Artwork Dimension (cm), Target Audience'
+                            : 'e.g. Content Pillar, Campaign Tag, Asset Format'
                         }
                         value={fieldLabel}
                         onChange={(e) => setFieldLabel(e.target.value)}
@@ -1152,31 +1160,31 @@ export const UnitsManagement: React.FC = () => {
 
                     <div>
                       <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                        Jenis Input (Field Type)
+                        Input Type (Field Type)
                       </label>
                       <select
                         value={fieldType}
                         onChange={(e) => setFieldType(e.target.value)}
                         className="select select-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
                       >
-                        <option value="text">Text Input (Satu Baris)</option>
-                        <option value="textarea">Textarea (Teks Panjang)</option>
-                        <option value="number">Number Input (Nombor)</option>
-                        <option value="date">Date Picker (Tarikh)</option>
-                        <option value="select">Dropdown Select (Pilihan Tunggal)</option>
-                        <option value="radio">Radio Buttons (Pilihan Tunggal)</option>
-                        <option value="checkbox">Checkboxes (Pelbagai Pilihan)</option>
+                        <option value="text">Text Input (Single Line)</option>
+                        <option value="textarea">Textarea (Multi-line Text)</option>
+                        <option value="number">Number Input (Numeric)</option>
+                        <option value="date">Date Picker (Calendar Date)</option>
+                        <option value="select">Dropdown Select (Single Choice)</option>
+                        <option value="radio">Radio Buttons (Single Choice)</option>
+                        <option value="checkbox">Checkboxes (Multiple Choices)</option>
                       </select>
                     </div>
 
                     {['select', 'radio', 'checkbox'].includes(fieldType) && (
                       <div>
                         <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                          Pilihan (Diasingkan dengan koma) *
+                          Options (Comma-Separated) *
                         </label>
                         <input
                           type="text"
-                          placeholder="Pilihan 1, Pilihan 2, Pilihan 3"
+                          placeholder="Option 1, Option 2, Option 3"
                           value={fieldOptions}
                           onChange={(e) => setFieldOptions(e.target.value)}
                           className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
@@ -1186,11 +1194,11 @@ export const UnitsManagement: React.FC = () => {
 
                     <div>
                       <label className="label text-[10px] font-bold text-slate-500 uppercase tracking-wider py-0.5">
-                        Placeholder / Teks Pembantu
+                        Placeholder / Helper Text
                       </label>
                       <input
                         type="text"
-                        placeholder="cth: 1920x1080 px atau Pilih kategori..."
+                        placeholder="e.g. 1920×1080 px or Select category..."
                         value={fieldPlaceholder}
                         onChange={(e) => setFieldPlaceholder(e.target.value)}
                         className="input input-bordered bg-white border-slate-200 rounded-xl w-full text-xs h-10 font-medium"
@@ -1207,7 +1215,7 @@ export const UnitsManagement: React.FC = () => {
                         className="checkbox checkbox-primary checkbox-sm rounded-lg"
                       />
                       <label htmlFor="reqCheck" className="text-xs font-bold text-slate-700 cursor-pointer">
-                        Wajib Diisi (Mandatory Field)
+                        Mandatory (Required Field)
                       </label>
                     </div>
 
@@ -1223,16 +1231,16 @@ export const UnitsManagement: React.FC = () => {
                         />
                         <label htmlFor="shareOtherFormCheck" className="text-[11px] font-semibold text-slate-700 cursor-pointer leading-tight">
                           {builderTab === 'public'
-                            ? '🔄 Kongsi medan ini juga dalam Borang Tugasan Staf (+ Add Task)'
-                            : '🔄 Kongsi medan ini juga dalam Borang Permohonan Awam Klien'}
+                            ? '🔄 Also include this field in Staff Task Form (+ Add Task)'
+                            : '🔄 Also include this field in Client Intake Form'}
                         </label>
                       </div>
                       <p className="text-[10px] text-slate-400 mt-1 pl-6">
                         {shareWithOtherForm
-                          ? 'Medan ini akan wujud dalam KEDUA-DUA borang (Awam & Dalaman).'
+                          ? 'This field will appear in BOTH forms (Client Intake & Internal Tasks).'
                           : builderTab === 'public'
-                          ? 'Medan ini hanya akan wujud dalam Borang Permohonan Awam sahaja.'
-                          : 'Medan ini hanya akan wujud dalam Borang Tugasan Staf sahaja.'}
+                          ? 'This field will only appear in the Client Intake Form.'
+                          : 'This field will only appear in the Staff Task Form.'}
                       </p>
                     </div>
 
@@ -1244,17 +1252,17 @@ export const UnitsManagement: React.FC = () => {
                         }`}
                       >
                         {editingFieldIndex !== null
-                          ? 'Kemaskini Medan'
+                          ? 'Update Field'
                           : builderTab === 'public'
-                          ? 'Tambah ke Borang Awam'
-                          : 'Tambah ke Borang Staf'}
+                          ? 'Add to Client Form'
+                          : 'Add to Staff Form'}
                       </button>
                       {editingFieldIndex !== null && (
                         <button
                           onClick={resetFieldForm}
                           className="btn btn-ghost text-slate-500 font-bold text-xs rounded-xl h-10"
                         >
-                          Batal
+                          Cancel
                         </button>
                       )}
                     </div>
@@ -1266,7 +1274,7 @@ export const UnitsManagement: React.FC = () => {
                     {(() => {
                       const displayedFields = schemaFields
                         .map((f, rawIdx) => ({ f, rawIdx }))
-                        .filter(({ f }) => (builderTab === 'public' ? f.scope !== 'internal' : f.scope !== 'public'));
+                        .filter(({ f }) => (builderTab === 'public' ? getFieldScope(f) !== 'internal' : getFieldScope(f) !== 'public'));
 
                       return (
                         <div className="space-y-3">
@@ -1275,25 +1283,25 @@ export const UnitsManagement: React.FC = () => {
                               {builderTab === 'public' ? (
                                 <>
                                   <Globe className="w-3.5 h-3.5 text-blue-600" />
-                                  <span>Medan Borang Awam Klien ({displayedFields.length})</span>
+                                  <span>Client Intake Fields ({displayedFields.length})</span>
                                 </>
                               ) : (
                                 <>
                                   <Building2 className="w-3.5 h-3.5 text-purple-600" />
-                                  <span>Medan Borang Tugasan Staf ({displayedFields.length})</span>
+                                  <span>Internal Staff Task Fields ({displayedFields.length})</span>
                                 </>
                               )}
                             </h3>
                             <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
                               {builderTab === 'public' ? (
                                 <>
-                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Awam Sahaja</span>
-                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Dikongsi (Kedua-dua)</span>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Public Only</span>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Shared (Both Forms)</span>
                                 </>
                               ) : (
                                 <>
-                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Dalaman Sahaja</span>
-                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Dikongsi (Kedua-dua)</span>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Internal Only</span>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Shared (Both Forms)</span>
                                 </>
                               )}
                             </div>
@@ -1301,7 +1309,7 @@ export const UnitsManagement: React.FC = () => {
 
                           {displayedFields.length === 0 ? (
                             <div className="p-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-xs font-medium">
-                              Belum ada medan dikonfigurasikan untuk {builderTab === 'public' ? 'Borang Awam Klien' : 'Borang Tugasan Staf'}. Gunakan panel di sebelah kiri untuk menambah medan pertama.
+                              No fields configured for {builderTab === 'public' ? 'Client Intake Form' : 'Internal Staff Task Form'} yet. Use the panel on the left to add your first field.
                             </div>
                           ) : (
                             <div className="space-y-2">
@@ -1326,24 +1334,24 @@ export const UnitsManagement: React.FC = () => {
                                             Required
                                           </span>
                                         )}
-                                        {f.scope === 'both' ? (
+                                        {getFieldScope(f) === 'both' ? (
                                           <span className="text-[9px] bg-emerald-50 text-emerald-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-emerald-200">
-                                            🔄 Dikongsi (Awam & Staf)
+                                            🔄 Shared (Public & Staff)
                                           </span>
-                                        ) : f.scope === 'internal' ? (
+                                        ) : getFieldScope(f) === 'internal' ? (
                                           <span className="text-[9px] bg-purple-50 text-purple-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-purple-200">
-                                            🏢 Tugasan Staf Sahaja
+                                            🏢 Staff Task Only
                                           </span>
                                         ) : (
                                           <span className="text-[9px] bg-blue-50 text-blue-700 font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-blue-200">
-                                            🌐 Awam Sahaja
+                                            🌐 Public Only
                                           </span>
                                         )}
                                       </div>
                                       <div className="text-[10px] text-slate-400 font-medium">
-                                        Jenis: <span className="capitalize text-slate-600">{f.type}</span>
+                                        Type: <span className="capitalize text-slate-600">{f.type}</span>
                                         {f.options && f.options.length > 0 && (
-                                          <span> • Pilihan: {f.options.join(', ')}</span>
+                                          <span> • Options: {f.options.join(', ')}</span>
                                         )}
                                       </div>
                                     </div>
@@ -1355,7 +1363,7 @@ export const UnitsManagement: React.FC = () => {
                                       onClick={() => handleMoveFieldInTab(rawIdx, 'up')}
                                       disabled={tabIdx === 0}
                                       className="btn btn-ghost btn-xs text-slate-400 hover:text-slate-700 disabled:opacity-20"
-                                      title="Alih ke Atas"
+                                      title="Move Up"
                                     >
                                       ▲
                                     </button>
@@ -1364,7 +1372,7 @@ export const UnitsManagement: React.FC = () => {
                                       onClick={() => handleMoveFieldInTab(rawIdx, 'down')}
                                       disabled={tabIdx === displayedFields.length - 1}
                                       className="btn btn-ghost btn-xs text-slate-400 hover:text-slate-700 disabled:opacity-20"
-                                      title="Alih ke Bawah"
+                                      title="Move Down"
                                     >
                                       ▼
                                     </button>
@@ -1372,7 +1380,7 @@ export const UnitsManagement: React.FC = () => {
                                       type="button"
                                       onClick={() => handleEditField(rawIdx)}
                                       className="btn btn-ghost btn-xs text-blue-600 hover:bg-blue-50 rounded-lg p-1.5"
-                                      title="Edit Medan"
+                                      title="Edit Field"
                                     >
                                       <Edit2 className="w-3.5 h-3.5" />
                                     </button>
@@ -1380,7 +1388,7 @@ export const UnitsManagement: React.FC = () => {
                                       type="button"
                                       onClick={() => handleRemoveField(rawIdx)}
                                       className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-lg p-1.5"
-                                      title="Padam Medan"
+                                      title="Delete Field"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -1398,8 +1406,8 @@ export const UnitsManagement: React.FC = () => {
                                   <Eye className={`w-4 h-4 ${builderTab === 'public' ? 'text-blue-600' : 'text-purple-600'}`} />
                                   <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-widest">
                                     {builderTab === 'public'
-                                      ? 'Live Form Preview: Borang Permohonan Awam'
-                                      : 'Live Form Preview: Borang Tugasan Staf (+ Add Task)'}
+                                      ? 'Live Form Preview: Client Intake Form'
+                                      : 'Live Form Preview: Staff Task Form (+ Add Task)'}
                                   </h4>
                                 </div>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
