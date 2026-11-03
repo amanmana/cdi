@@ -31,7 +31,9 @@ import {
   CalendarDays,
   TrendingUp,
   PieChart as PieChartIcon,
-  GripVertical
+  GripVertical,
+  AlertTriangle,
+  CalendarRange
 } from 'lucide-react';
 
 interface KanbanColumn {
@@ -180,6 +182,10 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
   // Calendar State
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
+
+  // Gantt Chart State (Charts & Metrics Tab)
+  const [ganttFilter, setGanttFilter] = useState<'all' | 'overlap' | 'overdue'>('all');
+  const [ganttSearch, setGanttSearch] = useState<string>('');
 
   // Sync tab with URL and enforce valid tab when Kanban is disabled
   useEffect(() => {
@@ -666,6 +672,205 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       staffWorkload: Object.entries(staffWorkloadMap).sort((a, b) => b[1].total - a[1].total),
     };
   }, [unitJobs]);
+
+  // Incomplete Tasks & Gantt Chart Computations (Schedule & Overlap Timeline)
+  const ganttData = useMemo(() => {
+    // 1. Filter strictly to incomplete tasks
+    const incomplete = unitJobs.filter((j) => !isJobCompleted(j));
+
+    const today = new Date();
+    const todayNorm = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // 2. Parse start date & deadline for each incomplete job
+    const jobsWithDates = incomplete.map((job) => {
+      const rawStart = job.start_date || job.created_at;
+      const parsedStart = rawStart ? new Date(rawStart) : new Date(todayNorm);
+      const start = new Date(parsedStart.getFullYear(), parsedStart.getMonth(), parsedStart.getDate());
+
+      const rawDeadline = job.deadline || job.target_completion_date;
+      let parsedDeadline = rawDeadline ? new Date(rawDeadline) : new Date(start.getTime() + 7 * 86400000);
+      let deadline = new Date(parsedDeadline.getFullYear(), parsedDeadline.getMonth(), parsedDeadline.getDate());
+
+      if (deadline < start) {
+        deadline = new Date(start.getTime() + 86400000);
+      }
+
+      const isOverdue = deadline < todayNorm;
+      const durationDays = Math.max(1, Math.round((deadline.getTime() - start.getTime()) / 86400000) + 1);
+
+      const staffList = job.assigned_staff || job.assigned_staff_details || [];
+      const staffNames = Array.isArray(staffList)
+        ? staffList.map((s: any) => s.name || s.staff_name).filter(Boolean)
+        : [];
+
+      return {
+        job,
+        start,
+        deadline,
+        isOverdue,
+        durationDays,
+        staffNames,
+      };
+    });
+
+    // 3. Detect schedule overlaps among incomplete tasks
+    const jobsWithOverlaps = jobsWithDates.map((item) => {
+      const overlapping = jobsWithDates.filter((other) => {
+        if (other.job.id === item.job.id) return false;
+        // Two intervals overlap if neither ends before the other starts
+        return !(item.deadline < other.start || item.start > other.deadline);
+      });
+
+      const sharedStaff = item.staffNames.filter((name: string) =>
+        overlapping.some((other) => other.staffNames.includes(name))
+      );
+
+      return {
+        ...item,
+        overlappingJobs: overlapping.map((o) => ({
+          id: o.job.id,
+          ticket_no: o.job.ticket_no || `#${o.job.id}`,
+          title: o.job.title,
+        })),
+        hasOverlap: overlapping.length > 0,
+        hasStaffOverlap: sharedStaff.length > 0,
+        sharedStaff,
+      };
+    });
+
+    const totalIncomplete = jobsWithOverlaps.length;
+    const overdueCount = jobsWithOverlaps.filter((j) => j.isOverdue).length;
+    const overlapCount = jobsWithOverlaps.filter((j) => j.hasOverlap).length;
+    const onTrackCount = jobsWithOverlaps.filter((j) => !j.isOverdue).length;
+
+    if (jobsWithOverlaps.length === 0) {
+      return {
+        jobs: [],
+        timelineDays: [],
+        monthHeaders: [],
+        totalIncomplete: 0,
+        overdueCount: 0,
+        overlapCount: 0,
+        onTrackCount: 0,
+        windowStart: todayNorm,
+        windowEnd: todayNorm,
+        todayNorm,
+      };
+    }
+
+    let minTime = todayNorm.getTime();
+    let maxTime = todayNorm.getTime();
+
+    jobsWithOverlaps.forEach((item) => {
+      if (item.start.getTime() < minTime) minTime = item.start.getTime();
+      if (item.deadline.getTime() > maxTime) maxTime = item.deadline.getTime();
+    });
+
+    // Pad timeline window by 3 days before min and 4 days after max
+    const windowStart = new Date(minTime - 3 * 86400000);
+    const windowEnd = new Date(maxTime + 4 * 86400000);
+
+    // Minimum 14 days visible
+    const totalDaysSpan = Math.round((windowEnd.getTime() - windowStart.getTime()) / 86400000);
+    if (totalDaysSpan < 14) {
+      windowEnd.setTime(windowStart.getTime() + 14 * 86400000);
+    }
+
+    // Generate timeline days array
+    const timelineDays: Array<{
+      date: Date;
+      time: number;
+      dateStr: string;
+      dayNum: number;
+      dayName: string;
+      monthName: string;
+      year: number;
+      isToday: boolean;
+      isWeekend: boolean;
+    }> = [];
+
+    const curr = new Date(windowStart);
+    while (curr <= windowEnd) {
+      timelineDays.push({
+        date: new Date(curr),
+        time: curr.getTime(),
+        dateStr: curr.toISOString().split('T')[0],
+        dayNum: curr.getDate(),
+        dayName: curr.toLocaleDateString('en-US', { weekday: 'short' }),
+        monthName: curr.toLocaleDateString('en-US', { month: 'short' }),
+        year: curr.getFullYear(),
+        isToday: curr.getTime() === todayNorm.getTime(),
+        isWeekend: curr.getDay() === 0 || curr.getDay() === 6,
+      });
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    // Month headers groupings
+    const monthHeaders: Array<{ label: string; span: number }> = [];
+    timelineDays.forEach((day) => {
+      const label = `${day.monthName} ${day.year}`;
+      const lastHeader = monthHeaders[monthHeaders.length - 1];
+      if (lastHeader && lastHeader.label === label) {
+        lastHeader.span += 1;
+      } else {
+        monthHeaders.push({ label, span: 1 });
+      }
+    });
+
+    // Position coordinates for each task
+    const positionedJobs = jobsWithOverlaps.map((item) => {
+      const startIndex = Math.max(0, Math.round((item.start.getTime() - windowStart.getTime()) / 86400000));
+      const endIndex = Math.min(timelineDays.length - 1, Math.round((item.deadline.getTime() - windowStart.getTime()) / 86400000));
+      const spanDays = Math.max(1, endIndex - startIndex + 1);
+
+      return {
+        ...item,
+        startIndex,
+        endIndex,
+        spanDays,
+      };
+    });
+
+    // Sort: overdue first, then overlap, then by start date
+    positionedJobs.sort((a, b) => {
+      if (a.isOverdue && !b.isOverdue) return -1;
+      if (!a.isOverdue && b.isOverdue) return 1;
+      if (a.hasOverlap && !b.hasOverlap) return -1;
+      if (!a.hasOverlap && b.hasOverlap) return 1;
+      return a.start.getTime() - b.start.getTime();
+    });
+
+    return {
+      jobs: positionedJobs,
+      timelineDays,
+      monthHeaders,
+      totalIncomplete,
+      overdueCount,
+      overlapCount,
+      onTrackCount,
+      windowStart,
+      windowEnd,
+      todayNorm,
+    };
+  }, [unitJobs]);
+
+  // Filtered Gantt Jobs for Search & Pill Filter
+  const filteredGanttJobs = useMemo(() => {
+    return ganttData.jobs.filter((item) => {
+      if (ganttFilter === 'overlap' && !item.hasOverlap) return false;
+      if (ganttFilter === 'overdue' && !item.isOverdue) return false;
+
+      if (ganttSearch.trim()) {
+        const q = ganttSearch.toLowerCase().trim();
+        const titleMatch = (item.job.title || '').toLowerCase().includes(q);
+        const ticketMatch = (item.job.ticket_no || '').toLowerCase().includes(q);
+        const staffMatch = item.staffNames.some((s: string) => s.toLowerCase().includes(q));
+        if (!titleMatch && !ticketMatch && !staffMatch) return false;
+      }
+
+      return true;
+    });
+  }, [ganttData.jobs, ganttFilter, ganttSearch]);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
@@ -1312,8 +1517,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       {/* 5. TAB 3: CHARTS & METRICS */}
       {activeTab === 'analytics' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Status Breakdown (Incomplete vs Completed) */}
+          {/* Top Grid: Work Status Breakdown + Active Tasks Schedule Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Work Status Breakdown */}
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1363,34 +1569,408 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
               </div>
             </div>
 
-            {/* Content Pillar Breakdown (Social Media) */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+            {/* Active Tasks Schedule Summary (Replaces Content Pillar Breakdown) */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                    <Layers className="w-4 h-4" />
+                    <CalendarRange className="w-4 h-4" />
                   </div>
-                  <h3 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">
-                    Content Pillar Breakdown
-                  </h3>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">
+                      Active Schedule Overview
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-medium">Timeline signals for incomplete jobs ({currentUnit})</p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-black">
+                  {ganttData.totalIncomplete} Active
+                </span>
+              </div>
+
+              {/* 4 Metric Badges */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100/80">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Incomplete</span>
+                  <span className="text-lg font-black text-slate-800 mt-0.5 block">{ganttData.totalIncomplete}</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-amber-50/60 border border-amber-100">
+                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Overlapping</span>
+                  <span className="text-lg font-black text-amber-800 mt-0.5 block">{ganttData.overlapCount}</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-rose-50/60 border border-rose-100">
+                  <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">Overdue</span>
+                  <span className="text-lg font-black text-rose-800 mt-0.5 block">{ganttData.overdueCount}</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-emerald-50/60 border border-emerald-100">
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">On Track</span>
+                  <span className="text-lg font-black text-emerald-800 mt-0.5 block">{ganttData.onTrackCount}</span>
                 </div>
               </div>
 
-              <div className="space-y-2.5 pt-2">
-                {analyticsData.pillars.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-4 text-center">No pillar data recorded yet</p>
+              {/* Quick Notice Banner */}
+              <div className="pt-1">
+                {ganttData.overlapCount > 0 ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/60 text-xs font-semibold">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span><strong>{ganttData.overlapCount} tasks</strong> share overlapping timeframe windows in the schedule below.</span>
+                  </div>
+                ) : ganttData.overdueCount > 0 ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 text-rose-800 border border-rose-200/60 text-xs font-semibold">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span><strong>{ganttData.overdueCount} tasks</strong> have passed their planned deadline dates.</span>
+                  </div>
                 ) : (
-                  analyticsData.pillars.map(([pName, count]) => (
-                    <div key={pName} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                      <span className="text-xs font-extrabold text-slate-800">{pName}</span>
-                      <span className="px-2.5 py-1 rounded-xl bg-purple-100 text-purple-800 text-xs font-black">
-                        {count} tasks
-                      </span>
-                    </div>
-                  ))
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/60 text-xs font-semibold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>All active incomplete tasks are operating on clear schedules.</span>
+                  </div>
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Incomplete Tasks Schedule & Overlap Timeline (Gantt Chart) */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+            {/* Gantt Header */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-500/20">
+                  <FolderKanban className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-base text-slate-900 tracking-tight">
+                      Active Tasks Schedule & Overlap Timeline (Gantt)
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-700">
+                      Incomplete Tasks Only
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Visualizing active task duration (Start Date to Deadline) and identifying concurrent schedule overlaps for {currentUnit}.
+                  </p>
+                </div>
+              </div>
+
+              {/* Filters & Search Toolbar */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Search Input */}
+                <div className="relative min-w-[200px]">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search active tasks..."
+                    value={ganttSearch}
+                    onChange={(e) => setGanttSearch(e.target.value)}
+                    className="input input-sm input-bordered w-full pl-8 rounded-xl text-xs font-medium focus:border-indigo-600"
+                  />
+                  {ganttSearch && (
+                    <button
+                      onClick={() => setGanttSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center bg-slate-100 p-1 rounded-2xl gap-1">
+                  <button
+                    onClick={() => setGanttFilter('all')}
+                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all ${
+                      ganttFilter === 'all'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    All ({ganttData.totalIncomplete})
+                  </button>
+                  <button
+                    onClick={() => setGanttFilter('overlap')}
+                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1 ${
+                      ganttFilter === 'overlap'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'text-amber-700 hover:text-amber-900'
+                    }`}
+                  >
+                    <span>Overlapping</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400/30 text-current">
+                      {ganttData.overlapCount}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setGanttFilter('overdue')}
+                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1 ${
+                      ganttFilter === 'overdue'
+                        ? 'bg-rose-500 text-white shadow-xs'
+                        : 'text-rose-700 hover:text-rose-900'
+                    }`}
+                  >
+                    <span>Overdue</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-400/30 text-current">
+                      {ganttData.overdueCount}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Legend Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50/80 border border-slate-100 text-xs">
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Legend:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3.5 h-3 rounded-md bg-gradient-to-r from-indigo-500 to-purple-600 shrink-0" />
+                  <span className="font-extrabold text-slate-700 text-[11px]">Normal Active Task</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3.5 h-3 rounded-md bg-gradient-to-r from-amber-500 to-orange-600 shrink-0" />
+                  <span className="font-extrabold text-amber-800 text-[11px]">Schedule Overlap (Concurrent)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3.5 h-3 rounded-md bg-gradient-to-r from-rose-500 to-red-600 shrink-0" />
+                  <span className="font-extrabold text-rose-800 text-[11px]">Overdue (Past Deadline)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 ring-2 ring-indigo-200 shrink-0" />
+                  <span className="font-extrabold text-indigo-700 text-[11px]">Today's Marker</span>
+                </div>
+              </div>
+              <div className="text-[11px] font-semibold text-slate-400">
+                Showing {filteredGanttJobs.length} of {ganttData.totalIncomplete} incomplete tasks
+              </div>
+            </div>
+
+            {/* Gantt Timeline Container */}
+            {ganttData.totalIncomplete === 0 ? (
+              <div className="p-12 text-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl font-bold">
+                  ✓
+                </div>
+                <h4 className="font-black text-slate-800 text-sm">No Incomplete Tasks Scheduled</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  All jobs for {currentUnit} are currently completed or published. New tasks will appear here automatically when created.
+                </p>
+              </div>
+            ) : filteredGanttJobs.length === 0 ? (
+              <div className="p-10 text-center rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <p className="text-xs text-slate-500 font-medium">No tasks found matching your filter criteria.</p>
+                <button
+                  onClick={() => {
+                    setGanttFilter('all');
+                    setGanttSearch('');
+                  }}
+                  className="btn btn-xs bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold border-none"
+                >
+                  Clear Filter
+                </button>
+              </div>
+            ) : (
+              <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                <div className="overflow-x-auto">
+                  <div
+                    className="inline-flex flex-col min-w-full"
+                    style={{ minWidth: `${320 + ganttData.timelineDays.length * 48}px` }}
+                  >
+                    {/* HEADER ROW 1: MONTH GROUPINGS */}
+                    <div className="flex border-b border-slate-200 bg-slate-100/90 text-xs">
+                      <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-30 bg-slate-100/95 border-r border-slate-200 px-4 py-2 font-black text-slate-700 uppercase tracking-wider text-[11px] shadow-[2px_0_5px_rgba(0,0,0,0.03)]">
+                        Task & Staff Details
+                      </div>
+                      <div className="flex">
+                        {ganttData.monthHeaders.map((m, idx) => (
+                          <div
+                            key={idx}
+                            className="font-black text-slate-700 uppercase tracking-wider text-[11px] py-2 text-center border-r border-slate-200 shrink-0"
+                            style={{ width: `${m.span * 48}px` }}
+                          >
+                            {m.label}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* HEADER ROW 2: DAY NAMES & DATES */}
+                    <div className="flex border-b border-slate-200 bg-slate-50 text-[10px]">
+                      <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-30 bg-slate-50 border-r border-slate-200 px-4 py-2 font-extrabold text-slate-400 uppercase tracking-wider shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex items-center justify-between">
+                        <span>Job Name & Status</span>
+                        <span>Dates</span>
+                      </div>
+                      <div className="flex">
+                        {ganttData.timelineDays.map((day) => (
+                          <div
+                            key={day.dateStr}
+                            className={`w-[48px] min-w-[48px] py-1.5 text-center border-r border-slate-200/80 shrink-0 flex flex-col items-center justify-center transition-colors ${
+                              day.isToday
+                                ? 'bg-indigo-50/90 font-black text-indigo-700'
+                                : day.isWeekend
+                                ? 'bg-slate-100/60 text-slate-400 font-bold'
+                                : 'text-slate-600 font-bold'
+                            }`}
+                          >
+                            <span className="text-[9px] uppercase tracking-tighter opacity-80">{day.dayName}</span>
+                            <span
+                              className={`text-[11px] leading-tight ${
+                                day.isToday ? 'w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black mt-0.5' : ''
+                              }`}
+                            >
+                              {day.dayNum}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* BODY ROWS: INCOMPLETE TASKS */}
+                    <div className="divide-y divide-slate-100">
+                      {filteredGanttJobs.map((item) => {
+                        const barLeft = item.startIndex * 48 + 4;
+                        const barWidth = Math.max(40, item.spanDays * 48 - 8);
+
+                        return (
+                          <div key={item.job.id} className="flex hover:bg-slate-50/60 transition-colors group">
+                            {/* Left Sticky Column */}
+                            <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-white group-hover:bg-slate-50/90 border-r border-slate-200 p-3.5 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex flex-col justify-between gap-1.5">
+                              <div>
+                                {/* Ticket & Badges */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-mono text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
+                                    {item.job.ticket_no || `#${item.job.id}`}
+                                  </span>
+                                  {item.isOverdue && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-700 animate-pulse border border-rose-200">
+                                      OVERDUE
+                                    </span>
+                                  )}
+                                  {item.hasOverlap && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                                      OVERLAP
+                                    </span>
+                                  )}
+                                  {item.job.status && (
+                                    <span className="text-[9px] font-bold text-slate-400 capitalize">
+                                      • {item.job.status.replace(/_/g, ' ')}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Job Title */}
+                                <Link
+                                  to={`/portal/job-requests/${item.job.id}`}
+                                  className="font-extrabold text-xs text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1 block mt-1 tracking-tight"
+                                  title={item.job.title}
+                                >
+                                  {item.job.title}
+                                </Link>
+
+                                {/* Client & Project Name */}
+                                {(item.job.client_name || item.job.project_name) && (
+                                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                                    {item.job.client_name} {item.job.project_name ? `• ${item.job.project_name}` : ''}
+                                  </p>
+                                )}
+
+                                {/* Overlap Details Callout */}
+                                {item.hasOverlap && (
+                                  <div className="mt-1.5 p-1.5 rounded-lg bg-amber-50/80 border border-amber-200/70 text-[10px] text-amber-900 space-y-0.5">
+                                    <div className="flex items-center gap-1 font-black">
+                                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                                      <span>Overlaps with {item.overlappingJobs.length} {item.overlappingJobs.length === 1 ? 'task' : 'tasks'}:</span>
+                                    </div>
+                                    <div className="text-[9px] text-amber-800/90 font-semibold line-clamp-1">
+                                      {item.overlappingJobs.map((o) => o.ticket_no).join(', ')}
+                                    </div>
+                                    {item.hasStaffOverlap && (
+                                      <div className="text-[9px] text-amber-950 font-bold">
+                                        Same staff: {item.sharedStaff.join(', ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Assignees & Duration */}
+                              <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100/80">
+                                <div className="truncate max-w-[170px] font-bold text-slate-700">
+                                  {item.staffNames.length > 0 ? (
+                                    <span>👤 {item.staffNames.join(', ')}</span>
+                                  ) : (
+                                    <span className="text-slate-400 italic">Unassigned</span>
+                                  )}
+                                </div>
+                                <span className="font-extrabold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                                  {item.durationDays}d
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Right Timeline Grid Area */}
+                            <div className="relative flex items-center h-28 shrink-0">
+                              {/* Vertical Grid Lines */}
+                              <div className="absolute inset-0 flex pointer-events-none">
+                                {ganttData.timelineDays.map((day) => (
+                                  <div
+                                    key={day.dateStr}
+                                    className={`w-[48px] min-w-[48px] h-full border-r border-slate-100 shrink-0 ${
+                                      day.isToday
+                                        ? 'bg-indigo-50/30 border-r border-indigo-300/80'
+                                        : day.isWeekend
+                                        ? 'bg-slate-50/60'
+                                        : ''
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              {/* Gantt Bar */}
+                              <Link
+                                to={`/portal/job-requests/${item.job.id}`}
+                                className={`absolute top-4 bottom-4 rounded-xl flex items-center px-3 cursor-pointer transition-all hover:scale-[1.01] hover:brightness-105 group/bar shadow-md ${
+                                  item.isOverdue
+                                    ? 'bg-gradient-to-r from-rose-500 to-red-600 border border-rose-400 text-white shadow-rose-500/20'
+                                    : item.hasOverlap
+                                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 border border-amber-400 text-white shadow-amber-500/20'
+                                    : 'bg-gradient-to-r from-indigo-500 to-purple-600 border border-indigo-400 text-white shadow-indigo-500/20'
+                                }`}
+                                style={{
+                                  left: `${barLeft}px`,
+                                  width: `${barWidth}px`,
+                                }}
+                                title={`[${item.job.ticket_no || `#${item.job.id}`}] ${item.job.title}\nStart: ${item.start.toLocaleDateString()}\nDeadline: ${item.deadline.toLocaleDateString()} (${item.durationDays} days)\n${
+                                  item.isOverdue ? '⚠️ OVERDUE!\n' : ''
+                                }${item.hasOverlap ? `⚠️ Overlaps with ${item.overlappingJobs.length} tasks: ${item.overlappingJobs.map((o) => o.ticket_no).join(', ')}\n` : ''}${
+                                  item.staffNames.length > 0 ? `Staff: ${item.staffNames.join(', ')}` : ''
+                                }`}
+                              >
+                                <div className="flex items-center justify-between w-full overflow-hidden text-xs">
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    {item.isOverdue ? (
+                                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                    ) : item.hasOverlap ? (
+                                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                    ) : (
+                                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                                    )}
+                                    <span className="font-extrabold truncate tracking-tight text-[11px]">
+                                      {item.job.ticket_no ? `${item.job.ticket_no} - ` : ''}{item.job.title}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] font-black bg-black/20 px-1.5 py-0.5 rounded ml-2 shrink-0">
+                                    {item.durationDays}d
+                                  </span>
+                                </div>
+                              </Link>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Staff Workload Table */}
