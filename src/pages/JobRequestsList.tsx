@@ -61,7 +61,7 @@ export const JobRequestsList: React.FC = () => {
   const [selfProject, setSelfProject] = useState('');
   const [selfProjectId, setSelfProjectId] = useState<string>('');
   const [selfStartDate, setSelfStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selfStatus, setSelfStatus] = useState('completed');
+  const [selfStatus, setSelfStatus] = useState('staff_processing');
   const [selfDescription, setSelfDescription] = useState('');
   const [selfCustomFields, setSelfCustomFields] = useState<Record<string, any>>({});
   const [submittingSelf, setSubmittingSelf] = useState(false);
@@ -87,7 +87,7 @@ export const JobRequestsList: React.FC = () => {
     setSelfProject('');
     setSelfProjectId('');
     setSelfDescription('');
-    setSelfStatus('completed');
+    setSelfStatus('staff_processing');
     setSelfCustomFields({});
     setShowSelfModal(true);
   };
@@ -267,6 +267,7 @@ export const JobRequestsList: React.FC = () => {
         setSelfProject('');
         setSelfProjectId('');
         setSelfDescription('');
+        setSelfStatus('staff_processing');
         setSelfCustomFields({});
         fetchRequests();
       } else {
@@ -1421,8 +1422,8 @@ export const JobRequestsList: React.FC = () => {
                     onChange={(e) => setSelfStatus(e.target.value)}
                     className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-purple-600"
                   >
-                    <option value="completed">🟢 Completed</option>
                     <option value="staff_processing">🔵 In Progress</option>
+                    <option value="completed">🟢 Completed</option>
                   </select>
                 </div>
               </div>
