@@ -505,7 +505,7 @@ jobRequestsRouter.get('/', async (c) => {
         if (staffIds.length > 0) {
           const placeholders = staffIds.map(() => '?').join(',');
           const { results: staffUsers } = await db.prepare(`
-            SELECT id, name FROM users WHERE id IN (${placeholders})
+            SELECT id, name, unit FROM users WHERE id IN (${placeholders})
           `).bind(...staffIds).all();
 
           const { results: doneLogs } = await db.prepare(`
@@ -517,6 +517,7 @@ jobRequestsRouter.get('/', async (c) => {
           assigned_staff = (staffUsers || []).map((u: any) => ({
             id: u.id,
             name: u.name,
+            unit: u.unit,
             is_done: doneStaffSet.has(Number(u.id))
           }));
 

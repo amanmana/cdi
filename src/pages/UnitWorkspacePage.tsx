@@ -52,7 +52,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [unitsList, setUnitsList] = useState<any[]>([]);
 
   // Current Selected Unit (for Director / Manager / Admin or user's unit)
-  const initialUnit = searchParams.get('unit') || user?.unit || 'Social Media';
+  const isSuperUser = ['admin', 'manager', 'director'].includes(user?.role) || Boolean((user as any)?.is_acting_manager);
+  const userUnitName = user?.unit || 'Social Media';
+  const initialUnit = isSuperUser ? (searchParams.get('unit') || user?.unit || 'Social Media') : userUnitName;
   const [currentUnit, setCurrentUnit] = useState<string>(initialUnit);
 
   // Data State
@@ -65,8 +67,14 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [staffFilter, setStaffFilter] = useState<string>('all');
   const [pillarFilter, setPillarFilter] = useState<string>('all');
 
+  // Enforce unit lock for non-superusers (e.g. SocMed staff can only view SocMed)
+  useEffect(() => {
+    if (!isSuperUser && user?.unit && currentUnit.toLowerCase().trim() !== user.unit.toLowerCase().trim()) {
+      setCurrentUnit(user.unit);
+    }
+  }, [isSuperUser, user?.unit]);
+
   // Permissions
-  const isSuperUser = ['admin', 'manager', 'director'].includes(user?.role) || Boolean((user as any)?.is_acting_manager);
   const isHeadOfCurrentUnit = Boolean(
     user?.is_unit_head && (
       (user?.unit && user.unit.toLowerCase().trim() === currentUnit.toLowerCase().trim()) ||
@@ -195,10 +203,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       }
 
       // 5. Assigned staff belongs to this unit
-      if (Array.isArray(job.assigned_staff_details)) {
-        if (job.assigned_staff_details.some((s: any) => s.unit && s.unit.toLowerCase().trim() === targetUnitLower)) {
-          return true;
-        }
+      const staffList = job.assigned_staff || job.assigned_staff_details || [];
+      if (Array.isArray(staffList) && staffList.some((s: any) => s.unit && s.unit.toLowerCase().trim() === targetUnitLower)) {
+        return true;
       }
 
       return false;
@@ -209,8 +216,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const unitStaffMembers = useMemo(() => {
     const map = new Map<number, string>();
     unitJobs.forEach((job) => {
-      if (Array.isArray(job.assigned_staff_details)) {
-        job.assigned_staff_details.forEach((s: any) => {
+      const staffList = job.assigned_staff || job.assigned_staff_details || [];
+      if (Array.isArray(staffList)) {
+        staffList.forEach((s: any) => {
           if (s.id && s.name) map.set(Number(s.id), s.name);
         });
       }
@@ -519,8 +527,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       categoriesMap[cat] = (categoriesMap[cat] || 0) + 1;
 
       // Staff Workload
-      if (Array.isArray(job.assigned_staff_details)) {
-        job.assigned_staff_details.forEach((s: any) => {
+      const staffList = job.assigned_staff || job.assigned_staff_details || [];
+      if (Array.isArray(staffList)) {
+        staffList.forEach((s: any) => {
           const name = s.name || 'Unassigned';
           if (!staffWorkloadMap[name]) {
             staffWorkloadMap[name] = { total: 0, completed: 0, pending: 0 };
@@ -613,7 +622,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
           <div className="bg-rose-50/70 p-3.5 rounded-2xl border border-rose-200/80 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 block">🔴 Belum Siap</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 block">🔴 Incomplete</span>
               <span className="text-xl font-black text-rose-900">{stats.unfinished}</span>
             </div>
             <div className="w-8 h-8 rounded-xl bg-rose-200 text-rose-800 flex items-center justify-center font-bold">
@@ -623,7 +632,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
           <div className="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200/80 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">🟢 Siap / Done</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">🟢 Completed</span>
               <span className="text-xl font-black text-emerald-900">{stats.completed}</span>
             </div>
             <div className="w-8 h-8 rounded-xl bg-emerald-200 text-emerald-800 flex items-center justify-center font-bold">
@@ -633,7 +642,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
           <div className="bg-indigo-50/70 p-3.5 rounded-2xl border border-indigo-200/80 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 block">Kadar Siap</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 block">Completion Rate</span>
               <span className="text-xl font-black text-indigo-900">{stats.rate}%</span>
             </div>
             <div className="w-8 h-8 rounded-xl bg-indigo-200 text-indigo-800 flex items-center justify-center font-bold">
@@ -765,18 +774,18 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           {/* Color Rule Guide Banner */}
           <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 p-3 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-3">
-              <span className="font-extrabold text-slate-600">Legend Status Kad:</span>
+              <span className="font-extrabold text-slate-600">Card Status Legend:</span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 font-bold border border-rose-200">
                 <span className="w-2 h-2 rounded-full bg-rose-500" />
-                🔴 Merah: Belum Siap (In Progress / Drafting / Review / Scheduled)
+                🔴 Red: Incomplete (In Progress / Drafting / Review / Scheduled)
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                🟢 Hijau: Sudah Siap (Published / Completed)
+                🟢 Green: Completed (Published / Done)
               </span>
             </div>
             <span className="text-[11px] text-slate-400 font-medium">
-              Staf boleh gerakkan kad mereka sendiri antara kolum
+              💡 Staff can drag and drop cards between workflow stages
             </span>
           </div>
 
@@ -885,7 +894,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                             : 'border-slate-300 text-slate-400'
                         }`}
                       >
-                        {isColumnDraggedOver ? '⇩ Lepaskan kad di sini' : 'No tasks in this stage'}
+                        {isColumnDraggedOver ? '⇩ Drop card here' : 'No tasks in this stage'}
                       </div>
                     ) : (
                       colJobs.map((job) => {
@@ -929,12 +938,12 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                               {isDone ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
                                   <Check className="w-2.5 h-2.5" />
-                                  <span>Siap</span>
+                                  <span>Completed</span>
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
                                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                                  <span>Belum Siap</span>
+                                  <span>Incomplete</span>
                                 </span>
                               )}
                             </div>
@@ -982,8 +991,8 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
                               {/* Assignees initials */}
                               <div className="flex items-center -space-x-1 shrink-0">
-                                {Array.isArray(job.assigned_staff_details) &&
-                                  job.assigned_staff_details.slice(0, 3).map((s: any) => (
+                                {Array.isArray(job.assigned_staff || job.assigned_staff_details) &&
+                                  (job.assigned_staff || job.assigned_staff_details).slice(0, 3).map((s: any) => (
                                     <span
                                       key={s.id}
                                       className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 border border-white flex items-center justify-center font-black text-[9px]"
@@ -998,7 +1007,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                             {/* Quick Move Stage Dropdown */}
                             <div className="pt-1 flex items-center justify-between gap-2">
                               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                Pindah ke:
+                                Move to:
                               </span>
                               <select
                                 value={col.id}
@@ -1020,7 +1029,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     {/* Drop target indicator when dragging over a column that already has cards */}
                     {isColumnDraggedOver && colJobs.length > 0 && (
                       <div className="p-3 rounded-2xl border-2 border-dashed border-indigo-400 bg-indigo-100/50 text-indigo-700 text-xs font-extrabold text-center animate-pulse flex items-center justify-center gap-2">
-                        <span>⇩ Lepaskan untuk pindah ke {col.label}</span>
+                        <span>⇩ Drop to move to {col.label}</span>
                       </div>
                     )}
                   </div>
@@ -1045,7 +1054,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   {calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
                 </h2>
                 <p className="text-xs text-slate-500 font-medium">
-                  Jadual kerja dan tarikh tugasan unit ({currentUnit})
+                  Schedule and task deadlines for {currentUnit} Unit
                 </p>
               </div>
             </div>
@@ -1076,13 +1085,13 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
           {/* Calendar Day Labels */}
           <div className="grid grid-cols-7 gap-2 text-center text-xs font-black uppercase tracking-wider text-slate-400">
-            <div>Isnin</div>
-            <div>Selasa</div>
-            <div>Rabu</div>
-            <div>Khamis</div>
-            <div>Jumaat</div>
-            <div className="text-purple-600">Sabtu</div>
-            <div className="text-rose-600">Ahad</div>
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div className="text-purple-600">Sat</div>
+            <div className="text-rose-600">Sun</div>
           </div>
 
           {/* Calendar Grid */}
@@ -1154,7 +1163,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       {activeTab === 'analytics' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Status Breakdown (Belum Siap vs Siap) */}
+            {/* Status Breakdown (Incomplete vs Completed) */}
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1162,7 +1171,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     <PieChartIcon className="w-4 h-4" />
                   </div>
                   <h3 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">
-                    Pecahan Status Kerja
+                    Work Status Breakdown
                   </h3>
                 </div>
                 <span className="text-xs font-bold text-slate-400">Total: {stats.total}</span>
@@ -1174,7 +1183,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   <div className="flex items-center justify-between text-xs font-extrabold mb-1">
                     <span className="text-rose-700 flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                      🔴 Belum Siap (In Progress / Review)
+                      🔴 Incomplete (In Progress / Review)
                     </span>
                     <span className="text-slate-800">{stats.unfinished} ({stats.total > 0 ? Math.round((stats.unfinished / stats.total) * 100) : 0}%)</span>
                   </div>
@@ -1190,7 +1199,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   <div className="flex items-center justify-between text-xs font-extrabold mb-1">
                     <span className="text-emerald-700 flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                      🟢 Sudah Siap (Published / Done)
+                      🟢 Completed (Published / Done)
                     </span>
                     <span className="text-slate-800">{stats.completed} ({stats.rate}%)</span>
                   </div>
@@ -1212,14 +1221,14 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     <Layers className="w-4 h-4" />
                   </div>
                   <h3 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">
-                    Pecahan Mengikut Pillar
+                    Content Pillar Breakdown
                   </h3>
                 </div>
               </div>
 
               <div className="space-y-2.5 pt-2">
                 {analyticsData.pillars.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-4 text-center">Tiada data pillar yang direkodkan</p>
+                  <p className="text-xs text-slate-400 py-4 text-center">No pillar data recorded yet</p>
                 ) : (
                   analyticsData.pillars.map(([pName, count]) => (
                     <div key={pName} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100">
@@ -1242,7 +1251,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   <User className="w-4 h-4" />
                 </div>
                 <h3 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">
-                  Beban Kerja Mengikut Staf ({currentUnit})
+                  Team Workload Breakdown ({currentUnit})
                 </h3>
               </div>
             </div>
@@ -1251,18 +1260,18 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
               <table className="table table-sm w-full">
                 <thead>
                   <tr className="text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-100">
-                    <th>Nama Staf</th>
-                    <th>Jumlah Task</th>
-                    <th>🔴 Belum Siap</th>
-                    <th>🟢 Siap</th>
-                    <th>Kemajuan</th>
+                    <th>Staff Member</th>
+                    <th>Total Tasks</th>
+                    <th>🔴 Incomplete</th>
+                    <th>🟢 Completed</th>
+                    <th>Progress</th>
                   </tr>
                 </thead>
                 <tbody>
                   {analyticsData.staffWorkload.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="text-center text-slate-400 py-4 text-xs">
-                        Tiada staf yang ditugaskan
+                        No staff members assigned yet
                       </td>
                     </tr>
                   ) : (
@@ -1314,7 +1323,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">
-                Tambah Kolum Kanban Baharu
+                Add New Kanban Column
               </h3>
               <button onClick={() => setShowAddColumnModal(false)} className="btn btn-sm btn-circle btn-ghost">
                 <X className="w-4 h-4" />
@@ -1322,10 +1331,10 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
             </div>
             <form onSubmit={handleAddColumn} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Nama Kolum / Stage:</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Column Name / Stage:</label>
                 <input
                   type="text"
-                  placeholder="e.g. Asset Prep, Approval Client, dll."
+                  placeholder="e.g. Asset Prep, Client Approval, etc."
                   value={newColumnName}
                   onChange={(e) => setNewColumnName(e.target.value)}
                   required
@@ -1339,13 +1348,13 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   onClick={() => setShowAddColumnModal(false)}
                   className="btn btn-sm btn-ghost rounded-xl font-bold text-xs"
                 >
-                  Batal
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs"
                 >
-                  Simpan Kolum
+                  Save Column
                 </button>
               </div>
             </form>
@@ -1359,7 +1368,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">
-                Sunting Nama Kolum
+                Edit Column Name
               </h3>
               <button onClick={() => setEditingColumn(null)} className="btn btn-sm btn-circle btn-ghost">
                 <X className="w-4 h-4" />
@@ -1367,7 +1376,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Nama Kolum:</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Column Name:</label>
                 <input
                   type="text"
                   value={editingColumn.label}
@@ -1381,13 +1390,13 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   onClick={() => setEditingColumn(null)}
                   className="btn btn-sm btn-ghost rounded-xl font-bold text-xs"
                 >
-                  Batal
+                  Cancel
                 </button>
                 <button
                   onClick={handleSaveEditColumn}
                   className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs"
                 >
-                  Kemaskini
+                  Update Column
                 </button>
               </div>
             </div>
