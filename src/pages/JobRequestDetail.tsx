@@ -2016,23 +2016,22 @@ export const JobRequestDetail: React.FC = () => {
                                         </div>
                                       </div>
 
-                                      {/* Message from Collaborator */}
+                                      {/* Standardized Handoff Note (Border-Left Accent Design) */}
                                       {latestCollabNote && (
-                                        <div className="pt-2 border-t border-emerald-200/70 text-[11px] leading-snug">
-                                          <div className="font-extrabold text-emerald-950 flex items-center gap-1.5">
-                                            <MessageSquare className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                                            <span>Message from {latestCollabActor || 'Collaborator'}:</span>
-                                          </div>
-                                          <div className="mt-1 pl-5 text-xs font-semibold italic text-emerald-900 bg-white/80 py-1.5 px-2.5 rounded-xl border border-emerald-200/70 shadow-xs">
+                                        <div className="mt-2 border-l-2 border-emerald-500 pl-3 py-1 bg-white/70 rounded-r-xl text-xs space-y-0.5 shadow-2xs">
+                                          <span className="text-[9px] font-black text-emerald-800 uppercase tracking-wider block">
+                                            Latest Handoff Note from {latestCollabActor || 'Collaborator'}:
+                                          </span>
+                                          <p className="italic font-semibold text-xs text-emerald-950 leading-snug">
                                             "{latestCollabNote}"
-                                          </div>
+                                          </p>
                                           {latestCollabDraftUrl && (
-                                            <div className="mt-1 pl-5">
+                                            <div className="pt-0.5">
                                               <a
                                                 href={latestCollabDraftUrl}
                                                 target="_blank"
                                                 rel="noreferrer"
-                                                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline"
+                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-900 underline"
                                               >
                                                 <ExternalLink className="w-3 h-3" /> View Shared Draft
                                               </a>
@@ -2051,9 +2050,13 @@ export const JobRequestDetail: React.FC = () => {
                                         Currently with <strong className="text-slate-700">{holderName}</strong> ({holderUnit})
                                       </div>
                                       {latestCollabNote && (
-                                        <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[11px] text-slate-600">
-                                          <span className="font-bold text-slate-700">{latestCollabActor || 'Sender'}:</span>{' '}
-                                          <span className="italic">"{latestCollabNote}"</span>
+                                        <div className="mt-2 border-l-2 border-indigo-400 pl-3 py-1 bg-white/70 rounded-r-xl text-xs space-y-0.5 shadow-2xs">
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                                            Latest Handoff Note from {latestCollabActor || 'Sender'}:
+                                          </span>
+                                          <p className="italic font-medium text-slate-800 leading-snug">
+                                            "{latestCollabNote}"
+                                          </p>
                                         </div>
                                       )}
                                     </div>
@@ -2080,10 +2083,7 @@ export const JobRequestDetail: React.FC = () => {
                                   <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                                     <span className="flex items-center gap-1">
                                       <MessageSquare className="w-3 h-3 text-indigo-500" />
-                                      Latest Note
-                                    </span>
-                                    <span className="text-slate-600 lowercase font-medium">
-                                      {latestCollabActor} ({handoff?.last_actor_unit || 'Unit'})
+                                      Latest Handoff Note from {latestCollabActor} ({handoff?.last_actor_unit || 'Unit'})
                                     </span>
                                   </div>
                                   <p className="text-xs text-slate-800 font-medium italic leading-relaxed pl-2.5 border-l-2 border-indigo-500">
@@ -2285,7 +2285,7 @@ export const JobRequestDetail: React.FC = () => {
                                 {handoff?.last_note && (
                                   <div className="border-l-2 border-indigo-400 pl-3 py-1 bg-white/70 rounded-r-xl text-xs text-slate-700 space-y-0.5 shadow-2xs">
                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
-                                      Latest Handoff Note:
+                                      Latest Handoff Note from {handoff.last_actor_name || 'Collaborator'}:
                                     </span>
                                     <p className="italic font-medium text-slate-800 leading-snug">
                                       "{handoff.last_note}"
