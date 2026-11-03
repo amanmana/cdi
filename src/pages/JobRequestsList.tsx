@@ -64,7 +64,7 @@ export const JobRequestsList: React.FC = () => {
   const [selfStatus, setSelfStatus] = useState('staff_processing');
   const [selfDescription, setSelfDescription] = useState('');
   const [selfCustomFields, setSelfCustomFields] = useState<Record<string, any>>({});
-  const [selfAssigneeId, setSelfAssigneeId] = useState<string>('');
+  const [selfAssigneeIds, setSelfAssigneeIds] = useState<number[]>([]);
   const [submittingSelf, setSubmittingSelf] = useState(false);
 
   // Inter-Unit Request State (for Unit Heads)
@@ -90,7 +90,7 @@ export const JobRequestsList: React.FC = () => {
     setSelfDescription('');
     setSelfStatus('staff_processing');
     setSelfCustomFields({});
-    setSelfAssigneeId('');
+    setSelfAssigneeIds(user?.id ? [Number(user.id)] : []);
     setShowSelfModal(true);
   };
 
@@ -264,7 +264,7 @@ export const JobRequestsList: React.FC = () => {
           status: selfStatus,
           start_date: selfStartDate,
           custom_fields_data: selfCustomFields,
-          assigned_staff_id: selfAssigneeId ? Number(selfAssigneeId) : null,
+          assigned_staff_ids: selfAssigneeIds.length > 0 ? selfAssigneeIds : (user?.id ? [Number(user.id)] : []),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -277,7 +277,7 @@ export const JobRequestsList: React.FC = () => {
         setSelfDescription('');
         setSelfStatus('staff_processing');
         setSelfCustomFields({});
-        setSelfAssigneeId('');
+        setSelfAssigneeIds([]);
         fetchRequests();
       } else {
         alert(data.error || `Server responded with status ${res.status}. Please try again.`);
@@ -1394,27 +1394,81 @@ export const JobRequestsList: React.FC = () => {
                 </select>
               </div>
 
-              {/* ASSIGN TO (Visible to Head Unit if team has other staff) */}
-              {user?.is_unit_head && unitStaffList.length > 0 && (
+              {/* ASSIGN TEAM MEMBERS (MULTI-SELECT FOR HEAD UNIT) */}
+              {user?.is_unit_head && (
                 <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                    <span>ASSIGN TO (OPTIONAL)</span>
-                    <span className="text-[10px] text-purple-600 font-extrabold lowercase">assign to self or unit staff</span>
-                  </label>
-                  <select
-                    value={selfAssigneeId}
-                    onChange={(e) => setSelfAssigneeId(e.target.value)}
-                    className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-purple-600"
-                  >
-                    <option value="">👤 Myself ({user?.name})</option>
-                    {unitStaffList
-                      .filter((s: any) => Number(s.id) !== Number(user?.id))
-                      .map((s: any) => (
-                        <option key={s.id} value={s.id}>
-                          👤 {s.name} ({s.email})
-                        </option>
-                      ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                      ASSIGN TEAM MEMBERS <span className="text-purple-600 font-extrabold lowercase">({selfAssigneeIds.length} selected)</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">Select 1 or more staff</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <div className="flex flex-wrap gap-2">
+                      {/* Myself (Head Unit) */}
+                      {(() => {
+                        const myId = Number(user?.id);
+                        const isSelected = selfAssigneeIds.includes(myId);
+                        return (
+                          <label
+                            key={myId}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-500/20'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelfAssigneeIds([...selfAssigneeIds, myId]);
+                                } else {
+                                  setSelfAssigneeIds(selfAssigneeIds.filter((id) => id !== myId));
+                                }
+                              }}
+                              className="checkbox checkbox-xs rounded checkbox-primary"
+                            />
+                            <span>Myself ({user?.name})</span>
+                          </label>
+                        );
+                      })()}
+
+                      {/* Other unit staff */}
+                      {unitStaffList
+                        .filter((s: any) => Number(s.id) !== Number(user?.id))
+                        .map((s: any) => {
+                          const sId = Number(s.id);
+                          const isSelected = selfAssigneeIds.includes(sId);
+                          return (
+                            <label
+                              key={sId}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-500/20'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelfAssigneeIds([...selfAssigneeIds, sId]);
+                                  } else {
+                                    setSelfAssigneeIds(selfAssigneeIds.filter((id) => id !== sId));
+                                  }
+                                }}
+                                className="checkbox checkbox-xs rounded checkbox-primary"
+                              />
+                              <span>{s.name}</span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </div>
                 </div>
               )}
 

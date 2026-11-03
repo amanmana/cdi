@@ -1026,7 +1026,7 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
   const user = c.get('user');
 
   try {
-    const { title, description, client_name, project_name, status, start_date, deadline, project_id, custom_fields_data, assigned_staff_id } = await c.req.json();
+    const { title, description, client_name, project_name, status, start_date, deadline, project_id, custom_fields_data, assigned_staff_ids, assigned_staff_id } = await c.req.json();
 
     if (!title || !title.trim()) {
       return c.json({ error: 'Work title is required.' }, 400);
@@ -1046,11 +1046,16 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
     const finalStatus = status === 'completed' ? 'completed' : 'staff_processing';
     const stepName = finalStatus === 'completed' ? 'Completed' : 'Staff Processing';
     let assignedStr = user.id.toString();
-    if (user.is_unit_head && assigned_staff_id) {
-      assignedStr = assigned_staff_id.toString();
+    if (user.is_unit_head) {
+      if (Array.isArray(assigned_staff_ids) && assigned_staff_ids.length > 0) {
+        assignedStr = assigned_staff_ids.map((id: any) => String(id).trim()).filter(Boolean).join(',');
+      } else if (assigned_staff_id) {
+        assignedStr = assigned_staff_id.toString();
+      }
     }
 
-    const clientNameVal = client_name?.trim() || (assigned_staff_id && Number(assigned_staff_id) !== Number(user.id) ? `Direct Task (${user.name})` : `Self-Initiated (${user.name})`);
+    const isMultipleOrOther = assignedStr !== user.id.toString();
+    const clientNameVal = client_name?.trim() || (isMultipleOrOther ? `Direct Unit Task (${user.name})` : `Self-Initiated (${user.name})`);
     const fullDescription = `${description || ''}${project_name ? `\n\n[PROJECT: ${project_name}]` : ''}`.trim();
 
     // Save typed client_name & project_name to user's custom presets if provided
@@ -1136,16 +1141,18 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
       .bind(requestId, user.id, user.name, stepName, `Self-initiated task created for client "${clientNameVal}"`).run();
 
     if (finalStatus === 'completed') {
-      const targetStaffId = (user.is_unit_head && assigned_staff_id) ? Number(assigned_staff_id) : user.id;
-      try {
-        await db
-          .prepare(
-            `INSERT INTO staff_reports (job_request_id, staff_id, report_text)
-             VALUES (?, ?, ?)`
-          )
-          .bind(requestId, targetStaffId, `Direct task "${title.trim()}" completed. ${description || ''}`).run();
-      } catch (e) {
-        console.error('Error inserting staff_reports:', e);
+      const staffIdList = assignedStr.split(',').map((id: string) => Number(id.trim())).filter(Boolean);
+      for (const targetStaffId of staffIdList) {
+        try {
+          await db
+            .prepare(
+              `INSERT INTO staff_reports (job_request_id, staff_id, report_text)
+               VALUES (?, ?, ?)`
+            )
+            .bind(requestId, targetStaffId, `Direct task "${title.trim()}" completed. ${description || ''}`).run();
+        } catch (e) {
+          console.error('Error inserting staff_reports:', e);
+        }
       }
 
       await db
