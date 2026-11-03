@@ -765,10 +765,11 @@ jobRequestsRouter.put('/kanban-columns/:unitName', async (c) => {
       ((user as any)?.managed_units && (user as any).managed_units.some((u: string) => u.toLowerCase().trim() === unitName.toLowerCase().trim()))
     )
   );
-  const isSuper = ['admin', 'manager', 'director'].includes(user?.role) || Boolean((user as any)?.is_acting_manager);
+  // Manager and Director can ONLY VIEW. Strictly only Head Unit of this unit (or Admin) can configure columns.
+  const isSuperAdmin = user?.role === 'admin';
 
-  if (!isHeadOfThisUnit && !isSuper) {
-    return c.json({ error: 'Permission denied: Only Unit Heads, Managers, and Admins can configure board columns.' }, 403);
+  if (!isHeadOfThisUnit && !isSuperAdmin) {
+    return c.json({ error: 'Permission denied: Only the Head Unit can add, edit, or delete columns.' }, 403);
   }
 
   const cleanKey = `kanban_cols_${unitName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;

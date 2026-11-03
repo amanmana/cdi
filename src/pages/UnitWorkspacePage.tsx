@@ -54,7 +54,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   // Current Selected Unit (for Director / Manager / Admin or user's unit)
   const isSuperUser = ['admin', 'manager', 'director'].includes(user?.role) || Boolean((user as any)?.is_acting_manager);
   const userUnitName = user?.unit || 'Social Media';
-  const initialUnit = isSuperUser ? (searchParams.get('unit') || user?.unit || 'Social Media') : userUnitName;
+  const initialUnit = searchParams.get('unit') || userUnitName;
   const [currentUnit, setCurrentUnit] = useState<string>(initialUnit);
 
   // Data State
@@ -67,21 +67,92 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [staffFilter, setStaffFilter] = useState<string>('all');
   const [pillarFilter, setPillarFilter] = useState<string>('all');
 
-  // Enforce unit lock for non-superusers (e.g. SocMed staff can only view SocMed)
-  useEffect(() => {
-    if (!isSuperUser && user?.unit && currentUnit.toLowerCase().trim() !== user.unit.toLowerCase().trim()) {
-      setCurrentUnit(user.unit);
-    }
-  }, [isSuperUser, user?.unit]);
+  // Compute Accessible Units based on strict role scoping:
+  // - Admin & Director: All units
+  // - Managers (Hazmi / Faizal) & Acting Managers: strictly limited to units under their department
+  // - Head Unit: their assigned unit(s)
+  // - Regular Staff: only their own assigned unit
+  const accessibleUnits = useMemo(() => {
+    if (!unitsList || unitsList.length === 0) return [];
 
-  // Permissions
+    // Admin and Director have full oversight across all units
+    if (user?.role === 'admin' || user?.role === 'director') {
+      return unitsList;
+    }
+
+    // Managers & Acting Managers: strictly limited to units under their department
+    if (user?.role === 'manager' || user?.is_acting_manager) {
+      const managerDeptId = (user as any)?.managed_department_id || (user as any)?.acting_manager_department_id || user?.department_id;
+      const managedUnitNames: string[] = (user as any)?.managed_units || [];
+      const userUnit = user?.unit?.toLowerCase().trim();
+
+      const filtered = unitsList.filter((u) => {
+        if (managerDeptId && u.department_id && Number(u.department_id) === Number(managerDeptId)) {
+          return true;
+        }
+        if (managedUnitNames.length > 0 && managedUnitNames.some((mu) => mu.toLowerCase().trim() === u.name.toLowerCase().trim())) {
+          return true;
+        }
+        if (userUnit && u.name.toLowerCase().trim() === userUnit) {
+          return true;
+        }
+        return false;
+      });
+
+      return filtered.length > 0 ? filtered : unitsList;
+    }
+
+    // Head Unit: can access their assigned unit(s)
+    if (user?.is_unit_head && Array.isArray((user as any)?.managed_units) && (user as any).managed_units.length > 0) {
+      const managedUnitNames: string[] = (user as any).managed_units;
+      const filtered = unitsList.filter((u) => managedUnitNames.some((mu) => mu.toLowerCase().trim() === u.name.toLowerCase().trim()));
+      return filtered.length > 0 ? filtered : unitsList;
+    }
+
+    // Regular Staff: only their own assigned unit
+    if (user?.unit) {
+      const matched = unitsList.filter((u) => u.name.toLowerCase().trim() === user.unit.toLowerCase().trim());
+      if (matched.length > 0) return matched;
+      return [{ id: 0, name: user.unit }];
+    }
+
+    return unitsList;
+  }, [unitsList, user]);
+
+  // Synchronize currentUnit with accessibleUnits
+  useEffect(() => {
+    if (accessibleUnits.length === 0) return;
+
+    const requestedUnit = searchParams.get('unit');
+    const isRequestedValid = requestedUnit && accessibleUnits.some((u) => u.name.toLowerCase().trim() === requestedUnit.toLowerCase().trim());
+
+    if (isRequestedValid) {
+      if (currentUnit.toLowerCase().trim() !== requestedUnit.toLowerCase().trim()) {
+        setCurrentUnit(requestedUnit);
+      }
+      return;
+    }
+
+    // If current unit is not within accessible units, fallback to user's unit or the first accessible unit
+    const isCurrentValid = accessibleUnits.some((u) => u.name.toLowerCase().trim() === currentUnit.toLowerCase().trim());
+    if (!isCurrentValid) {
+      const preferred = accessibleUnits.find((u) => user?.unit && u.name.toLowerCase().trim() === user.unit.toLowerCase().trim()) || accessibleUnits[0];
+      if (preferred) {
+        setCurrentUnit(preferred.name);
+      }
+    }
+  }, [accessibleUnits, searchParams, currentUnit, user?.unit]);
+
+  // Permissions:
+  // - Managers and Directors are strictly VIEW-ONLY on Kanban columns (cannot Add/Edit/Delete/Reorder columns)
+  // - Strictly only the actual Head Unit of the current unit (or Admin) can Add, Edit, Delete, or Reorder columns
   const isHeadOfCurrentUnit = Boolean(
     user?.is_unit_head && (
       (user?.unit && user.unit.toLowerCase().trim() === currentUnit.toLowerCase().trim()) ||
       ((user as any)?.managed_units && (user as any).managed_units.some((u: string) => u.toLowerCase().trim() === currentUnit.toLowerCase().trim()))
     )
   );
-  const canManageColumns = isSuperUser || isHeadOfCurrentUnit;
+  const canManageColumns = Boolean(user?.role === 'admin' || isHeadOfCurrentUnit);
 
   // Modals
   const [showAddColumnModal, setShowAddColumnModal] = useState<boolean>(false);
@@ -577,19 +648,20 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
             </div>
           </div>
 
-          {/* Unit Selector (for Director, Manager, Admin) */}
+          {/* Unit Selector (strictly limited to accessible units for this user) */}
           <div className="flex flex-wrap items-center gap-3">
-            {isSuperUser && (
+            {accessibleUnits.length > 1 && (
               <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
                 <Building2 className="w-4 h-4 text-slate-500 ml-2" />
                 <span className="text-xs font-black uppercase tracking-wider text-slate-600">Unit:</span>
                 <select
                   value={currentUnit}
                   onChange={(e) => handleUnitChange(e.target.value)}
+                  aria-label="Select Unit Workspace"
                   className="select select-sm bg-white border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
                 >
-                  {unitsList.map((u) => (
-                    <option key={u.id} value={u.name}>
+                  {accessibleUnits.map((u) => (
+                    <option key={u.id || u.name} value={u.name}>
                       {u.name}
                     </option>
                   ))}
