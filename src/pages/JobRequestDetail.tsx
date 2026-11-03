@@ -1989,9 +1989,9 @@ export const JobRequestDetail: React.FC = () => {
                                       Your Turn
                                     </span>
                                   ) : holderId ? (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/80">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-                                      Waiting
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/80">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                                      Active
                                     </span>
                                   ) : (
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
@@ -2043,9 +2043,9 @@ export const JobRequestDetail: React.FC = () => {
                                   </div>
                                 ) : holderId ? (
                                   <div className="p-2.5 rounded-2xl bg-white border border-slate-200/70 flex items-start gap-2">
-                                    <Clock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                                    <Clock className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                                     <div className="min-w-0 flex-1">
-                                      <div className="text-xs font-bold text-slate-800">Waiting for Collaborator</div>
+                                      <div className="text-xs font-bold text-slate-800">Collaborator Active on Task</div>
                                       <div className="text-[11px] font-medium text-slate-500 leading-snug">
                                         Currently with <strong className="text-slate-700">{holderName}</strong> ({holderUnit})
                                       </div>
@@ -2328,7 +2328,7 @@ export const JobRequestDetail: React.FC = () => {
                                                 ? 'bg-emerald-500'
                                                 : isHolder
                                                 ? 'bg-indigo-600 ring-4 ring-indigo-100'
-                                                : 'bg-slate-300'
+                                                : 'bg-blue-400'
                                             }`}
                                           />
                                           <span className="font-bold text-slate-800 truncate">{staff.name}</span>
@@ -2345,10 +2345,10 @@ export const JobRequestDetail: React.FC = () => {
                                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                                               : isHolder
                                               ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/60 font-black'
-                                              : 'text-slate-400 bg-slate-100/60'
+                                              : 'bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold'
                                           }`}
                                         >
-                                          {isDone ? '✓ Completed' : isHolder ? '⚡ Active' : 'Waiting'}
+                                          {isDone ? '✓ Completed' : isHolder ? '⚡ Active' : 'Active'}
                                         </span>
                                       </div>
                                     );

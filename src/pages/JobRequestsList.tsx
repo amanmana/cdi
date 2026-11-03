@@ -988,8 +988,8 @@ export const JobRequestsList: React.FC = () => {
                               if (holderId) {
                                 return (
                                   <>
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-50 text-sky-800 border border-sky-200 text-[10px] font-bold">
-                                      <span>⏳ WAITING FOR HANDOVER ({holderName} - {holderUnit})</span>
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold">
+                                      <span>🤝 IN COLLABORATION ({holderName} - {holderUnit})</span>
                                     </span>
                                     {handoff?.last_note && (
                                       <span className="text-[10px] text-slate-400 italic truncate max-w-xs" title={handoff.last_note}>
