@@ -288,16 +288,21 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   // Unique list of staff involved in this unit's jobs (for filtering)
   const unitStaffMembers = useMemo(() => {
     const map = new Map<number, string>();
+    const targetUnit = currentUnit.toLowerCase().trim();
     unitJobs.forEach((job) => {
       const staffList = job.assigned_staff || job.assigned_staff_details || [];
       if (Array.isArray(staffList)) {
         staffList.forEach((s: any) => {
-          if (s.id && s.name) map.set(Number(s.id), s.name);
+          const sUnit = (s.unit || '').toLowerCase().trim();
+          // Only include staff belonging to this unit
+          if (s.id && s.name && (!sUnit || sUnit === targetUnit)) {
+            map.set(Number(s.id), s.name);
+          }
         });
       }
     });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [unitJobs]);
+  }, [unitJobs, currentUnit]);
 
   // Helper: Determine if task is finished / completed
   const isJobCompleted = (job: any): boolean => {
@@ -600,10 +605,17 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       const cat = cFields.category || cFields.Category || cFields.content_type || 'General Work';
       categoriesMap[cat] = (categoriesMap[cat] || 0) + 1;
 
-      // Staff Workload
+      // Staff Workload (strictly filtered to staff belonging to this unit)
       const staffList = job.assigned_staff || job.assigned_staff_details || [];
       if (Array.isArray(staffList)) {
+        const targetUnit = currentUnit.toLowerCase().trim();
         staffList.forEach((s: any) => {
+          const sUnit = (s.unit || '').toLowerCase().trim();
+          // Filter out cross-unit collaborators who do not belong to this unit
+          if (sUnit && sUnit !== targetUnit) {
+            return;
+          }
+
           const name = s.name || 'Unassigned';
           if (!staffWorkloadMap[name]) {
             staffWorkloadMap[name] = { total: 0, completed: 0, pending: 0 };
@@ -697,7 +709,10 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
           <div className="bg-rose-50/70 p-3.5 rounded-2xl border border-rose-200/80 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 block">🔴 Incomplete</span>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 block">Incomplete</span>
+              </div>
               <span className="text-xl font-black text-rose-900">{stats.unfinished}</span>
             </div>
             <div className="w-8 h-8 rounded-xl bg-rose-200 text-rose-800 flex items-center justify-center font-bold">
@@ -707,7 +722,10 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
           <div className="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200/80 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">🟢 Completed</span>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">Completed</span>
+              </div>
               <span className="text-xl font-black text-emerald-900">{stats.completed}</span>
             </div>
             <div className="w-8 h-8 rounded-xl bg-emerald-200 text-emerald-800 flex items-center justify-center font-bold">
@@ -852,11 +870,11 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
               <span className="font-extrabold text-slate-600">Card Status Legend:</span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 font-bold border border-rose-200">
                 <span className="w-2 h-2 rounded-full bg-rose-500" />
-                🔴 Red: Incomplete (In Progress / Drafting / Review / Scheduled)
+                <span>Incomplete (In Progress / Drafting / Review / Scheduled)</span>
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                🟢 Green: Completed (Published / Done)
+                <span>Completed (Published / Done)</span>
               </span>
             </div>
             <span className="text-[11px] text-slate-400 font-medium">
@@ -1276,9 +1294,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
               <div className="space-y-3 pt-2">
                 <div>
                   <div className="flex items-center justify-between text-xs font-extrabold mb-1">
-                    <span className="text-rose-700 flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                      🔴 Incomplete (In Progress / Review)
+                    <span className="text-rose-700 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-200 shrink-0" />
+                      <span>Incomplete (In Progress / Review)</span>
                     </span>
                     <span className="text-slate-800">{stats.unfinished} ({stats.total > 0 ? Math.round((stats.unfinished / stats.total) * 100) : 0}%)</span>
                   </div>
@@ -1292,9 +1310,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
                 <div>
                   <div className="flex items-center justify-between text-xs font-extrabold mb-1">
-                    <span className="text-emerald-700 flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                      🟢 Completed (Published / Done)
+                    <span className="text-emerald-700 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200 shrink-0" />
+                      <span>Completed (Published / Done)</span>
                     </span>
                     <span className="text-slate-800">{stats.completed} ({stats.rate}%)</span>
                   </div>
@@ -1357,8 +1375,18 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   <tr className="text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-100">
                     <th>Staff Member</th>
                     <th>Total Tasks</th>
-                    <th>🔴 Incomplete</th>
-                    <th>🟢 Completed</th>
+                    <th>
+                      <span className="inline-flex items-center gap-1.5 text-rose-700 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-rose-500" />
+                        Incomplete
+                      </span>
+                    </th>
+                    <th>
+                      <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        Completed
+                      </span>
+                    </th>
                     <th>Progress</th>
                   </tr>
                 </thead>
