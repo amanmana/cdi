@@ -12,6 +12,20 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.14.0',
+    date: '2026-11-03',
+    items: [
+      'UI/UX: Form Builder Layout Redesign (Vertical Hierarchy) — Relocated "My Units" from the narrow 1/3-width sidebar to a dedicated top selector card stacked vertically above the builder, expanding the workbench to 100% full screen width.',
+      'UX Architecture: Dedicated Public Intake vs Internal Staff Tabs — Separated form configuration into two clean workspaces: Tab 1 for 🌐 Client Intake Form (Public Portal) and Tab 2 for 🏢 Internal Staff Task Form (+ Add Task), eliminating scope confusion.',
+      'UX: Scoped Form Previews & Intuitive Field Sharing — Each tab now features its own isolated field list and live preview (client portal view vs purple staff task modal view), with a simple one-click checkbox to share fields across forms.',
+      'UI/UX: Unified Split Button on Job Requests — Replaced crowded side-by-side buttons with a modern Split Button for Unit Heads and Managers/Admins, keeping 1-click speed for adding direct tasks while offering an intuitive dropdown for Inter-Unit requests.',
+      'Workflow: Default Task Status to "In Progress" — Updated the "Add Direct Work Task" modal to default Task Status to "In Progress" (staff_processing) instead of Completed, matching the standard task initiation flow.',
+      'Feature: Multi-Select Staff Assignment for Head Units — Upgraded the staff assignment field to interactive multi-select checkbox chips (Myself, team members), allowing Head Units to assign work to multiple collaborators simultaneously with backend multi-ID support.',
+      'UI: Expanded Modal Dimensions — Widened both "Add Direct Work Task" and "Inter-Unit Request" modals to max-w-2xl with internal max-h-[92vh] scrolling for a more spacious and comfortable editing experience.',
+      'Feature: Universal Dynamic Custom Form Schema for All Units — Extended custom form builder support across all units (Social Media, Graphic, Web, 3D/Video, Writer, Rapid Prototyping Lab, Event Management) with safe JSON storage in additional_data.',
+    ],
+  },
+  {
     version: '1.13.0',
     date: '2026-11-03',
     items: [
