@@ -22,6 +22,7 @@ import {
   X,
   Wrench,
   Users,
+  Building2,
   ArrowLeftRight,
   Sparkles,
   ExternalLink,
@@ -907,6 +908,84 @@ export const JobRequestDetail: React.FC = () => {
     return false;
   };
 
+  // Helper for unit badge styling
+  const getUnitBadgeStyle = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('graphic') || n.includes('design')) {
+      return 'bg-purple-50 text-purple-700 border-purple-200/90 ring-purple-100';
+    }
+    if (n.includes('social') || n.includes('media') || n.includes('socmed')) {
+      return 'bg-blue-50 text-blue-700 border-blue-200/90 ring-blue-100';
+    }
+    if (n.includes('event')) {
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200/90 ring-emerald-100';
+    }
+    if (n.includes('video') || n.includes('3d') || n.includes('multimedia')) {
+      return 'bg-amber-50 text-amber-700 border-amber-200/90 ring-amber-100';
+    }
+    if (n.includes('web') || n.includes('it') || n.includes('tech')) {
+      return 'bg-cyan-50 text-cyan-700 border-cyan-200/90 ring-cyan-100';
+    }
+    return 'bg-indigo-50 text-indigo-700 border-indigo-200/90 ring-indigo-100';
+  };
+
+  // Compute all participating units involved in this project for transparent oversight
+  const { participatingUnits, unitStaffCounts } = useMemo(() => {
+    const canonicalMap = new Map<string, string>();
+    const counts: Record<string, number> = {};
+
+    const addUnit = (rawName?: string) => {
+      if (!rawName) return null;
+      const trimmed = rawName.trim();
+      if (!trimmed) return null;
+      const lower = trimmed.toLowerCase();
+      if (!canonicalMap.has(lower)) {
+        canonicalMap.set(lower, trimmed);
+      }
+      return canonicalMap.get(lower)!;
+    };
+
+    // 1. Primary request unit
+    addUnit(request?.unit);
+
+    // 2. Requester unit (origin unit)
+    addUnit(request?.additional_data?.requester_unit);
+
+    // 3. Multi-target units from inter-unit requests
+    const targetUnits = request?.additional_data?.target_units;
+    if (Array.isArray(targetUnits)) {
+      targetUnits.forEach((u: string) => addUnit(u));
+    } else if (typeof targetUnits === 'string') {
+      targetUnits.split(',').forEach((u: string) => addUnit(u));
+    }
+
+    // 4. Units of all assigned staff
+    if (Array.isArray(data?.staffDetails)) {
+      data.staffDetails.forEach((s: any) => {
+        if (s.unit) {
+          const canonical = addUnit(s.unit);
+          if (canonical) {
+            counts[canonical] = (counts[canonical] || 0) + 1;
+          }
+        }
+      });
+    }
+
+    // 5. Units from cross-unit assistance requests (accepted or pending)
+    const astList = Array.isArray(request?.additional_data?.assistance_requests)
+      ? request.additional_data.assistance_requests
+      : [];
+    astList.forEach((ast: any) => {
+      if (ast.target_unit) addUnit(ast.target_unit);
+      if (ast.requester_unit) addUnit(ast.requester_unit);
+    });
+
+    return {
+      participatingUnits: Array.from(canonicalMap.values()),
+      unitStaffCounts: counts,
+    };
+  }, [request, data?.staffDetails]);
+
   // True when the logged-in user is the origin staff of an Inter-Unit job
   // (the person from the requester's unit who was assigned to do the requester-side work)
   const isCurrentUserOriginStaff = Boolean(
@@ -1195,6 +1274,67 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             </div>
 
+            {/* Participating Units Oversight Badges (Directly Above Cross-Unit Assistance) */}
+            {participatingUnits.length > 0 && (
+              <div className="bg-gradient-to-r from-white via-indigo-50/40 to-purple-50/30 p-4 md:p-5 rounded-3xl border border-indigo-200/90 shadow-sm shadow-indigo-100/40 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm shadow-indigo-300 shrink-0">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                          Participating Units
+                        </h4>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800">
+                          {participatingUnits.length} {participatingUnits.length === 1 ? 'Unit' : 'Units Involved'}
+                        </span>
+                        {participatingUnits.length > 1 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-purple-700 bg-purple-100/80 px-2.5 py-0.5 rounded-full border border-purple-200">
+                            ✨ Multi-Unit Project
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                        Units and team members actively collaborating on this request
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] font-semibold text-slate-400">
+                    Oversight: <span className="text-indigo-600 font-bold">Transparent Active Team</span>
+                  </div>
+                </div>
+
+                {/* Unit Badges Row */}
+                <div className="flex flex-wrap items-center gap-2.5 pt-1 border-t border-indigo-100/70">
+                  {participatingUnits.map((unitName) => {
+                    const staffCount = unitStaffCounts[unitName] || 0;
+                    const badgeColor = getUnitBadgeStyle(unitName);
+                    return (
+                      <div
+                        key={unitName}
+                        className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl border shadow-xs text-xs font-bold transition-all ${badgeColor}`}
+                      >
+                        <Building2 className="w-3.5 h-3.5 opacity-80" />
+                        <span className="font-extrabold">{unitName}</span>
+                        {staffCount > 0 ? (
+                          <span className="px-2 py-0.5 rounded-lg bg-white/95 text-slate-800 text-[10px] font-black border border-current/20 shadow-2xs">
+                            {staffCount} {staffCount === 1 ? 'staff' : 'staffs'}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded-lg bg-white/70 text-slate-500 text-[10px] font-medium">
+                            Assistance Unit
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Dedicated Standalone CROSS-UNIT ASSISTANCE BANNER / CARD */}
             {(() => {
               const assistanceRequests: any[] = Array.isArray(request?.additional_data?.assistance_requests)
@@ -1228,6 +1368,27 @@ export const JobRequestDetail: React.FC = () => {
                           Cross-unit assistance requests and staff endorsements
                         </span>
                       </div>
+                    </div>
+
+                    {/* Participating Units Mini-Badges inside card header */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {participatingUnits.map((u) => {
+                        const count = unitStaffCounts[u] || 0;
+                        return (
+                          <span
+                            key={u}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-slate-50 text-slate-700 border border-slate-200"
+                          >
+                            <Building2 className="w-3 h-3 text-slate-400" />
+                            <span>{u}</span>
+                            {count > 0 && (
+                              <span className="text-[9px] px-1 rounded bg-slate-200/80 font-extrabold text-slate-700">
+                                {count}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
 
