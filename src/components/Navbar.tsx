@@ -118,8 +118,17 @@ export const Navbar: React.FC = () => {
     }
   }, [notifications, user?.id]);
 
+  const lastFetchRef = React.useRef<number>(0);
+
   const fetchNotifications = async () => {
     if (!token || !user) return;
+    // Don't fetch if tab is hidden
+    if (typeof document !== 'undefined' && document.hidden) return;
+    // Debounce: don't fetch if last fetch was less than 45 seconds ago
+    const now = Date.now();
+    if (now - lastFetchRef.current < 45000) return;
+    lastFetchRef.current = now;
+
     try {
       const res = await fetch('/api/notifications', {
         headers: { Authorization: `Bearer ${token}` },
@@ -135,9 +144,28 @@ export const Navbar: React.FC = () => {
 
   useEffect(() => {
     if (user && token && user.role === 'staff' && !user.is_acting_manager) {
+      // Fetch once on mount
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000); // Polling every 30s
-      return () => clearInterval(interval);
+
+      // Refresh when user returns to tab, but only at most once every 45s
+      const onVisibilityChange = () => {
+        if (!document.hidden) {
+          fetchNotifications();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
+
+      // Relaxed interval (5 minutes) instead of aggressive 30s
+      const interval = setInterval(() => {
+        if (!document.hidden) {
+          fetchNotifications();
+        }
+      }, 300000);
+
+      return () => {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        clearInterval(interval);
+      };
     }
   }, [user, token]);
 
