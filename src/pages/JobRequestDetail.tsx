@@ -2057,6 +2057,18 @@ export const JobRequestDetail: React.FC = () => {
                                           <p className="italic font-medium text-slate-800 leading-snug">
                                             "{latestCollabNote}"
                                           </p>
+                                          {latestCollabDraftUrl && (
+                                            <div className="pt-0.5">
+                                              <a
+                                                href={latestCollabDraftUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                              >
+                                                <ExternalLink className="w-3 h-3" /> View Shared Draft
+                                              </a>
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -2077,8 +2089,8 @@ export const JobRequestDetail: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* Standalone Latest Note / Draft Link (when not already rendered in user's active turn box) */}
-                              {latestCollabNote && !(holderId && Number(user?.id) === holderId) && (
+                              {/* Standalone Latest Note / Draft Link (only when there is no assigned turn holder box) */}
+                              {latestCollabNote && !holderId && (
                                 <div className="p-3 bg-white border border-slate-200/80 rounded-2xl space-y-1.5">
                                   <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                                     <span className="flex items-center gap-1">
