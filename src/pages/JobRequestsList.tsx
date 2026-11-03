@@ -1269,9 +1269,9 @@ export const JobRequestsList: React.FC = () => {
       {/* LIGHTBOX MODAL FOR SELF-INITIATED STAFF TASK LOGGING */}
       {showSelfModal && (
         <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden my-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full overflow-hidden my-auto max-h-[92vh] flex flex-col">
             {/* Header */}
-            <div className="bg-purple-600 p-6 text-white flex items-center justify-between">
+            <div className="bg-purple-600 p-6 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center shrink-0">
                   <Plus className="w-5 h-5" />
@@ -1291,7 +1291,7 @@ export const JobRequestsList: React.FC = () => {
             </div>
 
             {/* Form Body */}
-            <form onSubmit={handleCreateSelfTask} className="p-6 space-y-4">
+            <form onSubmit={handleCreateSelfTask} className="p-6 md:p-8 space-y-4 overflow-y-auto">
               {/* 1. WORK TITLE */}
               <div>
                 <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
@@ -1791,9 +1791,9 @@ export const JobRequestsList: React.FC = () => {
       {/* INTER-UNIT JOB REQUEST MODAL (FOR UNIT HEADS & MANAGERS) */}
       {showInterUnitModal && (
         <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden my-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full overflow-hidden my-auto max-h-[92vh] flex flex-col">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-800 p-6 text-white flex items-center justify-between">
+            <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-800 p-6 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
                   <ArrowLeftRight className="w-5 h-5" />
@@ -1815,7 +1815,7 @@ export const JobRequestsList: React.FC = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleCreateInterUnitRequest} className="p-6 md:p-8 space-y-4">
+            <form onSubmit={handleCreateInterUnitRequest} className="p-6 md:p-8 space-y-4 overflow-y-auto">
               {interUnitError && (
                 <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
