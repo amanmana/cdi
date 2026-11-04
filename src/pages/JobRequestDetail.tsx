@@ -1274,8 +1274,8 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Participating Units Oversight Badges (Directly Above Cross-Unit Assistance) */}
-            {user?.role !== 'client' && participatingUnits.length > 0 && (
+            {/* Participating Units Oversight Badges (Only shown when multiple units are collaborating) */}
+            {user?.role !== 'client' && participatingUnits.length > 1 && (
               <div className="bg-gradient-to-r from-white via-indigo-50/40 to-purple-50/30 p-4 md:p-5 rounded-3xl border border-indigo-200/90 shadow-sm shadow-indigo-100/40 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
