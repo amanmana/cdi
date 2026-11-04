@@ -33,7 +33,10 @@ import {
   PieChart as PieChartIcon,
   GripVertical,
   AlertTriangle,
-  CalendarRange
+  CalendarRange,
+  Users,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface KanbanColumn {
@@ -186,6 +189,31 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   // Gantt Chart State (Charts & Metrics Tab)
   const [ganttFilter, setGanttFilter] = useState<'all' | 'overlap' | 'overdue'>('all');
   const [ganttSearch, setGanttSearch] = useState<string>('');
+  const [ganttViewMode, setGanttViewMode] = useState<'staff' | 'task'>('staff');
+  const [expandedStaff, setExpandedStaff] = useState<Record<string, boolean>>({});
+
+  const isStaffExpanded = (staffName: string) => {
+    return expandedStaff[staffName] !== false; // Default: expanded
+  };
+
+  const toggleStaffExpand = (staffName: string) => {
+    setExpandedStaff((prev) => ({
+      ...prev,
+      [staffName]: prev[staffName] === false ? true : false,
+    }));
+  };
+
+  const expandAllStaff = () => {
+    setExpandedStaff({});
+  };
+
+  const collapseAllStaff = (allNames: string[]) => {
+    const next: Record<string, boolean> = {};
+    allNames.forEach((name) => {
+      next[name] = false;
+    });
+    setExpandedStaff(next);
+  };
 
   // Sync tab with URL and enforce valid tab when Kanban is disabled
   useEffect(() => {
@@ -746,6 +774,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     if (jobsWithOverlaps.length === 0) {
       return {
         jobs: [],
+        staffGroups: [],
+        unassignedJobs: [],
+        totalStaffWithOverlaps: 0,
         timelineDays: [],
         monthHeaders: [],
         totalIncomplete: 0,
@@ -840,8 +871,67 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       return a.start.getTime() - b.start.getTime();
     });
 
+    // Group incomplete tasks by individual staff member
+    const staffGroupsMap = new Map<string, typeof positionedJobs>();
+    const unassignedJobs: typeof positionedJobs = [];
+
+    positionedJobs.forEach((item) => {
+      if (!item.staffNames || item.staffNames.length === 0) {
+        unassignedJobs.push(item);
+      } else {
+        item.staffNames.forEach((staffName: string) => {
+          if (!staffGroupsMap.has(staffName)) {
+            staffGroupsMap.set(staffName, []);
+          }
+          staffGroupsMap.get(staffName)!.push(item);
+        });
+      }
+    });
+
+    const staffGroupList = Array.from(staffGroupsMap.entries()).map(([staffName, sJobs]) => {
+      // Find overlaps among this staff member's OWN tasks
+      const sJobsWithStaffOverlap = sJobs.map((item) => {
+        const staffOverlapping = sJobs.filter((other) => {
+          if (other.job.id === item.job.id) return false;
+          return !(item.deadline < other.start || item.start > other.deadline);
+        });
+
+        return {
+          ...item,
+          isSelfStaffOverlap: staffOverlapping.length > 0,
+          selfStaffOverlappingCount: staffOverlapping.length,
+          selfStaffOverlappingTickets: staffOverlapping.map((o) => o.job.ticket_no || `#${o.job.id}`),
+        };
+      });
+
+      const totalTasks = sJobs.length;
+      const staffOverlapCount = sJobsWithStaffOverlap.filter((j) => j.isSelfStaffOverlap).length;
+      const staffOverdueCount = sJobsWithStaffOverlap.filter((j) => j.isOverdue).length;
+
+      return {
+        staffName,
+        tasks: sJobsWithStaffOverlap,
+        totalTasks,
+        staffOverlapCount,
+        hasStaffOverlap: staffOverlapCount > 0,
+        staffOverdueCount,
+      };
+    });
+
+    // Sort: Staff with internal task overlaps first, then by total tasks
+    staffGroupList.sort((a, b) => {
+      if (a.hasStaffOverlap && !b.hasStaffOverlap) return -1;
+      if (!a.hasStaffOverlap && b.hasStaffOverlap) return 1;
+      return b.totalTasks - a.totalTasks;
+    });
+
+    const totalStaffWithOverlaps = staffGroupList.filter((s) => s.hasStaffOverlap).length;
+
     return {
       jobs: positionedJobs,
+      staffGroups: staffGroupList,
+      unassignedJobs,
+      totalStaffWithOverlaps,
       timelineDays,
       monthHeaders,
       totalIncomplete,
@@ -854,7 +944,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     };
   }, [unitJobs]);
 
-  // Filtered Gantt Jobs for Search & Pill Filter
+  // Filtered Gantt Jobs for Search & Pill Filter (By Task View)
   const filteredGanttJobs = useMemo(() => {
     return ganttData.jobs.filter((item) => {
       if (ganttFilter === 'overlap' && !item.hasOverlap) return false;
@@ -871,6 +961,47 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       return true;
     });
   }, [ganttData.jobs, ganttFilter, ganttSearch]);
+
+  // Filtered Gantt Staff Groups for 'By Staff' (Resource) View
+  const filteredGanttStaffGroups = useMemo(() => {
+    return (ganttData.staffGroups || [])
+      .map((group) => {
+        const filteredTasks = group.tasks.filter((item) => {
+          if (ganttFilter === 'overlap' && !item.isSelfStaffOverlap) return false;
+          if (ganttFilter === 'overdue' && !item.isOverdue) return false;
+
+          if (ganttSearch.trim()) {
+            const q = ganttSearch.toLowerCase().trim();
+            const titleMatch = (item.job.title || '').toLowerCase().includes(q);
+            const ticketMatch = (item.job.ticket_no || '').toLowerCase().includes(q);
+            const staffMatch = group.staffName.toLowerCase().includes(q);
+            if (!titleMatch && !ticketMatch && !staffMatch) return false;
+          }
+          return true;
+        });
+
+        return {
+          ...group,
+          tasks: filteredTasks,
+        };
+      })
+      .filter((group) => group.tasks.length > 0);
+  }, [ganttData.staffGroups, ganttFilter, ganttSearch]);
+
+  // Filtered Unassigned Jobs for 'By Staff' View
+  const filteredUnassignedJobs = useMemo(() => {
+    return (ganttData.unassignedJobs || []).filter((item) => {
+      if (ganttFilter === 'overlap' && !item.hasOverlap) return false;
+      if (ganttFilter === 'overdue' && !item.isOverdue) return false;
+      if (ganttSearch.trim()) {
+        const q = ganttSearch.toLowerCase().trim();
+        const titleMatch = (item.job.title || '').toLowerCase().includes(q);
+        const ticketMatch = (item.job.ticket_no || '').toLowerCase().includes(q);
+        if (!titleMatch && !ticketMatch) return false;
+      }
+      return true;
+    });
+  }, [ganttData.unassignedJobs, ganttFilter, ganttSearch]);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
@@ -1655,12 +1786,64 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
               {/* Filters & Search Toolbar */}
               <div className="flex flex-wrap items-center gap-2.5">
+                {/* View Mode Switch: By Staff vs By Task */}
+                <div className="flex items-center bg-slate-100 p-1 rounded-2xl gap-1">
+                  <button
+                    onClick={() => setGanttViewMode('staff')}
+                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                      ganttViewMode === 'staff'
+                        ? 'bg-white text-indigo-700 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>By Staff (Resource)</span>
+                    {ganttData.totalStaffWithOverlaps > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-black">
+                        {ganttData.totalStaffWithOverlaps} overlap
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setGanttViewMode('task')}
+                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                      ganttViewMode === 'task'
+                        ? 'bg-white text-indigo-700 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <FolderKanban className="w-3.5 h-3.5" />
+                    <span>By Task</span>
+                  </button>
+                </div>
+
+                {/* Expand / Collapse All (in By Staff mode) */}
+                {ganttViewMode === 'staff' && ganttData.staffGroups.length > 0 && (
+                  <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded-xl text-[11px] font-bold">
+                    <button
+                      onClick={expandAllStaff}
+                      className="text-slate-600 hover:text-indigo-600 transition-colors px-1 py-0.5"
+                      title="Expand all staff groups"
+                    >
+                      Expand All
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      onClick={() => collapseAllStaff(ganttData.staffGroups.map((g) => g.staffName))}
+                      className="text-slate-600 hover:text-indigo-600 transition-colors px-1 py-0.5"
+                      title="Collapse all staff groups"
+                    >
+                      Collapse All
+                    </button>
+                  </div>
+                )}
+
                 {/* Search Input */}
                 <div className="relative min-w-[200px]">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="Search active tasks..."
+                    placeholder={ganttViewMode === 'staff' ? 'Search staff or task...' : 'Search active tasks...'}
                     value={ganttSearch}
                     onChange={(e) => setGanttSearch(e.target.value)}
                     className="input input-sm input-bordered w-full pl-8 rounded-xl text-xs font-medium focus:border-indigo-600"
@@ -1739,7 +1922,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                 </div>
               </div>
               <div className="text-[11px] font-semibold text-slate-400">
-                Showing {filteredGanttJobs.length} of {ganttData.totalIncomplete} incomplete tasks
+                {ganttViewMode === 'staff'
+                  ? `Showing ${filteredGanttStaffGroups.length} staff member${filteredGanttStaffGroups.length === 1 ? '' : 's'} (${filteredGanttStaffGroups.reduce((acc, g) => acc + g.tasks.length, 0)} tasks) of ${ganttData.totalIncomplete} incomplete tasks`
+                  : `Showing ${filteredGanttJobs.length} of ${ganttData.totalIncomplete} incomplete tasks`}
               </div>
             </div>
 
@@ -1754,7 +1939,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   All jobs for {currentUnit} are currently completed or published. New tasks will appear here automatically when created.
                 </p>
               </div>
-            ) : filteredGanttJobs.length === 0 ? (
+            ) : (ganttViewMode === 'staff' ? (filteredGanttStaffGroups.length === 0 && filteredUnassignedJobs.length === 0) : filteredGanttJobs.length === 0) ? (
               <div className="p-10 text-center rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
                 <p className="text-xs text-slate-500 font-medium">No tasks found matching your filter criteria.</p>
                 <button
@@ -1777,7 +1962,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     {/* HEADER ROW 1: MONTH GROUPINGS */}
                     <div className="flex border-b border-slate-200 bg-slate-100/90 text-xs">
                       <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-30 bg-slate-100/95 border-r border-slate-200 px-4 py-2 font-black text-slate-700 uppercase tracking-wider text-[11px] shadow-[2px_0_5px_rgba(0,0,0,0.03)]">
-                        Task & Staff Details
+                        {ganttViewMode === 'staff' ? 'Staff Member & Assigned Tasks' : 'Task & Staff Details'}
                       </div>
                       <div className="flex">
                         {ganttData.monthHeaders.map((m, idx) => (
@@ -1795,7 +1980,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     {/* HEADER ROW 2: DAY NAMES & DATES */}
                     <div className="flex border-b border-slate-200 bg-slate-50 text-[10px]">
                       <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-30 bg-slate-50 border-r border-slate-200 px-4 py-2 font-extrabold text-slate-400 uppercase tracking-wider shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex items-center justify-between">
-                        <span>Job Name & Status</span>
+                        <span>{ganttViewMode === 'staff' ? 'Staff / Task Name' : 'Job Name & Status'}</span>
                         <span>Dates</span>
                       </div>
                       <div className="flex">
@@ -1823,150 +2008,436 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                       </div>
                     </div>
 
-                    {/* BODY ROWS: INCOMPLETE TASKS */}
-                    <div className="divide-y divide-slate-100">
-                      {filteredGanttJobs.map((item) => {
-                        const barLeft = item.startIndex * 48 + 4;
-                        const barWidth = Math.max(40, item.spanDays * 48 - 8);
+                    {/* BODY ROWS: CONDITIONAL BY STAFF (RESOURCE) VS BY TASK */}
+                    {ganttViewMode === 'staff' ? (
+                      <div className="divide-y divide-slate-100">
+                        {/* 1. Grouped Staff Rows */}
+                        {filteredGanttStaffGroups.map((group) => {
+                          const expanded = isStaffExpanded(group.staffName);
 
-                        return (
-                          <div key={item.job.id} className="flex hover:bg-slate-50/60 transition-colors group">
-                            {/* Left Sticky Column */}
-                            <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-white group-hover:bg-slate-50/90 border-r border-slate-200 p-3.5 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex flex-col justify-between gap-1.5">
-                              <div>
-                                {/* Ticket & Badges */}
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-mono text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
-                                    {item.job.ticket_no || `#${item.job.id}`}
-                                  </span>
-                                  {item.isOverdue && (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-700 animate-pulse border border-rose-200">
-                                      OVERDUE
+                          return (
+                            <div key={group.staffName} className="flex flex-col border-b border-slate-100 last:border-b-0">
+                              {/* Staff Parent Row */}
+                              <div
+                                onClick={() => toggleStaffExpand(group.staffName)}
+                                className="flex bg-slate-50/90 hover:bg-slate-100/80 cursor-pointer transition-colors border-b border-slate-200/70 select-none group/staff"
+                              >
+                                {/* Sticky Left: Staff Info Header */}
+                                <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-slate-50/95 group-hover/staff:bg-slate-100/90 border-r border-slate-200 px-3.5 py-2.5 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <button
+                                      type="button"
+                                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleStaffExpand(group.staffName);
+                                      }}
+                                    >
+                                      {expanded ? (
+                                        <ChevronDown className="w-4 h-4 text-slate-600" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                                      )}
+                                    </button>
+                                    <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                      {group.staffName.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="font-black text-xs text-slate-900 tracking-tight block truncate">
+                                        {group.staffName}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {group.hasStaffOverlap && (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-0.5 animate-pulse">
+                                        <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                        <span>{group.staffOverlapCount} OVERLAP</span>
+                                      </span>
+                                    )}
+                                    {group.staffOverdueCount > 0 && (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-700 border border-rose-200">
+                                        {group.staffOverdueCount} OVERDUE
+                                      </span>
+                                    )}
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-200/80 text-slate-700">
+                                      {group.totalTasks} {group.totalTasks === 1 ? 'task' : 'tasks'}
                                     </span>
-                                  )}
-                                  {item.hasOverlap && (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200">
-                                      OVERLAP
-                                    </span>
-                                  )}
-                                  {item.job.status && (
-                                    <span className="text-[9px] font-bold text-slate-400 capitalize">
-                                      • {item.job.status.replace(/_/g, ' ')}
-                                    </span>
-                                  )}
+                                  </div>
                                 </div>
 
-                                {/* Job Title */}
-                                <Link
-                                  to={`/portal/job-requests/${item.job.id}`}
-                                  className="font-extrabold text-xs text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1 block mt-1 tracking-tight"
-                                  title={item.job.title}
-                                >
-                                  {item.job.title}
-                                </Link>
-
-                                {/* Client & Project Name */}
-                                {(item.job.client_name || item.job.project_name) && (
-                                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
-                                    {item.job.client_name} {item.job.project_name ? `• ${item.job.project_name}` : ''}
-                                  </p>
-                                )}
-
-                                {/* Overlap Details Callout */}
-                                {item.hasOverlap && (
-                                  <div className="mt-1.5 p-1.5 rounded-lg bg-amber-50/80 border border-amber-200/70 text-[10px] text-amber-900 space-y-0.5">
-                                    <div className="flex items-center gap-1 font-black">
-                                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-                                      <span>Overlaps with {item.overlappingJobs.length} {item.overlappingJobs.length === 1 ? 'task' : 'tasks'}:</span>
-                                    </div>
-                                    <div className="text-[9px] text-amber-800/90 font-semibold line-clamp-1">
-                                      {item.overlappingJobs.map((o) => o.ticket_no).join(', ')}
-                                    </div>
-                                    {item.hasStaffOverlap && (
-                                      <div className="text-[9px] text-amber-950 font-bold">
-                                        Same staff: {item.sharedStaff.join(', ')}
-                                      </div>
-                                    )}
+                                {/* Right Timeline Grid Header Area */}
+                                <div className="relative flex items-center h-11 shrink-0">
+                                  <div className="absolute inset-0 flex pointer-events-none">
+                                    {ganttData.timelineDays.map((day) => (
+                                      <div
+                                        key={day.dateStr}
+                                        className={`w-[48px] min-w-[48px] h-full border-r border-slate-200/50 shrink-0 ${
+                                          day.isToday
+                                            ? 'bg-indigo-50/30 border-r border-indigo-300/80'
+                                            : day.isWeekend
+                                            ? 'bg-slate-100/50'
+                                            : ''
+                                        }`}
+                                      />
+                                    ))}
                                   </div>
-                                )}
+                                </div>
                               </div>
 
-                              {/* Assignees & Duration */}
-                              <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100/80">
-                                <div className="truncate max-w-[170px] font-bold text-slate-700">
-                                  {item.staffNames.length > 0 ? (
-                                    <span>👤 {item.staffNames.join(', ')}</span>
-                                  ) : (
-                                    <span className="text-slate-400 italic">Unassigned</span>
-                                  )}
+                              {/* Expanded Child Tasks for this Staff */}
+                              {expanded && (
+                                <div className="divide-y divide-slate-100">
+                                  {group.tasks.map((item) => {
+                                    const barLeft = item.startIndex * 48 + 4;
+                                    const barWidth = Math.max(40, item.spanDays * 48 - 8);
+
+                                    return (
+                                      <div key={item.job.id} className="flex hover:bg-slate-50/60 transition-colors group">
+                                        {/* Left Sticky Column */}
+                                        <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-white group-hover:bg-slate-50/90 border-r border-slate-200 pl-8 pr-3.5 py-2.5 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex flex-col justify-between gap-1">
+                                          <div>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="font-mono text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.2 rounded-md border border-indigo-200/60">
+                                                {item.job.ticket_no || `#${item.job.id}`}
+                                              </span>
+                                              {item.isOverdue && (
+                                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-100 text-rose-700 animate-pulse border border-rose-200">
+                                                  OVERDUE
+                                                </span>
+                                              )}
+                                              {item.isSelfStaffOverlap && (
+                                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-0.5">
+                                                  <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
+                                                  OVERLAP
+                                                </span>
+                                              )}
+                                              {item.job.status && (
+                                                <span className="text-[9px] font-bold text-slate-400 capitalize">
+                                                  • {item.job.status.replace(/_/g, ' ')}
+                                                </span>
+                                              )}
+                                            </div>
+
+                                            {/* Job Title Link */}
+                                            <Link
+                                              to={`/portal/job-requests/${item.job.id}`}
+                                              className="font-extrabold text-xs text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1 block mt-1 tracking-tight"
+                                              title={item.job.title}
+                                            >
+                                              {item.job.title}
+                                            </Link>
+
+                                            {/* Overlap Details Callout for Staff */}
+                                            {item.isSelfStaffOverlap && (
+                                              <div className="mt-1 p-1 rounded-md bg-amber-50/90 border border-amber-200 text-[9px] text-amber-900 flex items-center gap-1 font-semibold truncate">
+                                                <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                                <span>Concurrent with {item.selfStaffOverlappingTickets.join(', ')}</span>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Dates & Duration */}
+                                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100/80">
+                                            <span className="font-semibold text-slate-500">
+                                              {item.start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} – {item.deadline.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                            </span>
+                                            <span className="font-extrabold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
+                                              {item.durationDays}d
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        {/* Right Timeline Grid Area */}
+                                        <div className="relative flex items-center h-20 shrink-0">
+                                          {/* Vertical Grid Lines */}
+                                          <div className="absolute inset-0 flex pointer-events-none">
+                                            {ganttData.timelineDays.map((day) => (
+                                              <div
+                                                key={day.dateStr}
+                                                className={`w-[48px] min-w-[48px] h-full border-r border-slate-100 shrink-0 ${
+                                                  day.isToday
+                                                    ? 'bg-indigo-50/30 border-r border-indigo-300/80'
+                                                    : day.isWeekend
+                                                    ? 'bg-slate-50/60'
+                                                    : ''
+                                                }`}
+                                              />
+                                            ))}
+                                          </div>
+
+                                          {/* Gantt Bar */}
+                                          <Link
+                                            to={`/portal/job-requests/${item.job.id}`}
+                                            className={`absolute top-2.5 bottom-2.5 rounded-xl flex items-center px-3 cursor-pointer transition-all hover:scale-[1.01] hover:brightness-105 group/bar shadow-md ${
+                                              item.isOverdue
+                                                ? 'bg-gradient-to-r from-rose-500 to-red-600 border border-rose-400 text-white shadow-rose-500/20'
+                                                : item.isSelfStaffOverlap
+                                                ? 'bg-gradient-to-r from-amber-500 to-orange-600 border border-amber-400 text-white shadow-amber-500/20 ring-2 ring-amber-300/40'
+                                                : 'bg-gradient-to-r from-indigo-500 to-purple-600 border border-indigo-400 text-white shadow-indigo-500/20'
+                                            }`}
+                                            style={{
+                                              left: `${barLeft}px`,
+                                              width: `${barWidth}px`,
+                                            }}
+                                            title={`[${item.job.ticket_no || `#${item.job.id}`}] ${item.job.title}\nAssigned: ${group.staffName}\nDates: ${item.start.toLocaleDateString()} to ${item.deadline.toLocaleDateString()} (${item.durationDays}d)\n${
+                                              item.isOverdue ? '⚠️ OVERDUE!\n' : ''
+                                            }${item.isSelfStaffOverlap ? `⚠️ Concurrent with: ${item.selfStaffOverlappingTickets.join(', ')}` : ''}`}
+                                          >
+                                            <div className="flex items-center justify-between w-full overflow-hidden text-xs">
+                                              <div className="flex items-center gap-1.5 truncate">
+                                                {item.isOverdue ? (
+                                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                                ) : item.isSelfStaffOverlap ? (
+                                                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                                ) : (
+                                                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                                                )}
+                                                <span className="font-extrabold truncate tracking-tight text-[11px]">
+                                                  {item.job.ticket_no ? `${item.job.ticket_no} - ` : ''}{item.job.title}
+                                                </span>
+                                              </div>
+                                              <span className="text-[10px] font-black bg-black/20 px-1.5 py-0.5 rounded ml-2 shrink-0">
+                                                {item.durationDays}d
+                                              </span>
+                                            </div>
+                                          </Link>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                                <span className="font-extrabold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
-                                  {item.durationDays}d
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* 2. Unassigned Tasks Section (if any) */}
+                        {filteredUnassignedJobs.length > 0 && (
+                          <div className="flex flex-col border-t-2 border-dashed border-slate-200">
+                            {/* Unassigned Header */}
+                            <div className="flex bg-slate-50/90 border-b border-slate-200">
+                              <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-slate-50/95 border-r border-slate-200 px-4 py-2 font-black text-slate-500 uppercase tracking-wider text-[11px] shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex items-center justify-between">
+                                <span>Unassigned Tasks</span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-600">
+                                  {filteredUnassignedJobs.length}
                                 </span>
+                              </div>
+                              <div className="relative flex items-center h-8 shrink-0">
+                                <div className="absolute inset-0 flex pointer-events-none">
+                                  {ganttData.timelineDays.map((day) => (
+                                    <div key={day.dateStr} className="w-[48px] min-w-[48px] h-full border-r border-slate-200/50 shrink-0" />
+                                  ))}
+                                </div>
                               </div>
                             </div>
 
-                            {/* Right Timeline Grid Area */}
-                            <div className="relative flex items-center h-28 shrink-0">
-                              {/* Vertical Grid Lines */}
-                              <div className="absolute inset-0 flex pointer-events-none">
-                                {ganttData.timelineDays.map((day) => (
-                                  <div
-                                    key={day.dateStr}
-                                    className={`w-[48px] min-w-[48px] h-full border-r border-slate-100 shrink-0 ${
-                                      day.isToday
-                                        ? 'bg-indigo-50/30 border-r border-indigo-300/80'
-                                        : day.isWeekend
-                                        ? 'bg-slate-50/60'
-                                        : ''
-                                    }`}
-                                  />
-                                ))}
-                              </div>
+                            {/* Unassigned Child Rows */}
+                            <div className="divide-y divide-slate-100">
+                              {filteredUnassignedJobs.map((item) => {
+                                const barLeft = item.startIndex * 48 + 4;
+                                const barWidth = Math.max(40, item.spanDays * 48 - 8);
 
-                              {/* Gantt Bar */}
-                              <Link
-                                to={`/portal/job-requests/${item.job.id}`}
-                                className={`absolute top-4 bottom-4 rounded-xl flex items-center px-3 cursor-pointer transition-all hover:scale-[1.01] hover:brightness-105 group/bar shadow-md ${
-                                  item.isOverdue
-                                    ? 'bg-gradient-to-r from-rose-500 to-red-600 border border-rose-400 text-white shadow-rose-500/20'
-                                    : item.hasOverlap
-                                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 border border-amber-400 text-white shadow-amber-500/20'
-                                    : 'bg-gradient-to-r from-indigo-500 to-purple-600 border border-indigo-400 text-white shadow-indigo-500/20'
-                                }`}
-                                style={{
-                                  left: `${barLeft}px`,
-                                  width: `${barWidth}px`,
-                                }}
-                                title={`[${item.job.ticket_no || `#${item.job.id}`}] ${item.job.title}\nStart: ${item.start.toLocaleDateString()}\nDeadline: ${item.deadline.toLocaleDateString()} (${item.durationDays} days)\n${
-                                  item.isOverdue ? '⚠️ OVERDUE!\n' : ''
-                                }${item.hasOverlap ? `⚠️ Overlaps with ${item.overlappingJobs.length} tasks: ${item.overlappingJobs.map((o) => o.ticket_no).join(', ')}\n` : ''}${
-                                  item.staffNames.length > 0 ? `Staff: ${item.staffNames.join(', ')}` : ''
-                                }`}
-                              >
-                                <div className="flex items-center justify-between w-full overflow-hidden text-xs">
-                                  <div className="flex items-center gap-1.5 truncate">
-                                    {item.isOverdue ? (
-                                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                    ) : item.hasOverlap ? (
-                                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                                    ) : (
-                                      <Clock className="w-3.5 h-3.5 shrink-0" />
-                                    )}
-                                    <span className="font-extrabold truncate tracking-tight text-[11px]">
-                                      {item.job.ticket_no ? `${item.job.ticket_no} - ` : ''}{item.job.title}
-                                    </span>
+                                return (
+                                  <div key={item.job.id} className="flex hover:bg-slate-50/60 transition-colors group">
+                                    <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-white group-hover:bg-slate-50/90 border-r border-slate-200 pl-6 pr-3.5 py-2.5 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex flex-col justify-between gap-1">
+                                      <div>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="font-mono text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.2 rounded-md border border-slate-200">
+                                            {item.job.ticket_no || `#${item.job.id}`}
+                                          </span>
+                                          {item.isOverdue && (
+                                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-100 text-rose-700 animate-pulse border border-rose-200">
+                                                  OVERDUE
+                                                </span>
+                                              )}
+                                        </div>
+                                        <Link
+                                          to={`/portal/job-requests/${item.job.id}`}
+                                          className="font-extrabold text-xs text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1 block mt-1 tracking-tight"
+                                        >
+                                          {item.job.title}
+                                        </Link>
+                                      </div>
+                                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100/80">
+                                        <span className="text-slate-400 italic">No staff assigned</span>
+                                        <span className="font-extrabold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
+                                          {item.durationDays}d
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="relative flex items-center h-16 shrink-0">
+                                      <div className="absolute inset-0 flex pointer-events-none">
+                                        {ganttData.timelineDays.map((day) => (
+                                          <div key={day.dateStr} className="w-[48px] min-w-[48px] h-full border-r border-slate-100 shrink-0" />
+                                        ))}
+                                      </div>
+
+                                      <Link
+                                        to={`/portal/job-requests/${item.job.id}`}
+                                        className="absolute top-2.5 bottom-2.5 rounded-xl flex items-center px-3 cursor-pointer bg-slate-400 text-white shadow-sm hover:bg-slate-500 transition-colors"
+                                        style={{ left: `${barLeft}px`, width: `${barWidth}px` }}
+                                      >
+                                        <span className="text-[11px] font-bold truncate">
+                                          {item.job.ticket_no ? `${item.job.ticket_no} - ` : ''}{item.job.title}
+                                        </span>
+                                      </Link>
+                                    </div>
                                   </div>
-                                  <span className="text-[10px] font-black bg-black/20 px-1.5 py-0.5 rounded ml-2 shrink-0">
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* By Task View (Original Flat List) */
+                      <div className="divide-y divide-slate-100">
+                        {filteredGanttJobs.map((item) => {
+                          const barLeft = item.startIndex * 48 + 4;
+                          const barWidth = Math.max(40, item.spanDays * 48 - 8);
+
+                          return (
+                            <div key={item.job.id} className="flex hover:bg-slate-50/60 transition-colors group">
+                              {/* Left Sticky Column */}
+                              <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-white group-hover:bg-slate-50/90 border-r border-slate-200 p-3.5 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex flex-col justify-between gap-1.5">
+                                <div>
+                                  {/* Ticket & Badges */}
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-mono text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
+                                      {item.job.ticket_no || `#${item.job.id}`}
+                                    </span>
+                                    {item.isOverdue && (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-700 animate-pulse border border-rose-200">
+                                        OVERDUE
+                                      </span>
+                                    )}
+                                    {item.hasOverlap && (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                                        OVERLAP
+                                      </span>
+                                    )}
+                                    {item.job.status && (
+                                      <span className="text-[9px] font-bold text-slate-400 capitalize">
+                                        • {item.job.status.replace(/_/g, ' ')}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Job Title */}
+                                  <Link
+                                    to={`/portal/job-requests/${item.job.id}`}
+                                    className="font-extrabold text-xs text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1 block mt-1 tracking-tight"
+                                    title={item.job.title}
+                                  >
+                                    {item.job.title}
+                                  </Link>
+
+                                  {/* Client & Project Name */}
+                                  {(item.job.client_name || item.job.project_name) && (
+                                    <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                                      {item.job.client_name} {item.job.project_name ? `• ${item.job.project_name}` : ''}
+                                    </p>
+                                  )}
+
+                                  {/* Overlap Details Callout */}
+                                  {item.hasOverlap && (
+                                    <div className="mt-1.5 p-1.5 rounded-lg bg-amber-50/80 border border-amber-200/70 text-[10px] text-amber-900 space-y-0.5">
+                                      <div className="flex items-center gap-1 font-black">
+                                        <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                                        <span>Overlaps with {item.overlappingJobs.length} {item.overlappingJobs.length === 1 ? 'task' : 'tasks'}:</span>
+                                      </div>
+                                      <div className="text-[9px] text-amber-800/90 font-semibold line-clamp-1">
+                                        {item.overlappingJobs.map((o) => o.ticket_no).join(', ')}
+                                      </div>
+                                      {item.hasStaffOverlap && (
+                                        <div className="text-[9px] text-amber-950 font-bold">
+                                          Same staff: {item.sharedStaff.join(', ')}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Assignees & Duration */}
+                                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100/80">
+                                  <div className="truncate max-w-[170px] font-bold text-slate-700">
+                                    {item.staffNames.length > 0 ? (
+                                      <span>👤 {item.staffNames.join(', ')}</span>
+                                    ) : (
+                                      <span className="text-slate-400 italic">Unassigned</span>
+                                    )}
+                                  </div>
+                                  <span className="font-extrabold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
                                     {item.durationDays}d
                                   </span>
                                 </div>
-                              </Link>
+                              </div>
+
+                              {/* Right Timeline Grid Area */}
+                              <div className="relative flex items-center h-28 shrink-0">
+                                {/* Vertical Grid Lines */}
+                                <div className="absolute inset-0 flex pointer-events-none">
+                                  {ganttData.timelineDays.map((day) => (
+                                    <div
+                                      key={day.dateStr}
+                                      className={`w-[48px] min-w-[48px] h-full border-r border-slate-100 shrink-0 ${
+                                        day.isToday
+                                          ? 'bg-indigo-50/30 border-r border-indigo-300/80'
+                                          : day.isWeekend
+                                          ? 'bg-slate-50/60'
+                                          : ''
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+
+                                {/* Gantt Bar */}
+                                <Link
+                                  to={`/portal/job-requests/${item.job.id}`}
+                                  className={`absolute top-4 bottom-4 rounded-xl flex items-center px-3 cursor-pointer transition-all hover:scale-[1.01] hover:brightness-105 group/bar shadow-md ${
+                                    item.isOverdue
+                                      ? 'bg-gradient-to-r from-rose-500 to-red-600 border border-rose-400 text-white shadow-rose-500/20'
+                                      : item.hasOverlap
+                                      ? 'bg-gradient-to-r from-amber-500 to-orange-600 border border-amber-400 text-white shadow-amber-500/20'
+                                      : 'bg-gradient-to-r from-indigo-500 to-purple-600 border border-indigo-400 text-white shadow-indigo-500/20'
+                                  }`}
+                                  style={{
+                                    left: `${barLeft}px`,
+                                    width: `${barWidth}px`,
+                                  }}
+                                  title={`[${item.job.ticket_no || `#${item.job.id}`}] ${item.job.title}\nStart: ${item.start.toLocaleDateString()}\nDeadline: ${item.deadline.toLocaleDateString()} (${item.durationDays} days)\n${
+                                    item.isOverdue ? '⚠️ OVERDUE!\n' : ''
+                                  }${item.hasOverlap ? `⚠️ Overlaps with ${item.overlappingJobs.length} tasks: ${item.overlappingJobs.map((o) => o.ticket_no).join(', ')}\n` : ''}${
+                                    item.staffNames.length > 0 ? `Staff: ${item.staffNames.join(', ')}` : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between w-full overflow-hidden text-xs">
+                                    <div className="flex items-center gap-1.5 truncate">
+                                      {item.isOverdue ? (
+                                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                      ) : item.hasOverlap ? (
+                                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                      ) : (
+                                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                                      )}
+                                      <span className="font-extrabold truncate tracking-tight text-[11px]">
+                                        {item.job.ticket_no ? `${item.job.ticket_no} - ` : ''}{item.job.title}
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] font-black bg-black/20 px-1.5 py-0.5 rounded ml-2 shrink-0">
+                                      {item.durationDays}d
+                                    </span>
+                                  </div>
+                                </Link>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
