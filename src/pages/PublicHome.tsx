@@ -60,8 +60,8 @@ export const PublicHome: React.FC = () => {
 
   const [units, setUnits] = useState<Unit[]>(DEFAULT_UNITS);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
-  const [clientName, setClientName] = useState(user?.name || '');
-  const [clientEmail, setClientEmail] = useState(user?.email || '');
+  const [clientName, setClientName] = useState(user?.role === 'client' ? (user?.name || '') : '');
+  const [clientEmail, setClientEmail] = useState(user?.role === 'client' ? (user?.email || '') : '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -78,7 +78,10 @@ export const PublicHome: React.FC = () => {
   const [turnstileToken, setTurnstileToken] = useState<string>('');
 
   useEffect(() => {
-    if (user) {
+    // Only auto-fill if the logged-in user is a client.
+    // For internal CDI staff, managers, and directors, leave fields blank
+    // so they can enter the actual client's name and email without accidental self-tagging.
+    if (user && user.role === 'client') {
       if (user.name) setClientName(user.name);
       if (user.email) setClientEmail(user.email);
     }
@@ -237,17 +240,47 @@ export const PublicHome: React.FC = () => {
             <form onSubmit={handleSubmit} className="flex flex-col gap-8">
               {/* SECTION 1: APPLICANT DETAILS */}
               <div className="space-y-4">
-                <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
-                    1
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                      1
+                    </div>
+                    <div>
+                      <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-blue-600" />
+                        Applicant Information
+                      </h2>
+                      <p className="text-[11px] text-slate-400 font-medium">Official contact details for ticket updates and tracking</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-blue-600" />
-                      Applicant Information
-                    </h2>
-                    <p className="text-[11px] text-slate-400 font-medium">Official contact details for ticket updates and tracking</p>
-                  </div>
+
+                  {user && user.role !== 'client' && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (user.name) setClientName(user.name);
+                          if (user.email) setClientEmail(user.email);
+                        }}
+                        className="btn btn-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-bold text-[11px] normal-case"
+                        title="Auto-fill with my logged in CDI account details"
+                      >
+                        Fill My Details
+                      </button>
+                      {(clientName || clientEmail) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientName('');
+                            setClientEmail('');
+                          }}
+                          className="btn btn-xs btn-ghost text-slate-400 hover:text-slate-600 text-[11px] font-bold"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -260,7 +293,7 @@ export const PublicHome: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. John Doe"
+                      placeholder="e.g. Client Name / Organization"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
                       className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
