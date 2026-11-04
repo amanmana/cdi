@@ -856,10 +856,21 @@ jobRequestsRouter.get('/reports/weekly', async (c) => {
       staffQuery += ' AND id = ?';
       staffParams.push(user.id);
     } else if (user.role === 'manager') {
-      // Manager ONLY sees staff in their unit (or themselves)
+      const managerDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+      // Manager ONLY sees staff in their department/unit (or themselves)
       if (staffIdFilter && staffIdFilter !== 'all') {
         staffQuery += ' AND id = ?';
         staffParams.push(staffIdFilter);
+      } else if (unitFilter && unitFilter !== 'all') {
+        staffQuery += ' AND (unit = ? OR unit_id IN (SELECT id FROM units WHERE name = ?))';
+        staffParams.push(unitFilter, unitFilter);
+      } else if (managerDeptId) {
+        staffQuery += ` AND (
+          unit_id IN (SELECT id FROM units WHERE department_id = ?)
+          OR unit IN (SELECT name FROM units WHERE department_id = ?)
+          OR id = ?
+        )`;
+        staffParams.push(managerDeptId, managerDeptId, user.id);
       } else if (user.unit) {
         staffQuery += ' AND (unit = ? OR id = ?)';
         staffParams.push(user.unit, user.id);

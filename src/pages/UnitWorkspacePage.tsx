@@ -727,10 +727,16 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       const isOverdue = deadline < todayNorm;
       const durationDays = Math.max(1, Math.round((deadline.getTime() - start.getTime()) / 86400000) + 1);
 
-      const staffList = job.assigned_staff || job.assigned_staff_details || [];
-      const staffNames = Array.isArray(staffList)
-        ? staffList.map((s: any) => s.name || s.staff_name).filter(Boolean)
+      const targetUnit = currentUnit.toLowerCase().trim();
+      const rawStaffList = job.assigned_staff || job.assigned_staff_details || [];
+      const staffList = Array.isArray(rawStaffList)
+        ? rawStaffList.filter((s: any) => {
+            const sUnit = (s.unit || '').toLowerCase().trim();
+            // Strictly include only staff who belong to currentUnit
+            return !sUnit || sUnit === targetUnit;
+          })
         : [];
+      const staffNames = staffList.map((s: any) => s.name || s.staff_name).filter(Boolean);
 
       return {
         job,

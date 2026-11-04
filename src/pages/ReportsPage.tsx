@@ -81,6 +81,31 @@ export const ReportsPage: React.FC<{ embedded?: boolean; overrideUnit?: string }
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [staffListOptions, setStaffListOptions] = useState<any[]>([]);
+  const [unitsList, setUnitsList] = useState<any[]>([]);
+
+  // Fetch Units Scoped to User's Role / Department
+  useEffect(() => {
+    fetch('/api/public/units')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const valid = data.filter((u) => u.name && !['admin', 'administrator'].includes(u.name.toLowerCase().trim()));
+          if (user?.role === 'manager' || user?.is_acting_manager) {
+            const managerDeptId = (user as any)?.managed_department_id || user?.department_id || (user as any)?.acting_manager_department_id;
+            if (managerDeptId) {
+              setUnitsList(valid.filter((u) => u.department_id === managerDeptId || (user?.unit && u.name.toLowerCase().trim() === user.unit.toLowerCase().trim())));
+            } else if (user?.unit) {
+              setUnitsList(valid.filter((u) => u.name.toLowerCase().trim() === user.unit.toLowerCase().trim()));
+            } else {
+              setUnitsList(valid);
+            }
+          } else {
+            setUnitsList(valid);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   // Calculate Week End (Sunday)
   const currentWeekEnd = new Date(currentWeekStart);
@@ -189,8 +214,15 @@ export const ReportsPage: React.FC<{ embedded?: boolean; overrideUnit?: string }
                 u.email !== 'admin@example.com' &&
                 !u.name.toLowerCase().includes('admin')
             );
-            if (user?.role === 'manager' && user?.unit) {
-              setStaffListOptions(validStaff.filter((u) => u.unit === user.unit));
+            if (user?.role === 'manager' || user?.is_acting_manager) {
+              const managerDeptId = (user as any)?.managed_department_id || user?.department_id || (user as any)?.acting_manager_department_id;
+              if (managerDeptId) {
+                setStaffListOptions(validStaff.filter((u) => u.department_id === managerDeptId || (user?.unit && u.unit === user.unit)));
+              } else if (user?.unit) {
+                setStaffListOptions(validStaff.filter((u) => u.unit === user.unit));
+              } else {
+                setStaffListOptions(validStaff);
+              }
             } else {
               setStaffListOptions(validStaff);
             }
@@ -392,7 +424,11 @@ export const ReportsPage: React.FC<{ embedded?: boolean; overrideUnit?: string }
                     className="select select-bordered select-xs bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
                   >
                     <option value="all">
-                      {user?.role === 'manager' && user?.unit ? `All ${user.unit} Staff` : 'All Staff Members'}
+                      {user?.role === 'manager'
+                        ? 'All Staff Under My Units'
+                        : user?.unit
+                        ? `All ${user.unit} Staff`
+                        : 'All Staff Members'}
                     </option>
                     {staffListOptions.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -402,8 +438,8 @@ export const ReportsPage: React.FC<{ embedded?: boolean; overrideUnit?: string }
                   </select>
                 </div>
 
-                {/* Unit Filter - Only for Admin */}
-                {user?.role === 'admin' && (
+                {/* Unit Filter - For Admin and Manager */}
+                {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
                   <div className="flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-slate-400" />
                     <select
@@ -411,12 +447,14 @@ export const ReportsPage: React.FC<{ embedded?: boolean; overrideUnit?: string }
                       onChange={(e) => setSelectedUnit(e.target.value)}
                       className="select select-bordered select-xs bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
                     >
-                      <option value="all">All Units</option>
-                      <option value="Graphic">Graphic</option>
-                      <option value="Translation">Translation</option>
-                      <option value="Video">Video</option>
-                      <option value="Writer">Writer</option>
-                      <option value="Corporate Comm">Corporate Comm</option>
+                      <option value="all">
+                        {user?.role === 'manager' ? 'All My Units' : 'All Units'}
+                      </option>
+                      {unitsList.map((u) => (
+                        <option key={u.id || u.name} value={u.name}>
+                          {u.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
