@@ -857,7 +857,7 @@ export const JobRequestsList: React.FC = () => {
                 <th className="py-3 px-4">ID</th>
                 <th className="py-3 px-4">CLIENT</th>
                 <th className="py-3 px-4">CURRENT STATUS</th>
-                <th className="py-3 px-4">ASSIGNED TO</th>
+                {user?.role !== 'client' && <th className="py-3 px-4">ASSIGNED TO</th>}
                 <th className="py-3 px-4">TIMELINE</th>
                 <th className="py-3 px-4">PROGRESS</th>
                 <th className="py-3 px-4 text-right">ACTIONS</th>
@@ -866,13 +866,13 @@ export const JobRequestsList: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12">
+                  <td colSpan={user?.role === 'client' ? 6 : 7} className="text-center py-12">
                     <span className="loading loading-spinner loading-md text-indigo-600"></span>
                   </td>
                 </tr>
               ) : displayedRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-sm text-slate-400 font-semibold">
+                  <td colSpan={user?.role === 'client' ? 6 : 7} className="text-center py-12 text-sm text-slate-400 font-semibold">
                     No job requests found in {activeTab === 'all' ? 'All Jobs' : activeTab === 'current' ? 'Current Jobs' : 'History'}.
                   </td>
                 </tr>
@@ -1039,25 +1039,27 @@ export const JobRequestsList: React.FC = () => {
                       <td className="py-4 px-4 align-top">
                         {renderStatusBadge(req.status, req.current_step_name, isInterUnitJob(req))}
                       </td>
-                      <td className="py-4 px-4 align-top text-xs font-semibold text-slate-700">
-                        {req.assigned_staff && req.assigned_staff.length > 0 ? (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {req.assigned_staff.map((s: any, i: number) => (
-                              <span key={s.id} className="inline-flex items-center gap-1 font-bold">
-                                {s.is_done ? (
-                                  <span className="text-emerald-500 font-extrabold" title="Completed">✓</span>
-                                ) : (
-                                  <span className="text-slate-300 font-extrabold" title="Pending">○</span>
-                                )}
-                                <span className={s.is_done ? 'text-slate-700' : 'text-slate-400 font-medium'}>{s.name}</span>
-                                {i < req.assigned_staff.length - 1 && <span className="text-slate-300">,</span>}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">No staff assigned</span>
-                        )}
-                      </td>
+                      {user?.role !== 'client' && (
+                        <td className="py-4 px-4 align-top text-xs font-semibold text-slate-700">
+                          {req.assigned_staff && req.assigned_staff.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {req.assigned_staff.map((s: any, i: number) => (
+                                <span key={s.id} className="inline-flex items-center gap-1 font-bold">
+                                  {s.is_done ? (
+                                    <span className="text-emerald-500 font-extrabold" title="Completed">✓</span>
+                                  ) : (
+                                    <span className="text-slate-300 font-extrabold" title="Pending">○</span>
+                                  )}
+                                  <span className={s.is_done ? 'text-slate-700' : 'text-slate-400 font-medium'}>{s.name}</span>
+                                  {i < req.assigned_staff.length - 1 && <span className="text-slate-300">,</span>}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No staff assigned</span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-4 px-4 align-top text-xs">
                         {req.start_date || req.deadline ? (
                           <div>

@@ -1275,7 +1275,7 @@ export const JobRequestDetail: React.FC = () => {
             </div>
 
             {/* Participating Units Oversight Badges (Directly Above Cross-Unit Assistance) */}
-            {participatingUnits.length > 0 && (
+            {user?.role !== 'client' && participatingUnits.length > 0 && (
               <div className="bg-gradient-to-r from-white via-indigo-50/40 to-purple-50/30 p-4 md:p-5 rounded-3xl border border-indigo-200/90 shadow-sm shadow-indigo-100/40 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
@@ -1337,6 +1337,7 @@ export const JobRequestDetail: React.FC = () => {
 
             {/* Dedicated Standalone CROSS-UNIT ASSISTANCE BANNER / CARD */}
             {(() => {
+              if (user?.role === 'client') return null;
               const assistanceRequests: any[] = Array.isArray(request?.additional_data?.assistance_requests)
                 ? request.additional_data.assistance_requests
                 : [];
@@ -1510,7 +1511,8 @@ export const JobRequestDetail: React.FC = () => {
             })()}
 
             {/* Dedicated Standalone TEAM ASSIGNMENT & STATUS Slate Card */}
-            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/80 shadow-md shadow-slate-100 space-y-4">
+            {user?.role !== 'client' && (
+              <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/80 shadow-md shadow-slate-100 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 shadow-inner">
@@ -1676,6 +1678,7 @@ export const JobRequestDetail: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
 
             {/* Client Info Soft Box */}
             <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
