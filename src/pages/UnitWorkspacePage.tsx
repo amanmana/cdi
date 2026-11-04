@@ -205,26 +205,6 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     }
   }, [token]);
 
-  const staffAvatarMap = useMemo(() => {
-    const map = new Map<string, string>();
-    allUsersList.forEach((u) => {
-      if (u.name && u.avatar_url) {
-        map.set(u.name.toLowerCase().trim(), u.avatar_url);
-      }
-    });
-    unitJobs.forEach((job) => {
-      const list = job.assigned_staff || job.assigned_staff_details || [];
-      if (Array.isArray(list)) {
-        list.forEach((s: any) => {
-          if (s.name && s.avatar_url) {
-            map.set(s.name.toLowerCase().trim(), s.avatar_url);
-          }
-        });
-      }
-    });
-    return map;
-  }, [allUsersList, unitJobs]);
-
   const isStaffExpanded = (staffName: string) => {
     return expandedStaff[staffName] !== false; // Default: expanded
   };
@@ -733,6 +713,27 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       staffWorkload: Object.entries(staffWorkloadMap).sort((a, b) => b[1].total - a[1].total),
     };
   }, [unitJobs]);
+
+  // Lookup map for staff avatar URLs
+  const staffAvatarMap = useMemo(() => {
+    const map = new Map<string, string>();
+    allUsersList.forEach((u) => {
+      if (u.name && u.avatar_url) {
+        map.set(u.name.toLowerCase().trim(), u.avatar_url);
+      }
+    });
+    unitJobs.forEach((job) => {
+      const list = job.assigned_staff || job.assigned_staff_details || [];
+      if (Array.isArray(list)) {
+        list.forEach((s: any) => {
+          if (s.name && s.avatar_url) {
+            map.set(s.name.toLowerCase().trim(), s.avatar_url);
+          }
+        });
+      }
+    });
+    return map;
+  }, [allUsersList, unitJobs]);
 
   // Incomplete Tasks & Gantt Chart Computations (Schedule & Overlap Timeline)
   const ganttData = useMemo(() => {
