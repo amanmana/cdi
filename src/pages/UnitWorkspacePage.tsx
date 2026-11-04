@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ReportsPage } from './ReportsPage';
@@ -193,6 +193,21 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [ganttViewMode, setGanttViewMode] = useState<'staff' | 'task'>('staff');
   const [expandedStaff, setExpandedStaff] = useState<Record<string, boolean>>({});
   const [allUsersList, setAllUsersList] = useState<any[]>([]);
+  const ganttScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollToToday = () => {
+    const todayIdx = ganttData.timelineDays.findIndex((d) => d.isToday);
+    if (todayIdx >= 0 && ganttScrollRef.current) {
+      const scrollPos = Math.max(0, todayIdx * 48 - 160);
+      ganttScrollRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    if (ganttScrollRef.current) {
+      ganttScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    }
+  }, [ganttSelectedStaff]);
 
   useEffect(() => {
     if (token) {
@@ -829,10 +844,22 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       };
     }
 
+    // Scope timeline window: if filtering by a specific staff or unassigned, scope date window to those tasks
+    const scopeJobs = (ganttSelectedStaff !== 'all')
+      ? jobsWithOverlaps.filter((item) => {
+          if (ganttSelectedStaff === '__unassigned__') {
+            return !item.staffNames || item.staffNames.length === 0;
+          }
+          return item.staffNames.includes(ganttSelectedStaff);
+        })
+      : jobsWithOverlaps;
+
+    const targetJobsForWindow = scopeJobs.length > 0 ? scopeJobs : jobsWithOverlaps;
+
     let minTime = todayNorm.getTime();
     let maxTime = todayNorm.getTime();
 
-    jobsWithOverlaps.forEach((item) => {
+    targetJobsForWindow.forEach((item) => {
       if (item.start.getTime() < minTime) minTime = item.start.getTime();
       if (item.deadline.getTime() > maxTime) maxTime = item.deadline.getTime();
     });
@@ -984,7 +1011,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       windowEnd,
       todayNorm,
     };
-  }, [unitJobs, currentUnit, staffAvatarMap]);
+  }, [unitJobs, currentUnit, staffAvatarMap, ganttSelectedStaff]);
 
   // Filtered Gantt Jobs for Search & Pill Filter (By Task View)
   const filteredGanttJobs = useMemo(() => {
@@ -2012,10 +2039,15 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   <span className="w-3.5 h-3 rounded-md bg-gradient-to-r from-rose-500 to-red-600 shrink-0" />
                   <span className="font-extrabold text-rose-800 text-[11px]">Overdue (Past Deadline)</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={scrollToToday}
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors border border-indigo-200 cursor-pointer"
+                  title="Click to jump to Today's timeline marker"
+                >
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 ring-2 ring-indigo-200 shrink-0" />
-                  <span className="font-extrabold text-indigo-700 text-[11px]">Today's Marker</span>
-                </div>
+                  <span className="font-extrabold text-indigo-700 text-[11px]">Today (Jump)</span>
+                </button>
               </div>
               <div className="text-[11px] font-semibold text-slate-400">
                 {ganttSelectedStaff !== 'all' ? (
@@ -2056,7 +2088,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
               </div>
             ) : (
               <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
-                <div className="overflow-x-auto">
+                <div ref={ganttScrollRef} className="overflow-x-auto scroll-smooth">
                   <div
                     className="inline-flex flex-col min-w-full"
                     style={{ minWidth: `${320 + ganttData.timelineDays.length * 48}px` }}
