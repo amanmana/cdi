@@ -189,6 +189,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   // Gantt Chart State (Charts & Metrics Tab)
   const [ganttFilter, setGanttFilter] = useState<'all' | 'overlap' | 'overdue'>('all');
   const [ganttSearch, setGanttSearch] = useState<string>('');
+  const [ganttSelectedStaff, setGanttSelectedStaff] = useState<string>('all');
   const [ganttViewMode, setGanttViewMode] = useState<'staff' | 'task'>('staff');
   const [expandedStaff, setExpandedStaff] = useState<Record<string, boolean>>({});
 
@@ -950,6 +951,15 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       if (ganttFilter === 'overlap' && !item.hasOverlap) return false;
       if (ganttFilter === 'overdue' && !item.isOverdue) return false;
 
+      // Staff filter
+      if (ganttSelectedStaff !== 'all') {
+        if (ganttSelectedStaff === '__unassigned__') {
+          if (item.staffNames && item.staffNames.length > 0) return false;
+        } else {
+          if (!item.staffNames.includes(ganttSelectedStaff)) return false;
+        }
+      }
+
       if (ganttSearch.trim()) {
         const q = ganttSearch.toLowerCase().trim();
         const titleMatch = (item.job.title || '').toLowerCase().includes(q);
@@ -960,11 +970,18 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
       return true;
     });
-  }, [ganttData.jobs, ganttFilter, ganttSearch]);
+  }, [ganttData.jobs, ganttFilter, ganttSearch, ganttSelectedStaff]);
 
   // Filtered Gantt Staff Groups for 'By Staff' (Resource) View
   const filteredGanttStaffGroups = useMemo(() => {
     return (ganttData.staffGroups || [])
+      .filter((group) => {
+        if (ganttSelectedStaff !== 'all') {
+          if (ganttSelectedStaff === '__unassigned__') return false;
+          if (group.staffName !== ganttSelectedStaff) return false;
+        }
+        return true;
+      })
       .map((group) => {
         const filteredTasks = group.tasks.filter((item) => {
           if (ganttFilter === 'overlap' && !item.isSelfStaffOverlap) return false;
@@ -986,10 +1003,13 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
         };
       })
       .filter((group) => group.tasks.length > 0);
-  }, [ganttData.staffGroups, ganttFilter, ganttSearch]);
+  }, [ganttData.staffGroups, ganttFilter, ganttSearch, ganttSelectedStaff]);
 
   // Filtered Unassigned Jobs for 'By Staff' View
   const filteredUnassignedJobs = useMemo(() => {
+    if (ganttSelectedStaff !== 'all' && ganttSelectedStaff !== '__unassigned__') {
+      return [];
+    }
     return (ganttData.unassignedJobs || []).filter((item) => {
       if (ganttFilter === 'overlap' && !item.hasOverlap) return false;
       if (ganttFilter === 'overdue' && !item.isOverdue) return false;
@@ -1001,7 +1021,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       }
       return true;
     });
-  }, [ganttData.unassignedJobs, ganttFilter, ganttSearch]);
+  }, [ganttData.unassignedJobs, ganttFilter, ganttSearch, ganttSelectedStaff]);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
@@ -1762,7 +1782,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           </div>
 
           {/* Incomplete Tasks Schedule & Overlap Timeline (Gantt Chart) */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+          <div id="gantt-section" className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 scroll-mt-24">
             {/* Gantt Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1817,6 +1837,41 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   </button>
                 </div>
 
+                {/* Staff Selector Dropdown (Cadangan 1 Dropdown) */}
+                <div className="relative min-w-[210px]">
+                  <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                  <select
+                    value={ganttSelectedStaff}
+                    onChange={(e) => setGanttSelectedStaff(e.target.value)}
+                    className={`select select-sm select-bordered w-full pl-8 pr-8 rounded-xl text-xs font-black transition-all shadow-xs ${
+                      ganttSelectedStaff !== 'all'
+                        ? 'border-indigo-500 bg-indigo-50/70 text-indigo-900 ring-2 ring-indigo-200/50'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                    title="Filter by assigned staff member"
+                  >
+                    <option value="all">👥 All Staff ({ganttData.staffGroups.length})</option>
+                    {ganttData.staffGroups.map((g) => (
+                      <option key={g.staffName} value={g.staffName}>
+                        {g.hasStaffOverlap ? '⚠️ ' : ''}{g.staffName} ({g.totalTasks} {g.totalTasks === 1 ? 'task' : 'tasks'}{g.hasStaffOverlap ? ` • ${g.staffOverlapCount} overlap` : ''})
+                      </option>
+                    ))}
+                    {ganttData.unassignedJobs.length > 0 && (
+                      <option value="__unassigned__">👤 Unassigned ({ganttData.unassignedJobs.length})</option>
+                    )}
+                  </select>
+                  {ganttSelectedStaff !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setGanttSelectedStaff('all')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 font-black text-xs z-10 p-0.5"
+                      title="Clear staff filter"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+
                 {/* Expand / Collapse All (in By Staff mode) */}
                 {ganttViewMode === 'staff' && ganttData.staffGroups.length > 0 && (
                   <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded-xl text-[11px] font-bold">
@@ -1839,11 +1894,11 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                 )}
 
                 {/* Search Input */}
-                <div className="relative min-w-[200px]">
+                <div className="relative min-w-[180px]">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder={ganttViewMode === 'staff' ? 'Search staff or task...' : 'Search active tasks...'}
+                    placeholder="Search ticket / title..."
                     value={ganttSearch}
                     onChange={(e) => setGanttSearch(e.target.value)}
                     className="input input-sm input-bordered w-full pl-8 rounded-xl text-xs font-medium focus:border-indigo-600"
@@ -1922,6 +1977,11 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                 </div>
               </div>
               <div className="text-[11px] font-semibold text-slate-400">
+                {ganttSelectedStaff !== 'all' ? (
+                  <span className="text-indigo-600 font-bold">
+                    Filtered to: {ganttSelectedStaff === '__unassigned__' ? 'Unassigned' : ganttSelectedStaff} •{' '}
+                  </span>
+                ) : null}
                 {ganttViewMode === 'staff'
                   ? `Showing ${filteredGanttStaffGroups.length} staff member${filteredGanttStaffGroups.length === 1 ? '' : 's'} (${filteredGanttStaffGroups.reduce((acc, g) => acc + g.tasks.length, 0)} tasks) of ${ganttData.totalIncomplete} incomplete tasks`
                   : `Showing ${filteredGanttJobs.length} of ${ganttData.totalIncomplete} incomplete tasks`}
@@ -1946,10 +2006,11 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   onClick={() => {
                     setGanttFilter('all');
                     setGanttSearch('');
+                    setGanttSelectedStaff('all');
                   }}
                   className="btn btn-xs bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold border-none"
                 >
-                  Clear Filter
+                  Clear All Filters
                 </button>
               </div>
             ) : (
@@ -2488,9 +2549,39 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   ) : (
                     analyticsData.staffWorkload.map(([staffName, sStats]) => {
                       const staffRate = sStats.total > 0 ? Math.round((sStats.completed / sStats.total) * 100) : 0;
+                      const isSelected = ganttSelectedStaff === staffName;
+
                       return (
-                        <tr key={staffName} className="hover:bg-slate-50">
-                          <td className="font-extrabold text-slate-800 text-xs">{staffName}</td>
+                        <tr
+                          key={staffName}
+                          onClick={() => {
+                            if (ganttSelectedStaff === staffName) {
+                              setGanttSelectedStaff('all');
+                            } else {
+                              setGanttSelectedStaff(staffName);
+                              const el = document.getElementById('gantt-section');
+                              if (el) el.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                          className={`hover:bg-indigo-50/50 cursor-pointer transition-colors group ${
+                            isSelected ? 'bg-indigo-50/80 ring-1 ring-indigo-200' : ''
+                          }`}
+                          title={`Click to filter Gantt chart to ${staffName}`}
+                        >
+                          <td className="font-extrabold text-slate-800 text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className={isSelected ? 'text-indigo-600 font-black' : ''}>{staffName}</span>
+                              {isSelected ? (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-600 text-white">
+                                  FILTERED
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-indigo-500 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                                  🔍 View in Gantt
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="font-bold text-slate-700">{sStats.total}</td>
                           <td>
                             <span className="px-2 py-0.5 rounded-lg bg-rose-100 text-rose-800 text-[10px] font-black">
