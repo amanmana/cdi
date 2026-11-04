@@ -192,6 +192,38 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [ganttSelectedStaff, setGanttSelectedStaff] = useState<string>('all');
   const [ganttViewMode, setGanttViewMode] = useState<'staff' | 'task'>('staff');
   const [expandedStaff, setExpandedStaff] = useState<Record<string, boolean>>({});
+  const [allUsersList, setAllUsersList] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (token) {
+      fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setAllUsersList(data);
+        })
+        .catch(() => {});
+    }
+  }, [token]);
+
+  const staffAvatarMap = useMemo(() => {
+    const map = new Map<string, string>();
+    allUsersList.forEach((u) => {
+      if (u.name && u.avatar_url) {
+        map.set(u.name.toLowerCase().trim(), u.avatar_url);
+      }
+    });
+    unitJobs.forEach((job) => {
+      const list = job.assigned_staff || job.assigned_staff_details || [];
+      if (Array.isArray(list)) {
+        list.forEach((s: any) => {
+          if (s.name && s.avatar_url) {
+            map.set(s.name.toLowerCase().trim(), s.avatar_url);
+          }
+        });
+      }
+    });
+    return map;
+  }, [allUsersList, unitJobs]);
 
   const isStaffExpanded = (staffName: string) => {
     return expandedStaff[staffName] !== false; // Default: expanded
@@ -914,9 +946,11 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       const totalTasks = sJobs.length;
       const staffOverlapCount = sJobsWithStaffOverlap.filter((j) => j.isSelfStaffOverlap).length;
       const staffOverdueCount = sJobsWithStaffOverlap.filter((j) => j.isOverdue).length;
+      const avatarUrl = staffAvatarMap.get(staffName.toLowerCase().trim()) || null;
 
       return {
         staffName,
+        staffAvatarUrl: avatarUrl,
         tasks: sJobsWithStaffOverlap,
         totalTasks,
         staffOverlapCount,
@@ -949,7 +983,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       windowEnd,
       todayNorm,
     };
-  }, [unitJobs]);
+  }, [unitJobs, currentUnit, staffAvatarMap]);
 
   // Filtered Gantt Jobs for Search & Pill Filter (By Task View)
   const filteredGanttJobs = useMemo(() => {
@@ -2106,8 +2140,14 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                                         <ChevronRight className="w-4 h-4 text-slate-400" />
                                       )}
                                     </button>
-                                    <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                                      {group.staffName.charAt(0).toUpperCase()}
+                                    <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 shadow-xs border border-slate-200/80 bg-slate-100 flex items-center justify-center">
+                                      {group.staffAvatarUrl ? (
+                                        <img src={group.staffAvatarUrl} alt={group.staffName} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white">
+                                          <User className="w-4 h-4" />
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="min-w-0">
                                       <span className="font-black text-xs text-slate-900 tracking-tight block truncate">
