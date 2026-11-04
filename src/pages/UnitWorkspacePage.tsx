@@ -2189,14 +2189,6 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                                             >
                                               {item.job.title}
                                             </Link>
-
-                                            {/* Overlap Details Callout for Staff */}
-                                            {item.isSelfStaffOverlap && (
-                                              <div className="mt-1 p-1 rounded-md bg-amber-50/90 border border-amber-200 text-[9px] text-amber-900 flex items-center gap-1 font-semibold truncate">
-                                                <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                                                <span>Concurrent with {item.selfStaffOverlappingTickets.join(', ')}</span>
-                                              </div>
-                                            )}
                                           </div>
 
                                           {/* Dates & Duration */}
@@ -2211,7 +2203,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                                         </div>
 
                                         {/* Right Timeline Grid Area */}
-                                        <div className="relative flex items-center h-20 shrink-0">
+                                        <div className="relative flex items-center h-16 shrink-0">
                                           {/* Vertical Grid Lines */}
                                           <div className="absolute inset-0 flex pointer-events-none">
                                             {ganttData.timelineDays.map((day) => (
