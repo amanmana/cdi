@@ -2157,11 +2157,12 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                                 className="flex bg-slate-50/90 hover:bg-slate-100/80 cursor-pointer transition-colors border-b border-slate-200/70 select-none group/staff"
                               >
                                 {/* Sticky Left: Staff Info Header */}
-                                <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-slate-50/95 group-hover/staff:bg-slate-100/90 border-r border-slate-200 px-3.5 py-2.5 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex items-center justify-between gap-2">
+                                <div className="w-80 min-w-[320px] shrink-0 sticky left-0 z-20 bg-slate-50/95 group-hover/staff:bg-slate-100/90 border-r border-slate-200 px-3.5 py-2 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex flex-col justify-center gap-1.5">
+                                  {/* Row 1: Chevron, Avatar, Full Staff Name */}
                                   <div className="flex items-center gap-2 min-w-0">
                                     <button
                                       type="button"
-                                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors shrink-0"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         toggleStaffExpand(group.staffName);
@@ -2173,23 +2174,24 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                                         <ChevronRight className="w-4 h-4 text-slate-400" />
                                       )}
                                     </button>
-                                    <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 shadow-xs border border-slate-200/80 bg-slate-100 flex items-center justify-center">
+                                    <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 shadow-xs border border-slate-200/80 bg-slate-100 flex items-center justify-center">
                                       {group.staffAvatarUrl ? (
                                         <img src={group.staffAvatarUrl} alt={group.staffName} className="w-full h-full object-cover" />
                                       ) : (
                                         <div className="w-full h-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white">
-                                          <User className="w-4 h-4" />
+                                          <User className="w-3.5 h-3.5" />
                                         </div>
                                       )}
                                     </div>
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                       <span className="font-black text-xs text-slate-900 tracking-tight block truncate">
                                         {group.staffName}
                                       </span>
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-1.5 shrink-0">
+                                  {/* Row 2: Overlap, Overdue, Total Tasks */}
+                                  <div className="flex items-center gap-1.5 pl-6 flex-wrap">
                                     {group.hasStaffOverlap && (
                                       <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-0.5 animate-pulse">
                                         <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
@@ -2208,7 +2210,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                                 </div>
 
                                 {/* Right Timeline Grid Header Area */}
-                                <div className="relative flex items-center h-11 shrink-0">
+                                <div className="relative flex items-center h-14 shrink-0">
                                   <div className="absolute inset-0 flex pointer-events-none">
                                     {ganttData.timelineDays.map((day) => (
                                       <div
