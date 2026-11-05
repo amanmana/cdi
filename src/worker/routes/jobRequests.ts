@@ -791,7 +791,7 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
     return c.json({ error: 'Job request not found.' }, 404);
   }
 
-  // Permission: Only the Head Unit (of this job's unit) or Admin can move cards
+  // Permission: Admin, Head Unit of this job's unit, or SocMed staff
   const isSuperAdmin = user?.role === 'admin';
   const reqUnit = req.unit || '';
   const isHeadOfThisUnit = Boolean(
@@ -802,8 +802,26 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
     )
   );
 
-  if (!isSuperAdmin && !isHeadOfThisUnit) {
-    return c.json({ error: 'Permission denied: Only the Head Unit has permission to move workflow cards.' }, 403);
+  const isSocMedUnitName = (u?: string | null) => {
+    if (!u) return false;
+    const s = u.toLowerCase().trim();
+    return s === 'social media' || s === 'socmed' || s.includes('social') || s.includes('socmed');
+  };
+
+  const isSocMedJob = isSocMedUnitName(reqUnit) || 
+    (req.target_units && isSocMedUnitName(req.target_units)) ||
+    (req.additional_data && (
+      req.additional_data.includes('SocMed') || 
+      req.additional_data.includes('Social Media') ||
+      req.additional_data.toLowerCase().includes('social')
+    ));
+
+  const isSocMedStaff = isSocMedUnitName(user?.unit) || (user?.role === 'staff' && isSocMedJob);
+
+  const canMoveCard = Boolean(isSuperAdmin || isHeadOfThisUnit || (isSocMedJob && isSocMedStaff));
+
+  if (!canMoveCard) {
+    return c.json({ error: 'Permission denied: Only the Head Unit or SocMed staff has permission to move workflow cards.' }, 403);
   }
 
   let addData: any = {};

@@ -163,7 +163,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   // Permissions:
   // - Managers and Directors are strictly VIEW-ONLY on Kanban columns (cannot Add/Edit/Delete/Reorder columns)
   // - Strictly only the actual Head Unit of the current unit (or Admin) can Add, Edit, Delete, or Reorder columns
-  // - Strictly only the actual Head Unit of the current unit (or Admin) can move cards between stages
+  // - Head Unit, Admin, and Staff from Unit SocMed can move/drag cards between stages
   const isHeadOfCurrentUnit = Boolean(
     user?.is_unit_head && (
       (user?.unit && user.unit.toLowerCase().trim() === currentUnit.toLowerCase().trim()) ||
@@ -171,7 +171,21 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     )
   );
   const canManageColumns = Boolean(user?.role === 'admin' || isHeadOfCurrentUnit);
-  const canMoveCards = canManageColumns;
+
+  const isSocMedUnitName = (u?: string | null) => {
+    if (!u) return false;
+    const s = u.toLowerCase().trim();
+    return s === 'social media' || s === 'socmed' || s.includes('social') || s.includes('socmed');
+  };
+
+  const isCurrentUnitSocMed = isSocMedUnitName(currentUnit);
+  const isUserSocMed = isSocMedUnitName(user?.unit);
+
+  // Moving cards: Admin, Head of Current Unit, or Staff of SocMed
+  const canMoveCards = Boolean(
+    canManageColumns ||
+    (isCurrentUnitSocMed && (isUserSocMed || user?.role === 'staff' || user?.role === 'admin'))
+  );
 
   // Modals
   const [showAddColumnModal, setShowAddColumnModal] = useState<boolean>(false);
@@ -1340,7 +1354,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
             </div>
             <span className="text-[11px] text-slate-400 font-medium">
               {canMoveCards
-                ? '💡 Head Unit can drag and drop cards or select stage to reorder workflow'
+                ? '💡 Drag and drop cards or select stage to update workflow'
                 : '🔒 Workflow planning and stages are managed exclusively by the Head Unit'}
             </span>
           </div>
