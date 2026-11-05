@@ -423,17 +423,19 @@ jobRequestsRouter.get('/', async (c) => {
         return s === 'social media' || s === 'socmed' || s.includes('social') || s.includes('socmed');
       };
 
+      const userIsSocMed = isSocMedUnit(user.unit);
       const isAuthorizedWorkspace = Boolean(
-        workspaceUnit && (
+        userIsSocMed ||
+        (workspaceUnit && (
           (user.unit && user.unit.toLowerCase().trim() === workspaceUnit.toLowerCase().trim()) ||
           (isSocMedUnit(user.unit) && isSocMedUnit(workspaceUnit))
-        )
+        ))
       );
 
-      if (workspaceUnit && isAuthorizedWorkspace) {
+      if (userIsSocMed || (workspaceUnit && isAuthorizedWorkspace)) {
         // Staff viewing their shared unit workspace / whiteboard (e.g. Jana viewing Social Media Workspace)
-        const wClean = workspaceUnit.trim();
-        const isSoc = isSocMedUnit(wClean);
+        const wClean = (workspaceUnit || user.unit || 'Social Media').trim();
+        const isSoc = userIsSocMed || isSocMedUnit(wClean);
 
         if (isSoc) {
           query += ` AND (
