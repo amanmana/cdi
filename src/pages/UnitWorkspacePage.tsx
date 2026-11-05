@@ -539,11 +539,10 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     });
   }, [unitJobs, searchQuery, staffFilter, pillarFilter]);
 
-  // Filtered Jobs for Kanban board: By default only shows Current / Incomplete jobs (Work In Progress)
+  // Filtered Jobs for Kanban board: strictly Current / Incomplete jobs (Work In Progress)
   const kanbanJobs = useMemo(() => {
-    if (showCompletedOnKanban) return filteredJobs;
     return filteredJobs.filter((job) => !isJobCompleted(job));
-  }, [filteredJobs, showCompletedOnKanban]);
+  }, [filteredJobs]);
 
   // Overall Stats
   const stats = useMemo(() => {
@@ -1362,38 +1361,6 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   ))}
                 </select>
               </div>
-
-              {/* Pillar Filter (for Social Media) */}
-              {currentUnit.toLowerCase().includes('social') && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Pillar:</span>
-                  <select
-                    value={pillarFilter}
-                    onChange={(e) => setPillarFilter(e.target.value)}
-                    className="select select-sm select-bordered bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold"
-                  >
-                    <option value="all">All Pillars</option>
-                    <option value="Pillar 1">Pillar 1</option>
-                    <option value="Pillar 2">Pillar 2</option>
-                    <option value="Pillar 3">Pillar 3</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Show Completed Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setShowCompletedOnKanban((prev) => !prev)}
-                className={`btn btn-sm rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border normal-case ${
-                  showCompletedOnKanban
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                }`}
-                title="Toggle completed projects visibility on whiteboard"
-              >
-                <CheckCircle2 className={`w-3.5 h-3.5 ${showCompletedOnKanban ? 'text-emerald-600' : 'text-slate-400'}`} />
-                <span>{showCompletedOnKanban ? 'Hide Completed' : `Show Completed (${unitJobs.filter(isJobCompleted).length})`}</span>
-              </button>
             </div>
 
             {/* Head Unit Add Column Control */}
@@ -1424,12 +1391,6 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                 <span className="w-2 h-2 rounded-full bg-blue-600" />
                 <span>Manager Approval</span>
               </span>
-              {showCompletedOnKanban && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                  <span>Completed</span>
-                </span>
-              )}
             </div>
             <span className="text-[11px] text-slate-400 font-medium">
               💡 Drag and drop cards or select stage to update workflow
