@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AlertCircle, Check, Calendar, AlertTriangle, Sparkles, User, Mail, FileText, Layers, Send } from 'lucide-react';
+import { AlertCircle, Check, Calendar, AlertTriangle, Sparkles, User, Mail, FileText, Layers, Send, Camera } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { Footer } from '../components/Footer';
 
@@ -59,7 +59,9 @@ export const PublicHome: React.FC = () => {
   const { user } = useAuth();
 
   const [units, setUnits] = useState<Unit[]>(DEFAULT_UNITS);
+  const [customServices, setCustomServices] = useState<any[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [clientName, setClientName] = useState(user?.role === 'client' ? (user?.name || '') : '');
   const [clientEmail, setClientEmail] = useState(user?.role === 'client' ? (user?.email || '') : '');
   const [title, setTitle] = useState('');
@@ -100,6 +102,15 @@ export const PublicHome: React.FC = () => {
         console.warn('Using default units:', err);
       });
 
+    fetch('/api/public/custom-services')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setCustomServices(data);
+        }
+      })
+      .catch((err) => console.warn('Failed to load public custom services:', err));
+
     fetch('/api/public/settings')
       .then((res) => res.json())
       .then((data) => {
@@ -136,7 +147,8 @@ export const PublicHome: React.FC = () => {
     String(deadlineSettings.deadline_min_days)
   );
 
-  const currentUnitObj = units.find((u) => u.name === selectedUnit);
+  const selectedCustomService = customServices.find((s) => s.id === selectedServiceId);
+  const currentUnitObj = selectedCustomService || units.find((u) => u.name === selectedUnit);
 
   const handleDynamicChange = (fieldId: string, val: string) => {
     setDynamicFields((prev) => ({ ...prev, [fieldId]: val }));
@@ -145,8 +157,8 @@ export const PublicHome: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedUnit) {
-      setError('Please select a target service unit.');
+    if (!selectedUnit && !selectedServiceId) {
+      setError('Please select a target service unit or custom service.');
       return;
     }
 
@@ -159,7 +171,7 @@ export const PublicHome: React.FC = () => {
     });
 
     if (Object.keys(missing).length > 0) {
-      setError(`Please complete all required unit specifications: ${Object.keys(missing).map(k => missing[k]).join(', ')}`);
+      setError(`Please complete all required specifications: ${Object.keys(missing).map(k => missing[k]).join(', ')}`);
       return;
     }
 
@@ -187,6 +199,8 @@ export const PublicHome: React.FC = () => {
           description,
           deadline,
           unit: selectedUnit,
+          service_id: selectedServiceId || undefined,
+          service_name: selectedCustomService?.name || undefined,
           turnstileToken,
           additional_data: dynamicFields,
         }),
@@ -334,13 +348,13 @@ export const PublicHome: React.FC = () => {
                     </div>
                   </div>
                   <span className="text-xs text-slate-400 font-semibold hidden md:inline">
-                    {units.length} Service Units
+                    {units.length + customServices.length} Service Offerings
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
                   {units.map((u) => {
-                    const isSelected = selectedUnit === u.name;
+                    const isSelected = !selectedServiceId && selectedUnit === u.name;
                     const displayTitle = u.display_label || u.public_label || u.name;
                     const deptTag = u.department_name ? u.department_name.toUpperCase() : 'GENERAL';
                     return (
@@ -348,7 +362,8 @@ export const PublicHome: React.FC = () => {
                         key={u.id}
                         type="button"
                         onClick={() => {
-                          if (selectedUnit !== u.name) {
+                          if (selectedServiceId || selectedUnit !== u.name) {
+                            setSelectedServiceId(null);
                             setSelectedUnit(u.name);
                             setDynamicFields({});
                             setError(null);
@@ -385,6 +400,60 @@ export const PublicHome: React.FC = () => {
                               Unit: {u.name}
                             </div>
                           )}
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* Custom Client Services (e.g. Photography under Events Management) */}
+                  {customServices.map((s) => {
+                    const isSelected = selectedServiceId === s.id;
+                    const displayTitle = s.display_label || s.name;
+                    const deptTag = s.department_name ? s.department_name.toUpperCase() : 'CORPORATE EVENT';
+                    return (
+                      <button
+                        key={`service-${s.id}`}
+                        type="button"
+                        onClick={() => {
+                          if (selectedServiceId !== s.id) {
+                            setSelectedServiceId(s.id);
+                            setSelectedUnit(s.target_unit_name);
+                            setDynamicFields({});
+                            setError(null);
+                          }
+                        }}
+                        className={`p-4 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between relative group min-h-[105px] ${
+                          isSelected
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-500/25 ring-2 ring-purple-600/30 -translate-y-0.5'
+                            : 'bg-slate-50/70 text-slate-700 border-slate-200 hover:border-purple-400 hover:bg-white hover:shadow-md'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full mb-2">
+                          <span
+                            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-colors ${
+                              isSelected
+                                ? 'bg-white/20 text-white'
+                                : 'bg-purple-100 text-purple-700 group-hover:bg-purple-200'
+                            }`}
+                          >
+                            {deptTag}
+                          </span>
+                          {isSelected ? (
+                            <div className="w-4 h-4 rounded-full bg-white text-purple-600 flex items-center justify-center shrink-0">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </div>
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5 text-purple-400 group-hover:text-purple-600 transition-colors" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-sm tracking-tight leading-snug flex items-center gap-1.5">
+                            <Camera className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                            <span>{displayTitle}</span>
+                          </div>
+                          <div className={`text-[10px] font-medium mt-1 ${isSelected ? 'text-purple-100' : 'text-slate-400'}`}>
+                            Unit: {s.target_unit_name}
+                          </div>
                         </div>
                       </button>
                     );

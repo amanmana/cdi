@@ -26,6 +26,7 @@ import {
   ArrowLeftRight,
   Sparkles,
   ExternalLink,
+  Camera,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
@@ -1212,6 +1213,43 @@ export const JobRequestDetail: React.FC = () => {
                   </span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* CUSTOM CLIENT SERVICE HIGHLIGHT BANNER */}
+          {request.additional_data?.service_name && (
+            <div className="bg-gradient-to-r from-purple-800 via-indigo-900 to-slate-900 rounded-3xl p-5 md:p-6 text-white shadow-xl shadow-purple-900/10 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/15 text-purple-200 flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-purple-500/40 text-purple-100 px-2.5 py-0.5 rounded-lg border border-purple-300/30">
+                        Custom Client Service
+                      </span>
+                      <span className="text-xs font-semibold text-purple-200">
+                        Fulfillment: <strong className="text-white">{request.unit}</strong>
+                      </span>
+                    </div>
+                    <h2 className="text-base font-black tracking-tight mt-1">
+                      {request.additional_data.service_display_label || request.additional_data.service_name} Request
+                    </h2>
+                  </div>
+                </div>
+
+                {request.additional_data.suggested_staff_name && (
+                  <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-2 flex items-center gap-2.5">
+                    <span className="text-[10px] font-semibold text-purple-200 uppercase tracking-wider">
+                      Recommended Specialist:
+                    </span>
+                    <span className="text-xs font-black text-white bg-purple-500/40 px-2 py-0.5 rounded-lg border border-purple-300/30">
+                      {request.additional_data.suggested_staff_name}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -51,6 +51,25 @@ CREATE TABLE IF NOT EXISTS units (
   FOREIGN KEY (head_id) REFERENCES users(id)
 );
 
+-- Custom Client Service Buttons (Client-Facing Intake Buttons without Adding Separate Units)
+CREATE TABLE IF NOT EXISTS custom_services (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  display_label TEXT NOT NULL,
+  description TEXT,
+  department_id INTEGER,
+  target_unit_id INTEGER NOT NULL,
+  target_unit_name TEXT NOT NULL,
+  suggested_staff_id INTEGER,
+  suggested_staff_name TEXT,
+  is_active INTEGER DEFAULT 1,
+  form_schema TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (department_id) REFERENCES departments(id),
+  FOREIGN KEY (target_unit_id) REFERENCES units(id)
+);
+
 -- Acting Manager Delegations Table
 CREATE TABLE IF NOT EXISTS delegations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

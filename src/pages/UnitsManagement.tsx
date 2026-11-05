@@ -23,7 +23,25 @@ import {
   Globe,
   Tag,
   Briefcase,
+  Sparkles,
+  Camera,
 } from 'lucide-react';
+
+export interface CustomService {
+  id: number;
+  name: string;
+  display_label: string;
+  description: string;
+  department_id: number | null;
+  target_unit_id: number;
+  target_unit_name: string;
+  suggested_staff_id: number | null;
+  suggested_staff_name: string | null;
+  is_active: boolean;
+  form_schema: SchemaField[];
+  department_name?: string;
+  unit_display_name?: string;
+}
 
 interface SchemaField {
   id: string;
@@ -50,13 +68,30 @@ export const UnitsManagement: React.FC = () => {
   }
 
   // Navigation tab for Admin
-  const [activeTab, setActiveTab] = useState<'structure' | 'builder'>('structure');
+  const [activeTab, setActiveTab] = useState<'structure' | 'services' | 'builder'>('structure');
 
   // Main data states
   const [departments, setDepartments] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [usersList, setUsersList] = useState<any[]>([]);
+  const [customServices, setCustomServices] = useState<CustomService[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Custom Service modal state
+  const [customServiceModalOpen, setCustomServiceModalOpen] = useState(false);
+  const [editingCustomService, setEditingCustomService] = useState<CustomService | null>(null);
+  const [customServiceForm, setCustomServiceForm] = useState({
+    name: '',
+    display_label: '',
+    description: '',
+    department_id: '',
+    target_unit_id: '',
+    suggested_staff_id: '',
+    is_active: true,
+  });
+  const [isSavingCustomService, setIsSavingCustomService] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<CustomService | null>(null);
+  const [deletingService, setDeletingService] = useState(false);
 
   // Quick unit add / rename
   const [newUnitName, setNewUnitName] = useState('');
@@ -145,10 +180,157 @@ export const UnitsManagement: React.FC = () => {
     }
   };
 
+  const fetchCustomServices = async () => {
+    try {
+      const res = await fetch('/api/admin/custom-services', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setCustomServices(data);
+    } catch (err) {
+      console.error('Failed to fetch custom services:', err);
+    }
+  };
+
   const refreshAll = () => {
     fetchDepartments();
     fetchUnits();
     fetchUsers();
+    if (isAdmin) fetchCustomServices();
+  };
+
+  const handleOpenAddCustomService = () => {
+    setEditingCustomService(null);
+    const defaultUnit = units.find((u) => u.name.toLowerCase().includes('event')) || units[0];
+    setCustomServiceForm({
+      name: '',
+      display_label: '',
+      description: '',
+      department_id: defaultUnit?.department_id ? String(defaultUnit.department_id) : '',
+      target_unit_id: defaultUnit ? String(defaultUnit.id) : '',
+      suggested_staff_id: '',
+      is_active: true,
+    });
+    setCustomServiceModalOpen(true);
+  };
+
+  const handleOpenEditCustomService = (service: CustomService) => {
+    setEditingCustomService(service);
+    setCustomServiceForm({
+      name: service.name,
+      display_label: service.display_label || service.name,
+      description: service.description || '',
+      department_id: service.department_id ? String(service.department_id) : '',
+      target_unit_id: String(service.target_unit_id),
+      suggested_staff_id: service.suggested_staff_id ? String(service.suggested_staff_id) : '',
+      is_active: service.is_active,
+    });
+    setCustomServiceModalOpen(true);
+  };
+
+  const handleSaveCustomService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customServiceForm.name.trim() || !customServiceForm.target_unit_id) return;
+    setIsSavingCustomService(true);
+    try {
+      const payload = {
+        name: customServiceForm.name.trim(),
+        display_label: customServiceForm.display_label.trim() || customServiceForm.name.trim(),
+        description: customServiceForm.description.trim(),
+        department_id: customServiceForm.department_id ? Number(customServiceForm.department_id) : undefined,
+        target_unit_id: Number(customServiceForm.target_unit_id),
+        suggested_staff_id: customServiceForm.suggested_staff_id ? Number(customServiceForm.suggested_staff_id) : null,
+        is_active: customServiceForm.is_active,
+      };
+
+      if (editingCustomService) {
+        await fetch(`/api/admin/custom-services/${editingCustomService.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetch('/api/admin/custom-services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      setCustomServiceModalOpen(false);
+      fetchCustomServices();
+      setAlertModal({
+        title: editingCustomService ? 'Service Updated' : 'Service Created',
+        message: `Custom service '${payload.name}' has been saved successfully.`,
+        type: 'success',
+      });
+    } catch (err: any) {
+      console.error('Failed to save custom service:', err);
+      setAlertModal({
+        title: 'Error',
+        message: 'Failed to save custom service.',
+        type: 'error',
+      });
+    } finally {
+      setIsSavingCustomService(false);
+    }
+  };
+
+  const handleToggleServiceActive = async (service: CustomService) => {
+    try {
+      await fetch(`/api/admin/custom-services/${service.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ is_active: !service.is_active }),
+      });
+      fetchCustomServices();
+    } catch (err) {
+      console.error('Failed to toggle service status:', err);
+    }
+  };
+
+  const handleDeleteService = async () => {
+    if (!serviceToDelete) return;
+    setDeletingService(true);
+    try {
+      await fetch(`/api/admin/custom-services/${serviceToDelete.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setServiceToDelete(null);
+      fetchCustomServices();
+      setAlertModal({
+        title: 'Service Deleted',
+        message: 'The custom service has been removed.',
+        type: 'success',
+      });
+    } catch (err) {
+      console.error('Failed to delete custom service:', err);
+      setAlertModal({
+        title: 'Error',
+        message: 'Failed to delete custom service.',
+        type: 'error',
+      });
+    } finally {
+      setDeletingService(false);
+    }
+  };
+
+  const handleOpenServiceBuilder = (service: CustomService) => {
+    const serviceObj = {
+      ...service,
+      is_custom_service: true,
+      name: `[Service] ${service.name}`,
+    };
+    setSelectedUnit(serviceObj);
+    const existing = service.form_schema || [];
+    const normalized = existing.map((f: any) => ({
+      ...f,
+      scope: getFieldScope(f),
+    }));
+    setSchemaFields(normalized);
+    resetFieldForm();
+    setActiveTab('builder');
   };
 
   useEffect(() => {
@@ -534,11 +716,19 @@ export const UnitsManagement: React.FC = () => {
     if (!selectedUnit) return;
     setIsSavingSchema(true);
     try {
-      await fetch(`/api/admin/units/${selectedUnit.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ form_schema: schemaFields }),
-      });
+      if (selectedUnit.is_custom_service) {
+        await fetch(`/api/admin/custom-services/${selectedUnit.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ form_schema: schemaFields }),
+        });
+      } else {
+        await fetch(`/api/admin/units/${selectedUnit.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ form_schema: schemaFields }),
+        });
+      }
 
       setSelectedUnit({
         ...selectedUnit,
@@ -600,6 +790,18 @@ export const UnitsManagement: React.FC = () => {
             >
               <Building2 className="w-4 h-4" />
               <span>Departments & Units</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('services')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all ${
+                activeTab === 'services'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Custom Services</span>
             </button>
             <button
               type="button"
@@ -940,7 +1142,161 @@ export const UnitsManagement: React.FC = () => {
       )}
 
       {/* ========================================================= */}
-      {/* TAB 2: FORM BUILDER VIEW (VERTICAL STACK LAYOUT)          */}
+      {/* TAB 2: CUSTOM CLIENT SERVICES (ADMIN ONLY)               */}
+      {/* ========================================================= */}
+      {isAdmin && activeTab === 'services' && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          {/* Header Card */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-1.5 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-bold border border-purple-200/60">
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                <span>Client Intake Customization</span>
+              </div>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                Custom Client Services
+              </h2>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Create dedicated service intake buttons for clients (e.g., <strong>Photography</strong>) without creating new organizational units.
+                Requests automatically route to the fulfillment unit (e.g., <strong>Events Management</strong>) and notify the Unit Head for assignment.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenAddCustomService}
+              className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-2xl h-11 px-5 border-none shadow-lg shadow-purple-500/25 flex items-center gap-2 shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Custom Service</span>
+            </button>
+          </div>
+
+          {/* Services Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {customServices.map((service) => {
+              const questionCount = service.form_schema?.length || 0;
+              return (
+                <div
+                  key={service.id}
+                  className={`bg-white rounded-3xl p-6 border transition-all flex flex-col justify-between shadow-xl ${
+                    service.is_active
+                      ? 'border-slate-100 shadow-slate-200/50 hover:border-purple-200'
+                      : 'border-slate-200/60 bg-slate-50/60 opacity-80'
+                  }`}
+                >
+                  <div className="space-y-4">
+                    {/* Top Row: Department Tag & Status Toggle */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-100">
+                        {service.department_name || 'CORPORATE EVENT'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleServiceActive(service)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black transition-colors ${
+                          service.is_active
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-slate-200/70 text-slate-500 border border-slate-300'
+                        }`}
+                        title={service.is_active ? 'Active on Public Form (Click to hide)' : 'Hidden (Click to show)'}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${service.is_active ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                        <span>{service.is_active ? 'PUBLIC ACTIVE' : 'HIDDEN'}</span>
+                      </button>
+                    </div>
+
+                    {/* Service Name & Description */}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                          <Camera className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                          {service.display_label || service.name}
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2 line-clamp-2 leading-relaxed">
+                        {service.description || 'No description provided.'}
+                      </p>
+                    </div>
+
+                    {/* Routing & Assignment Info */}
+                    <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 font-semibold text-[11px]">Fulfillment Unit:</span>
+                        <span className="font-extrabold text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200/80">
+                          {service.target_unit_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 font-semibold text-[11px]">Suggested Specialist:</span>
+                        <span className="font-extrabold text-indigo-700 bg-indigo-50/70 px-2 py-0.5 rounded-md border border-indigo-100">
+                          {service.suggested_staff_name || 'Unit Head Assigns'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 font-semibold text-[11px]">Dynamic Intake Questions:</span>
+                        <span className="font-black text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
+                          {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Actions */}
+                  <div className="flex items-center justify-between gap-2 pt-4 mt-4 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenServiceBuilder(service)}
+                      className="btn btn-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 rounded-xl font-bold flex items-center gap-1.5 h-8 px-3"
+                      title="Configure dynamic questions for this service"
+                    >
+                      <Sliders className="w-3.5 h-3.5" />
+                      <span>Questions ({questionCount})</span>
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditCustomService(service)}
+                        className="btn btn-ghost btn-xs text-slate-600 hover:text-indigo-600 rounded-xl h-8 px-2.5 font-bold"
+                        title="Edit service details"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setServiceToDelete(service)}
+                        className="btn btn-ghost btn-xs text-rose-500 hover:bg-rose-50 rounded-xl h-8 px-2"
+                        title="Delete custom service"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {customServices.length === 0 && (
+              <div className="col-span-full bg-white rounded-3xl p-12 border border-slate-100 text-center shadow-xl shadow-slate-200/50 space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-extrabold text-slate-800">No Custom Services Configured</h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Click 'Add Custom Service' above to create custom buttons like Photography for clients.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 3: FORM BUILDER VIEW (VERTICAL STACK LAYOUT)          */}
       {/* ========================================================= */}
       {(isHeadUnit || activeTab === 'builder') && (
         <div className="space-y-6 animate-in fade-in duration-200">
@@ -1897,6 +2253,238 @@ export const UnitsManagement: React.FC = () => {
                   className="btn bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl px-5 h-10 border-none shadow-md shadow-rose-500/20"
                 >
                   {deletingUnit ? 'Deleting...' : 'Delete Unit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: ADD / EDIT CUSTOM SERVICE                          */}
+      {/* ========================================================= */}
+      {customServiceModalOpen && (
+        <div className="fixed inset-0 z-50 !mt-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 bg-purple-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 text-purple-300 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">
+                    {editingCustomService ? 'Edit Custom Service' : 'Add Custom Service'}
+                  </h3>
+                  <p className="text-[11px] text-purple-200 font-medium">
+                    Create a dedicated client button without adding a new unit
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomServiceModalOpen(false)}
+                className="btn btn-sm btn-ghost btn-circle text-purple-200 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCustomService} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Service Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Photography"
+                    value={customServiceForm.name}
+                    onChange={(e) => setCustomServiceForm({ ...customServiceForm, name: e.target.value })}
+                    className="input input-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-bold focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Public Button Label *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Photography"
+                    value={customServiceForm.display_label}
+                    onChange={(e) => setCustomServiceForm({ ...customServiceForm, display_label: e.target.value })}
+                    className="input input-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-bold focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Service Description / Deliverable</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Official event photo coverage, corporate portraits & documentation..."
+                  value={customServiceForm.description}
+                  onChange={(e) => setCustomServiceForm({ ...customServiceForm, description: e.target.value })}
+                  className="textarea textarea-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 font-medium focus:bg-white resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Fulfillment Unit *</label>
+                  <select
+                    required
+                    value={customServiceForm.target_unit_id}
+                    onChange={(e) => {
+                      const uId = e.target.value;
+                      const matchedUnit = units.find((u) => String(u.id) === uId);
+                      setCustomServiceForm({
+                        ...customServiceForm,
+                        target_unit_id: uId,
+                        department_id: matchedUnit?.department_id ? String(matchedUnit.department_id) : customServiceForm.department_id,
+                        suggested_staff_id: '',
+                      });
+                    }}
+                    className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-bold focus:bg-white"
+                  >
+                    <option value="">Select Target Unit</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} {u.department_name ? `(${u.department_name})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">Tickets will be routed to this unit's queue.</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Department Tag</label>
+                  <select
+                    value={customServiceForm.department_id}
+                    onChange={(e) => setCustomServiceForm({ ...customServiceForm, department_id: e.target.value })}
+                    className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-medium focus:bg-white"
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">Badge displayed on the public card.</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Suggested Specialist Staff (Pilihan)</label>
+                <select
+                  value={customServiceForm.suggested_staff_id}
+                  onChange={(e) => setCustomServiceForm({ ...customServiceForm, suggested_staff_id: e.target.value })}
+                  className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-medium focus:bg-white"
+                >
+                  <option value="">None — Let Unit Head assign manually</option>
+                  {usersList
+                    .filter((u) => {
+                      if (!customServiceForm.target_unit_id) return true;
+                      const selectedUnitObj = units.find((unit) => String(unit.id) === customServiceForm.target_unit_id);
+                      if (!selectedUnitObj) return true;
+                      return (
+                        Number(u.unit_id) === Number(selectedUnitObj.id) ||
+                        (u.unit && u.unit.toLowerCase().trim() === selectedUnitObj.name.toLowerCase().trim())
+                      );
+                    })
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.unit || 'Staff'}) — {u.email}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                  Contoh: <strong>Zainal</strong>. Head Unit (Laurence) akan melihat cadangan nama ini untuk penugasan pantas.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={customServiceForm.is_active}
+                    onChange={(e) => setCustomServiceForm({ ...customServiceForm, is_active: e.target.checked })}
+                    className="checkbox checkbox-primary checkbox-sm rounded-lg"
+                  />
+                  <span className="text-xs font-bold text-slate-800">
+                    Show as active button on public job request form
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setCustomServiceModalOpen(false)}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingCustomService}
+                  className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl px-5 h-10 border-none shadow-md shadow-purple-500/20"
+                >
+                  {isSavingCustomService ? 'Saving...' : editingCustomService ? 'Save Changes' : 'Create Service'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: DELETE CUSTOM SERVICE CONFIRMATION                 */}
+      {/* ========================================================= */}
+      {serviceToDelete && (
+        <div className="fixed inset-0 z-50 !mt-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 bg-rose-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center shrink-0">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">Delete Custom Service</h3>
+                  <p className="text-[11px] text-white/80 font-medium">Confirmation</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setServiceToDelete(null)}
+                className="btn btn-sm btn-ghost btn-circle text-white/80 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium leading-relaxed">
+                Are you sure you want to delete custom service <strong>"{serviceToDelete.name}"</strong>?
+                <br />
+                <span className="text-[11px] text-rose-700 font-normal mt-1 block">
+                  The button will be removed from the public form. Existing submitted jobs will not be affected.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setServiceToDelete(null)}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteService}
+                  disabled={deletingService}
+                  className="btn bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl px-5 h-10 border-none shadow-md shadow-rose-500/20"
+                >
+                  {deletingService ? 'Deleting...' : 'Delete Service'}
                 </button>
               </div>
             </div>

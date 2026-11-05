@@ -588,6 +588,189 @@ admin.delete('/units/:id', async (c) => {
   return c.json({ success: true, message: 'Unit deleted' });
 });
 
+// Helper: Ensure custom_services table exists and seed initial Photography service if empty
+async function ensureCustomServicesTable(db: any) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS custom_services (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      display_label TEXT NOT NULL,
+      description TEXT,
+      department_id INTEGER,
+      target_unit_id INTEGER NOT NULL,
+      target_unit_name TEXT NOT NULL,
+      suggested_staff_id INTEGER,
+      suggested_staff_name TEXT,
+      is_active INTEGER DEFAULT 1,
+      form_schema TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  const countRow = await db.prepare('SELECT COUNT(*) as cnt FROM custom_services').first<{ cnt: number }>();
+  if (!countRow || countRow.cnt === 0) {
+    const eventsUnit = await db.prepare("SELECT u.id, u.name, u.department_id FROM units u WHERE u.name LIKE '%Event%' LIMIT 1").first<any>();
+    const zainalUser = await db.prepare("SELECT id, name FROM users WHERE name LIKE '%Zainal%' LIMIT 1").first<any>();
+    if (eventsUnit) {
+      const initialSchema = [
+        { id: 'event_date', label: 'Event Date & Time', type: 'text', required: true, scope: 'both', help_text: 'e.g. 25 Nov 2026, 9:00 AM - 5:00 PM' },
+        { id: 'venue', label: 'Event Venue / Location', type: 'text', required: true, scope: 'both', help_text: 'e.g. Grand Ballroom / Level 3 Auditorium' },
+        { id: 'photo_type', label: 'Photography Category', type: 'select', options: ['Corporate Event Coverage', 'Official VIP / Portrait Shoot', 'Product / Facility Shoot', 'Studio Session', 'Other'], required: true, scope: 'both' },
+        { id: 'estimated_hours', label: 'Estimated Coverage Duration (Hours)', type: 'number', required: false, scope: 'both' }
+      ];
+
+      await db.prepare(`
+        INSERT INTO custom_services (name, display_label, description, department_id, target_unit_id, target_unit_name, suggested_staff_id, suggested_staff_name, is_active, form_schema)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+      `).bind(
+        'Photography',
+        'Photography',
+        'Official corporate event coverage, VIP portraits, documentation & photo shoots',
+        eventsUnit.department_id,
+        eventsUnit.id,
+        eventsUnit.name,
+        zainalUser?.id || null,
+        zainalUser?.name || 'Zainal',
+        JSON.stringify(initialSchema)
+      ).run();
+    }
+  }
+}
+
+// Custom Services CRUD (Admin Only)
+admin.get('/custom-services', async (c) => {
+  const db = c.env.DB;
+  await ensureCustomServicesTable(db);
+  const { results } = await db.prepare(`
+    SELECT s.*, d.name as department_name, u.name as unit_display_name
+    FROM custom_services s
+    LEFT JOIN departments d ON s.department_id = d.id
+    LEFT JOIN units u ON s.target_unit_id = u.id
+    ORDER BY s.id ASC
+  `).all<any>();
+
+  const list = (results || []).map((r) => ({
+    ...r,
+    is_active: r.is_active === 1 || r.is_active === true,
+    form_schema: r.form_schema ? JSON.parse(r.form_schema) : []
+  }));
+  return c.json(list);
+});
+
+admin.post('/custom-services', async (c) => {
+  const db = c.env.DB;
+  await ensureCustomServicesTable(db);
+  const body = await c.req.json();
+  const { name, display_label, description, department_id, target_unit_id, suggested_staff_id, is_active, form_schema } = body;
+
+  if (!name || !target_unit_id) {
+    return c.json({ error: 'Service name and target unit are required.' }, 400);
+  }
+
+  const unitRow = await db.prepare('SELECT id, name, department_id FROM units WHERE id = ?').bind(target_unit_id).first<any>();
+  if (!unitRow) {
+    return c.json({ error: 'Target unit not found.' }, 404);
+  }
+
+  let staffName = null;
+  if (suggested_staff_id) {
+    const staffRow = await db.prepare('SELECT id, name FROM users WHERE id = ?').bind(suggested_staff_id).first<any>();
+    staffName = staffRow?.name || null;
+  }
+
+  const deptId = department_id || unitRow.department_id || null;
+  const res = await db.prepare(`
+    INSERT INTO custom_services (name, display_label, description, department_id, target_unit_id, target_unit_name, suggested_staff_id, suggested_staff_name, is_active, form_schema)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    name.trim(),
+    (display_label || name).trim(),
+    description || '',
+    deptId,
+    unitRow.id,
+    unitRow.name,
+    suggested_staff_id || null,
+    staffName,
+    is_active !== false ? 1 : 0,
+    form_schema ? JSON.stringify(form_schema) : '[]'
+  ).run();
+
+  return c.json({ success: true, id: res.meta.last_row_id });
+});
+
+admin.put('/custom-services/:id', async (c) => {
+  const db = c.env.DB;
+  await ensureCustomServicesTable(db);
+  const id = parseInt(c.req.param('id'), 10);
+  const body = await c.req.json();
+
+  const existing = await db.prepare('SELECT * FROM custom_services WHERE id = ?').bind(id).first<any>();
+  if (!existing) {
+    return c.json({ error: 'Custom service not found.' }, 404);
+  }
+
+  const name = body.name !== undefined ? body.name.trim() : existing.name;
+  const displayLabel = body.display_label !== undefined ? body.display_label.trim() : existing.display_label;
+  const description = body.description !== undefined ? body.description : existing.description;
+  const targetUnitId = body.target_unit_id !== undefined ? body.target_unit_id : existing.target_unit_id;
+  const isActive = body.is_active !== undefined ? (body.is_active ? 1 : 0) : existing.is_active;
+  const formSchema = body.form_schema !== undefined ? (typeof body.form_schema === 'string' ? body.form_schema : JSON.stringify(body.form_schema)) : existing.form_schema;
+
+  let unitName = existing.target_unit_name;
+  let departmentId = body.department_id !== undefined ? body.department_id : existing.department_id;
+  if (body.target_unit_id && body.target_unit_id !== existing.target_unit_id) {
+    const unitRow = await db.prepare('SELECT id, name, department_id FROM units WHERE id = ?').bind(targetUnitId).first<any>();
+    if (unitRow) {
+      unitName = unitRow.name;
+      if (body.department_id === undefined) {
+        departmentId = unitRow.department_id;
+      }
+    }
+  }
+
+  let suggestedStaffId = body.suggested_staff_id !== undefined ? body.suggested_staff_id : existing.suggested_staff_id;
+  let suggestedStaffName = existing.suggested_staff_name;
+  if (body.suggested_staff_id !== undefined) {
+    if (body.suggested_staff_id) {
+      const staffRow = await db.prepare('SELECT id, name FROM users WHERE id = ?').bind(body.suggested_staff_id).first<any>();
+      suggestedStaffName = staffRow?.name || null;
+    } else {
+      suggestedStaffId = null;
+      suggestedStaffName = null;
+    }
+  }
+
+  await db.prepare(`
+    UPDATE custom_services
+    SET name = ?, display_label = ?, description = ?, department_id = ?, target_unit_id = ?, target_unit_name = ?,
+        suggested_staff_id = ?, suggested_staff_name = ?, is_active = ?, form_schema = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(
+    name,
+    displayLabel,
+    description,
+    departmentId,
+    targetUnitId,
+    unitName,
+    suggestedStaffId,
+    suggestedStaffName,
+    isActive,
+    formSchema,
+    id
+  ).run();
+
+  return c.json({ success: true, message: 'Custom service updated' });
+});
+
+admin.delete('/custom-services/:id', async (c) => {
+  const db = c.env.DB;
+  await ensureCustomServicesTable(db);
+  const id = parseInt(c.req.param('id'), 10);
+  await db.prepare('DELETE FROM custom_services WHERE id = ?').bind(id).run();
+  return c.json({ success: true, message: 'Custom service deleted' });
+});
+
 // Users CRUD
 admin.get('/users', async (c) => {
   const db = c.env.DB;

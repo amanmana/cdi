@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus, ChevronDown, Sliders, MessageSquare } from 'lucide-react';
+import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus, ChevronDown, Sliders, MessageSquare, Camera } from 'lucide-react';
 
 export const JobRequestsList: React.FC = () => {
   const { token, user } = useAuth();
@@ -919,6 +919,15 @@ export const JobRequestsList: React.FC = () => {
                               <FolderKanban className="w-3 h-3 text-purple-600" />
                               <span>MEGA PROJECT</span>
                             </Link>
+                          )}
+                          {req.additional_data?.service_name && (
+                            <span
+                              title={`Custom Client Service: ${req.additional_data.service_name}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-black shrink-0"
+                            >
+                              <Camera className="w-3 h-3 text-purple-600" />
+                              <span>{req.additional_data.service_name.toUpperCase()}</span>
+                            </span>
                           )}
                         </div>
                         <Link

@@ -33,6 +33,49 @@ publicApi.get('/units', async (c) => {
   return c.json(formatted);
 });
 
+// Get public custom services (Custom Buttons created by Admin)
+publicApi.get('/custom-services', async (c) => {
+  const db = c.env.DB;
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS custom_services (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        display_label TEXT NOT NULL,
+        description TEXT,
+        department_id INTEGER,
+        target_unit_id INTEGER NOT NULL,
+        target_unit_name TEXT NOT NULL,
+        suggested_staff_id INTEGER,
+        suggested_staff_name TEXT,
+        is_active INTEGER DEFAULT 1,
+        form_schema TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
+    const { results } = await db.prepare(`
+      SELECT s.id, s.name, s.display_label, s.description, s.department_id, s.target_unit_id, s.target_unit_name,
+             s.suggested_staff_id, s.suggested_staff_name, s.form_schema,
+             d.name as department_name
+      FROM custom_services s
+      LEFT JOIN departments d ON s.department_id = d.id
+      WHERE s.is_active = 1
+      ORDER BY s.id ASC
+    `).all<any>();
+
+    const list = (results || []).map((r) => ({
+      ...r,
+      form_schema: r.form_schema ? JSON.parse(r.form_schema) : [],
+    }));
+    return c.json(list);
+  } catch (err: any) {
+    console.warn('Failed to load public custom services:', err);
+    return c.json([]);
+  }
+});
+
 // Get public settings (Deadline Alert configuration)
 publicApi.get('/settings', async (c) => {
   const { results } = await c.env.DB
@@ -54,10 +97,10 @@ publicApi.get('/settings', async (c) => {
 // Submit a new job request (Public)
 publicApi.post('/job-requests', async (c) => {
   try {
-    const { client_name, client_email, title, description, deadline, unit, additional_data, turnstileToken } = await c.req.json();
+    const { client_name, client_email, title, description, deadline, unit, service_id, service_name, additional_data, turnstileToken } = await c.req.json();
 
-    if (!client_name || !client_email || !title || !unit || !deadline || !turnstileToken) {
-      return c.json({ error: 'Please complete all required fields: full name, email, job title, target deadline, target unit, and security verification.' }, 400);
+    if (!client_name || !client_email || !title || (!unit && !service_id && !service_name) || !deadline || !turnstileToken) {
+      return c.json({ error: 'Please complete all required fields: full name, email, job title, target deadline, target unit/service, and security verification.' }, 400);
     }
 
     // Verify Turnstile
@@ -84,6 +127,16 @@ publicApi.post('/job-requests', async (c) => {
       }
     }
 
+    // Check if submitted under a Custom Service (e.g. Photography)
+    let customService: any = null;
+    if (service_id) {
+      customService = await c.env.DB.prepare('SELECT * FROM custom_services WHERE id = ?').bind(service_id).first<any>();
+    } else if (service_name) {
+      customService = await c.env.DB.prepare('SELECT * FROM custom_services WHERE name = ? OR display_label = ?').bind(service_name, service_name).first<any>();
+    }
+
+    const targetUnitQuery = customService ? customService.target_unit_name : unit;
+
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const letters = chars.charAt(Math.floor(Math.random() * chars.length)) + chars.charAt(Math.floor(Math.random() * chars.length));
     const numbers = Math.floor(100000 + Math.random() * 900000).toString();
@@ -98,12 +151,23 @@ publicApi.post('/job-requests', async (c) => {
         LEFT JOIN users m ON d.manager_id = m.id
         WHERE u.name = ? OR u.public_label = ? OR CAST(u.id AS TEXT) = ?
       `)
-      .bind(unit, unit, unit)
+      .bind(targetUnitQuery, targetUnitQuery, targetUnitQuery)
       .first<any>();
 
-    const unitId = unitRow?.id || null;
-    const departmentId = unitRow?.department_id || null;
-    const resolvedUnitName = unitRow?.name || unit;
+    const unitId = unitRow?.id || (customService ? customService.target_unit_id : null);
+    const departmentId = unitRow?.department_id || (customService ? customService.department_id : null);
+    const resolvedUnitName = unitRow?.name || targetUnitQuery;
+
+    const combinedAdditionalData = {
+      ...(additional_data || {}),
+      ...(customService ? {
+        service_id: customService.id,
+        service_name: customService.name,
+        service_display_label: customService.display_label,
+        suggested_staff_id: customService.suggested_staff_id,
+        suggested_staff_name: customService.suggested_staff_name,
+      } : {})
+    };
 
     const res = await c.env.DB
       .prepare(
@@ -117,7 +181,7 @@ publicApi.post('/job-requests', async (c) => {
         title,
         description || '',
         deadline,
-        additional_data ? JSON.stringify(additional_data) : null,
+        JSON.stringify(combinedAdditionalData),
         resolvedUnitName,
         unitId,
         departmentId
@@ -127,12 +191,16 @@ publicApi.post('/job-requests', async (c) => {
     const requestId = res.meta.last_row_id as number;
 
     // Log initial workflow creation
+    const submitComment = customService
+      ? `Job request submitted by ${client_email} for service [${customService.name}]. Target Deadline: ${deadline}`
+      : `Job request submitted by ${client_email}. Target Deadline: ${deadline}`;
+
     await c.env.DB
       .prepare(
         `INSERT INTO workflow_logs (job_request_id, action, actor_name, from_step_name, to_step_name, comment)
          VALUES (?, 'SUBMIT', ?, 'Client Form', 'Manager Review', ?)`
       )
-      .bind(requestId, client_name, `Job request submitted by ${client_email}. Target Deadline: ${deadline}`)
+      .bind(requestId, client_name, submitComment)
       .run();
 
     // Find Manager email for target unit/department
