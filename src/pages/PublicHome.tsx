@@ -411,92 +411,12 @@ export const PublicHome: React.FC = () => {
             )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-              {/* SECTION 1: APPLICANT DETAILS */}
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
-                      1
-                    </div>
-                    <div>
-                      <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-blue-600" />
-                        Applicant Information
-                      </h2>
-                      <p className="text-[11px] text-slate-400 font-medium">Official contact details for ticket updates and tracking</p>
-                    </div>
-                  </div>
-
-                  {user && user.role !== 'client' && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (user.name) setClientName(user.name);
-                          if (user.email) setClientEmail(user.email);
-                        }}
-                        className="btn btn-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-bold text-[11px] normal-case"
-                        title="Auto-fill with my logged in CDI account details"
-                      >
-                        Fill My Details
-                      </button>
-                      {(clientName || clientEmail) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setClientName('');
-                            setClientEmail('');
-                          }}
-                          className="btn btn-xs btn-ghost text-slate-400 hover:text-slate-600 text-[11px] font-bold"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div className="form-control">
-                    <label className="label pt-0 pb-1.5">
-                      <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
-                        Full Name <span className="text-rose-500">*</span>
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Client Name / Organization"
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
-                    />
-                  </div>
-
-                  <div className="form-control">
-                    <label className="label pt-0 pb-1.5">
-                      <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
-                        Email Address <span className="text-rose-500">*</span>
-                      </span>
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. client@organization.com"
-                      value={clientEmail}
-                      onChange={(e) => setClientEmail(e.target.value)}
-                      className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 2: TARGET UNIT SELECTION (MULTI-SELECT) */}
+              {/* SECTION 1: TARGET SERVICE UNITS (MULTI-SELECT) */}
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
                   <div className="flex items-center gap-3">
                     <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
-                      2
+                      1
                     </div>
                     <div>
                       <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -632,6 +552,86 @@ export const PublicHome: React.FC = () => {
                 </div>
               </div>
 
+              {/* SECTION 2: APPLICANT DETAILS */}
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                      2
+                    </div>
+                    <div>
+                      <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-blue-600" />
+                        Applicant Information
+                      </h2>
+                      <p className="text-[11px] text-slate-400 font-medium">Official contact details for ticket updates and tracking</p>
+                    </div>
+                  </div>
+
+                  {user && user.role !== 'client' && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (user.name) setClientName(user.name);
+                          if (user.email) setClientEmail(user.email);
+                        }}
+                        className="btn btn-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-bold text-[11px] normal-case"
+                        title="Auto-fill with my logged in CDI account details"
+                      >
+                        Fill My Details
+                      </button>
+                      {(clientName || clientEmail) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientName('');
+                            setClientEmail('');
+                          }}
+                          className="btn btn-xs btn-ghost text-slate-400 hover:text-slate-600 text-[11px] font-bold"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="form-control">
+                    <label className="label pt-0 pb-1.5">
+                      <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
+                        Full Name <span className="text-rose-500">*</span>
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Client Name / Organization"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
+                    />
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label pt-0 pb-1.5">
+                      <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
+                        Email Address <span className="text-rose-500">*</span>
+                      </span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. client@organization.com"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* SECTION 3: SCOPE & TIMELINE */}
               <div className="space-y-6">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
@@ -720,33 +720,62 @@ export const PublicHome: React.FC = () => {
                     className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-3.5"
                   ></textarea>
                 </div>
+              </div>
 
-                {/* DYNAMIC PER-UNIT DELIVERABLES SPECIFICATION CARDS */}
-                {selectedItems.length === 0 ? (
-                  <div className="p-8 rounded-2xl bg-slate-50/80 border border-dashed border-slate-200 text-center space-y-2">
-                    <Layers className="w-8 h-8 text-slate-300 mx-auto" />
-                    <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      No Service Unit Selected Yet
-                    </div>
-                    <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto">
-                      Please select one or more service units in Step 2 above to configure deliverables and specifications.
-                    </p>
+              {/* VISUAL TRANSITION DIVIDER BETWEEN GENERAL INFO & UNIT SPECIFICATIONS */}
+              <div className="relative my-3 py-4">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div className="w-full border-t-2 border-dashed border-slate-200" />
+                </div>
+                <div className="relative flex justify-center">
+                  <div className="bg-gradient-to-r from-blue-50/90 via-white to-blue-50/90 px-6 py-2 rounded-full border border-blue-200 shadow-xs flex items-center gap-3">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
+                    </span>
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                      Detailed Scope & Specifications Form
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-600 text-white tracking-wider uppercase">
+                      Part 2
+                    </span>
                   </div>
-                ) : (
-                  <div className="space-y-4 pt-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                        <span>Unit Deliverables & Requirements</span>
-                        <span className="text-[10px] font-extrabold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                          {selectedItems.length} {selectedItems.length === 1 ? 'Unit' : 'Units'} Selected
-                        </span>
-                      </span>
-                      <span className="text-[11px] font-medium text-slate-400">
-                        {selectedItems.length > 1
-                          ? `Configuring Unit ${activeUnitIndex + 1} of ${selectedItems.length}`
-                          : 'Specify deliverables & requirements'}
+                </div>
+              </div>
+
+              {/* SECTION 4: UNIT DELIVERABLES & REQUIREMENTS */}
+              {selectedItems.length === 0 ? (
+                <div className="p-8 rounded-3xl bg-slate-50/70 border-2 border-dashed border-slate-200 text-center space-y-2">
+                  <Layers className="w-8 h-8 text-slate-300 mx-auto" />
+                  <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    No Service Unit Selected Yet
+                  </div>
+                  <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto">
+                    Please select one or more service units in Step 1 above to configure deliverables and specifications.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5 bg-gradient-to-b from-blue-50/30 via-slate-50/20 to-white p-5 md:p-7 rounded-3xl border border-blue-100 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-blue-100 gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md shadow-blue-500/25">
+                        4
+                      </div>
+                      <div>
+                        <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-blue-600" />
+                          Unit Deliverables & Requirements <span className="text-rose-500">*</span>
+                        </h2>
+                        <p className="text-[11px] text-slate-500 font-medium">Specify detailed instructions, deliverables, and technical parameters for each chosen team</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full border border-blue-200">
+                        {selectedItems.length} {selectedItems.length === 1 ? 'Unit Selected' : 'Units Selected'}
                       </span>
                     </div>
+                  </div>
 
                     {/* Stepper Wizard Bar (shown when multiple units selected) */}
                     {selectedItems.length > 1 && (
@@ -1147,7 +1176,6 @@ export const PublicHome: React.FC = () => {
                     })()}
                   </div>
                 )}
-              </div>
 
               {/* Turnstile verification */}
               <div className="pt-2 flex justify-center">
