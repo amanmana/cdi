@@ -740,69 +740,94 @@ export const PublicHome: React.FC = () => {
 
                     {/* Stepper Wizard Bar (shown when multiple units selected) */}
                     {selectedItems.length > 1 && (
-                      <div className="bg-slate-50/80 rounded-2xl p-4 md:p-6 border border-slate-200/80">
-                        <div className="flex items-center justify-between max-w-xl mx-auto relative">
-                          {selectedItems.map((sItem, sIdx) => {
-                            const isCompleted = isUnitComplete(sItem);
-                            const isActive = sIdx === activeUnitIndex;
+                      <div className="bg-slate-50/90 rounded-2xl p-4 md:p-5 border border-slate-200/80 overflow-hidden shadow-2xs">
+                        {/* Progress Header above Stepper */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3.5 pb-2.5 border-b border-slate-200/60">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                            <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                              Step {activeUnitIndex + 1} of {selectedItems.length}: <span className="text-blue-600">{selectedItems[activeUnitIndex]?.display_label}</span>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-[11px] font-bold text-slate-500">
+                              {selectedItems.filter(isUnitComplete).length} of {selectedItems.length} Units Ready
+                            </span>
+                            <div className="w-24 bg-slate-200 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-emerald-500 h-full transition-all duration-300 rounded-full"
+                                style={{ width: `${(selectedItems.filter(isUnitComplete).length / selectedItems.length) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
 
-                            return (
-                              <React.Fragment key={sItem.key}>
-                                {/* Step Circle & Label */}
-                                <div
-                                  onClick={() => setActiveUnitIndex(sIdx)}
-                                  className="flex flex-col items-center cursor-pointer group relative z-10 transition-all select-none"
-                                >
+                        {/* Responsive Stepper Trail (Scrolls cleanly inside container if many units) */}
+                        <div className="overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-slate-300 flex items-center justify-start md:justify-center">
+                          <div className="flex items-center shrink-0 px-2 min-w-max mx-auto">
+                            {selectedItems.map((sItem, sIdx) => {
+                              const isCompleted = isUnitComplete(sItem);
+                              const isActive = sIdx === activeUnitIndex;
+
+                              return (
+                                <React.Fragment key={sItem.key}>
+                                  {/* Step Circle & Label */}
                                   <div
-                                    className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center font-extrabold text-xs transition-all duration-200 ${
-                                      isCompleted
-                                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25 group-hover:bg-emerald-600'
-                                        : isActive
-                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-4 ring-blue-100 group-hover:bg-blue-700'
-                                        : 'bg-white border-2 border-slate-200 text-slate-400 group-hover:border-slate-300 group-hover:text-slate-600'
-                                    }`}
+                                    onClick={() => setActiveUnitIndex(sIdx)}
+                                    className="flex flex-col items-center cursor-pointer group relative z-10 transition-all select-none shrink-0 w-20 md:w-24 text-center"
                                   >
-                                    {isCompleted ? (
-                                      <Check className="w-5 h-5 stroke-[2.5]" />
-                                    ) : (
-                                      <span>{sIdx + 1}</span>
-                                    )}
-                                  </div>
-                                  <span
-                                    className={`text-[11px] font-bold mt-2 text-center max-w-[110px] truncate transition-colors ${
-                                      isActive
-                                        ? 'text-blue-700 font-extrabold'
-                                        : isCompleted
-                                        ? 'text-emerald-700'
-                                        : 'text-slate-500 group-hover:text-slate-700'
-                                    }`}
-                                  >
-                                    {sItem.display_label}
-                                  </span>
-                                  <span className="text-[9px] font-semibold mt-0.5">
-                                    {isCompleted ? (
-                                      <span className="text-emerald-600">✓ Ready</span>
-                                    ) : isActive ? (
-                                      <span className="text-blue-600 font-bold uppercase tracking-wider">Active</span>
-                                    ) : (
-                                      <span className="text-slate-400">Pending</span>
-                                    )}
-                                  </span>
-                                </div>
-
-                                {/* Connecting Line to next step */}
-                                {sIdx < selectedItems.length - 1 && (
-                                  <div className="flex-1 h-0.5 mx-2 md:mx-4 relative -top-3.5 bg-slate-200 overflow-hidden rounded-full">
                                     <div
-                                      className={`h-full transition-all duration-300 ${
-                                        isCompleted ? 'bg-emerald-500 w-full' : 'w-0'
+                                      className={`w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-xs transition-all duration-200 ${
+                                        isCompleted
+                                          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25 group-hover:bg-emerald-600'
+                                          : isActive
+                                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-4 ring-blue-100 group-hover:bg-blue-700'
+                                          : 'bg-white border-2 border-slate-200 text-slate-400 group-hover:border-slate-300 group-hover:text-slate-600'
                                       }`}
-                                    />
+                                    >
+                                      {isCompleted ? (
+                                        <Check className="w-5 h-5 stroke-[2.5]" />
+                                      ) : (
+                                        <span>{sIdx + 1}</span>
+                                      )}
+                                    </div>
+                                    <span
+                                      className={`text-[10px] md:text-[11px] font-bold mt-1.5 px-1 truncate w-full transition-colors ${
+                                        isActive
+                                          ? 'text-blue-700 font-extrabold'
+                                          : isCompleted
+                                          ? 'text-emerald-700'
+                                          : 'text-slate-500 group-hover:text-slate-700'
+                                      }`}
+                                      title={sItem.display_label}
+                                    >
+                                      {sItem.display_label}
+                                    </span>
+                                    <span className="text-[9px] font-semibold mt-0.5">
+                                      {isCompleted ? (
+                                        <span className="text-emerald-600">✓ Ready</span>
+                                      ) : isActive ? (
+                                        <span className="text-blue-600 font-bold uppercase tracking-wider">Active</span>
+                                      ) : (
+                                        <span className="text-slate-400">Pending</span>
+                                      )}
+                                    </span>
                                   </div>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
+
+                                  {/* Connecting Line to next step */}
+                                  {sIdx < selectedItems.length - 1 && (
+                                    <div className="w-5 sm:w-8 md:w-10 h-0.5 relative -top-3.5 bg-slate-200 shrink-0 overflow-hidden rounded-full">
+                                      <div
+                                        className={`h-full transition-all duration-300 ${
+                                          isCompleted ? 'bg-emerald-500 w-full' : 'w-0'
+                                        }`}
+                                      />
+                                    </div>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     )}
