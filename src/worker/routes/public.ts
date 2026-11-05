@@ -55,6 +55,35 @@ publicApi.get('/custom-services', async (c) => {
       )
     `).run();
 
+    const countRow = await db.prepare('SELECT COUNT(*) as cnt FROM custom_services').first<{ cnt: number }>();
+    if (!countRow || countRow.cnt === 0) {
+      const eventsUnit = await db.prepare("SELECT u.id, u.name, u.department_id FROM units u WHERE u.name LIKE '%Event%' LIMIT 1").first<any>();
+      const zainalUser = await db.prepare("SELECT id, name FROM users WHERE name LIKE '%Zainal%' LIMIT 1").first<any>();
+      if (eventsUnit) {
+        const initialSchema = [
+          { id: 'event_date', label: 'Event Date & Time', type: 'text', required: true, scope: 'both', help_text: 'e.g. 25 Nov 2026, 9:00 AM - 5:00 PM' },
+          { id: 'venue', label: 'Event Venue / Location', type: 'text', required: true, scope: 'both', help_text: 'e.g. Grand Ballroom / Level 3 Auditorium' },
+          { id: 'photo_type', label: 'Photography Category', type: 'select', options: ['Corporate Event Coverage', 'Official VIP / Portrait Shoot', 'Product / Facility Shoot', 'Studio Session', 'Other'], required: true, scope: 'both' },
+          { id: 'estimated_hours', label: 'Estimated Coverage Duration (Hours)', type: 'number', required: false, scope: 'both' }
+        ];
+
+        await db.prepare(`
+          INSERT INTO custom_services (name, display_label, description, department_id, target_unit_id, target_unit_name, suggested_staff_id, suggested_staff_name, is_active, form_schema)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        `).bind(
+          'Photography',
+          'Photography',
+          'Official corporate event coverage, VIP portraits, documentation & photo shoots',
+          eventsUnit.department_id,
+          eventsUnit.id,
+          eventsUnit.name,
+          zainalUser?.id || null,
+          zainalUser?.name || 'Zainal',
+          JSON.stringify(initialSchema)
+        ).run();
+      }
+    }
+
     const { results } = await db.prepare(`
       SELECT s.id, s.name, s.display_label, s.description, s.department_id, s.target_unit_id, s.target_unit_name,
              s.suggested_staff_id, s.suggested_staff_name, s.form_schema,
