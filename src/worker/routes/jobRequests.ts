@@ -350,6 +350,7 @@ jobRequestsRouter.get('/', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const search = c.req.query('search');
+  const workspaceUnit = c.req.query('workspace_unit');
 
   let query = `
     SELECT j.*, 
@@ -415,10 +416,77 @@ jobRequestsRouter.get('/', async (c) => {
         user.id
       );
     } else {
-      // Regular staff: See jobs where assigned. Allow inter-unit jobs even if pending manager/head approval so assigned origin staff can track progress
-      query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 
-                 AND (j.status != 'manager_approval' OR j.ticket_no LIKE 'IU%' OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = 1 OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = true)`;
-      params.push(String(user.id));
+      // Regular staff scoping
+      const isSocMedUnit = (u?: string | null) => {
+        if (!u) return false;
+        const s = u.toLowerCase().trim();
+        return s === 'social media' || s === 'socmed' || s.includes('social') || s.includes('socmed');
+      };
+
+      const isAuthorizedWorkspace = Boolean(
+        workspaceUnit && (
+          (user.unit && user.unit.toLowerCase().trim() === workspaceUnit.toLowerCase().trim()) ||
+          (isSocMedUnit(user.unit) && isSocMedUnit(workspaceUnit))
+        )
+      );
+
+      if (workspaceUnit && isAuthorizedWorkspace) {
+        // Staff viewing their shared unit workspace / whiteboard (e.g. Jana viewing Social Media Workspace)
+        const wClean = workspaceUnit.trim();
+        const isSoc = isSocMedUnit(wClean);
+
+        if (isSoc) {
+          query += ` AND (
+            LOWER(TRIM(j.unit)) IN ('social media', 'socmed')
+            OR LOWER(TRIM(un.name)) IN ('social media', 'socmed')
+            OR j.unit_id IN (SELECT id FROM units WHERE LOWER(TRIM(name)) IN ('social media', 'socmed'))
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.target_units')), 'social') > 0
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.target_units')), 'socmed') > 0
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.assistance_requests')), 'social') > 0
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.assistance_requests')), 'socmed') > 0
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.requester_unit')), 'social') > 0
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.requester_unit')), 'socmed') > 0
+            OR INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0
+            OR EXISTS (
+              SELECT 1 FROM users u_sub 
+              WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || u_sub.id || ',') > 0 
+                AND (LOWER(TRIM(u_sub.unit)) IN ('social media', 'socmed') OR u_sub.unit_id IN (SELECT id FROM units WHERE LOWER(TRIM(name)) IN ('social media', 'socmed')))
+            )
+          )`;
+          params.push(String(user.id));
+        } else {
+          query += ` AND (
+            LOWER(TRIM(j.unit)) = LOWER(TRIM(?))
+            OR LOWER(TRIM(un.name)) = LOWER(TRIM(?))
+            OR j.unit_id IN (SELECT id FROM units WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)))
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.target_units')), LOWER(?)) > 0
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.assistance_requests')), LOWER(?)) > 0
+            OR INSTR(LOWER(JSON_EXTRACT(j.additional_data, '$.requester_unit')), LOWER(?)) > 0
+            OR INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0
+            OR EXISTS (
+              SELECT 1 FROM users u_sub 
+              WHERE INSTR(',' || j.assigned_staff_ids || ',', ',' || u_sub.id || ',') > 0 
+                AND (LOWER(TRIM(u_sub.unit)) = LOWER(TRIM(?)) OR u_sub.unit_id IN (SELECT id FROM units WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))))
+            )
+          )`;
+          params.push(
+            wClean,
+            wClean,
+            wClean,
+            wClean,
+            wClean,
+            wClean,
+            String(user.id),
+            wClean,
+            wClean
+          );
+        }
+      } else {
+        // Regular staff default scoping for standard job lists
+        query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 
+                   AND (j.status != 'manager_approval' OR j.ticket_no LIKE 'IU%' OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = 1 OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = true)`;
+        params.push(String(user.id));
+      }
     }
   } else if (user && user.role === 'client') {
     query += ` AND j.client_email = ?`;
@@ -784,7 +852,7 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const id = c.req.param('id');
-  const { stage_id, stage_label, is_completed } = await c.req.json();
+  const { stage_id, stage_label } = await c.req.json();
 
   const req = await db.prepare('SELECT * FROM job_requests WHERE id = ?').bind(id).first<any>();
   if (!req) {
@@ -834,24 +902,19 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
   addData.kanban_updated_at = new Date().toISOString();
   addData.kanban_updated_by = user.name || user.email;
 
-  let newStatus = req.status;
-  if (is_completed) {
-    newStatus = 'completed';
-  } else if (req.status === 'completed' && !is_completed) {
-    newStatus = 'staff_processing';
-  }
-
-  await db.prepare('UPDATE job_requests SET additional_data = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .bind(JSON.stringify(addData), newStatus, id)
+  // IMPORTANT: Kanban is purely a whiteboard. DO NOT change job status.
+  // User must manually go into the system to update and complete the project.
+  await db.prepare('UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .bind(JSON.stringify(addData), id)
     .run();
 
   // Log workflow action
   await db.prepare(`
     INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment)
     VALUES (?, 'KANBAN_STAGE_MOVED', ?, ?, ?)
-  `).bind(id, user.id, user.name, `Moved task to stage: ${stage_label || stage_id}`).run();
+  `).bind(id, user.id, user.name, `Moved task on whiteboard to stage: ${stage_label || stage_id}`).run();
 
-  return c.json({ success: true, stage: stage_id, status: newStatus });
+  return c.json({ success: true, stage: stage_id, status: req.status });
 });
 
 // Weekly Automated Reports Endpoint for Staff & Managers

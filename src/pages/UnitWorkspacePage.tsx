@@ -340,8 +340,8 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
         ]);
       }
 
-      // Fetch All Job Requests (will be filtered for this unit)
-      const jobRes = await fetch('/api/job-requests', {
+      // Fetch All Job Requests (for this workspace unit)
+      const jobRes = await fetch(`/api/job-requests?workspace_unit=${encodeURIComponent(currentUnit)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const jobData = await jobRes.json().catch(() => []);
@@ -413,12 +413,11 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [unitJobs, currentUnit]);
 
-  // Helper: Determine if task is finished / completed
+  // Helper: Determine if task is finished / completed in system
+  // NOTE: Kanban board is strictly a whiteboard. Moving a card to "Done" column does NOT complete the project.
+  // The task only shows "Completed" when manually updated in the system (status === 'completed' or 'done').
   const isJobCompleted = (job: any): boolean => {
-    if (job.status === 'completed' || job.status === 'done') return true;
-    const stage = (job.additional_data?.kanban_stage || '').toLowerCase();
-    if (stage === 'published' || stage.includes('done') || stage.includes('completed')) return true;
-    return false;
+    return job.status === 'completed' || job.status === 'done';
   };
 
   // Helper: Map a job into a kanban column ID
@@ -494,23 +493,18 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     return { total, completed, unfinished, rate };
   }, [unitJobs]);
 
-  // Move Card to a New Kanban Stage
+  // Move Card to a New Kanban Stage (Purely visual whiteboard update - does NOT mutate job status)
   const handleMoveCard = async (jobId: number, targetStageId: string) => {
     if (!canMoveCards) return;
     const targetCol = kanbanColumns.find((c) => c.id === targetStageId);
     if (!targetCol) return;
 
-    // Check if target column is the final completed column
-    const isLastCol = kanbanColumns[kanbanColumns.length - 1].id === targetStageId;
-    const isCompleted = isLastCol || targetCol.label.toLowerCase().includes('done') || targetCol.label.toLowerCase().includes('published');
-
-    // Optimistically update local state
+    // Optimistically update local whiteboard stage
     setJobRequests((prev) =>
       prev.map((job) => {
         if (job.id === jobId) {
           return {
             ...job,
-            status: isCompleted ? 'completed' : (job.status === 'completed' ? 'staff_processing' : job.status),
             additional_data: {
               ...(job.additional_data || {}),
               kanban_stage: targetStageId,
@@ -532,7 +526,6 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
         body: JSON.stringify({
           stage_id: targetStageId,
           stage_label: targetCol.label,
-          is_completed: isCompleted,
         }),
       });
       if (!res.ok) {
