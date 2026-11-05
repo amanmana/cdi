@@ -36,7 +36,9 @@ import {
   CalendarRange,
   Users,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 interface KanbanColumn {
@@ -199,6 +201,29 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [dragOverColId, setDragOverColId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [stageOrders, setStageOrders] = useState<Record<string, number[]>>({});
+
+  // Full View State for Kanban
+  const [isKanbanFullscreen, setIsKanbanFullscreen] = useState<boolean>(false);
+  const [kanbanFitMode, setKanbanFitMode] = useState<'fit' | 'scroll'>('fit');
+
+  // Prevent background scrolling & handle Escape key in Full View
+  useEffect(() => {
+    if (isKanbanFullscreen) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setIsKanbanFullscreen(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = 'unset';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [isKanbanFullscreen]);
 
   // Calendar State
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
@@ -1367,7 +1392,59 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
       {/* 3. TAB 1: KANBAN BOARD (Exclusively for Social Media Unit) */}
       {isKanbanEnabled && activeTab === 'kanban' && (
-        <div className="space-y-4">
+        <div
+          className={`space-y-4 transition-all duration-300 ${
+            isKanbanFullscreen
+              ? 'fixed inset-0 z-50 bg-slate-100 p-4 md:p-6 flex flex-col h-screen w-screen overflow-hidden'
+              : ''
+          }`}
+        >
+          {/* Top Fullscreen Header (only visible in fullscreen) */}
+          {isKanbanFullscreen && (
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black text-base shadow-sm">
+                  📱
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-800 tracking-tight flex items-center gap-2">
+                    <span>Social Media Kanban Board</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-wider border border-indigo-200">
+                      ⛶ Full View Whiteboard
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Paparan penuh interaktif • Tekan <kbd className="px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[10px] font-mono font-bold">Esc</kbd> atau klik 'Exit Full View' untuk kembali
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Fit Mode Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setKanbanFitMode((prev) => (prev === 'fit' ? 'scroll' : 'fit'))}
+                  className="btn btn-sm bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                  title={kanbanFitMode === 'fit' ? 'Switch to scrollable 320px columns' : 'Fit all columns to screen'}
+                >
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>{kanbanFitMode === 'fit' ? 'Fit Screen' : 'Scrollable (320px)'}</span>
+                </button>
+
+                {/* Exit Full View Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsKanbanFullscreen(false)}
+                  className="btn btn-sm bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl border-none shadow-sm flex items-center gap-1.5"
+                  title="Exit Full View (Esc)"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                  <span>Exit Full View</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Board Filters & Actions */}
           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
@@ -1401,16 +1478,55 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
               </div>
             </div>
 
-            {/* Head Unit Add Column Control */}
-            {canManageColumns && (
+            <div className="flex items-center gap-2">
+              {/* Fit Mode Toggle in normal toolbar */}
+              {!isKanbanFullscreen && (
+                <button
+                  type="button"
+                  onClick={() => setKanbanFitMode((prev) => (prev === 'fit' ? 'scroll' : 'fit'))}
+                  className="btn btn-sm bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                  title={kanbanFitMode === 'fit' ? 'Switch to scrollable 320px columns' : 'Fit all columns to screen'}
+                >
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="hidden sm:inline">{kanbanFitMode === 'fit' ? 'Fit Screen' : 'Scrollable'}</span>
+                </button>
+              )}
+
+              {/* Full View Toggle Button */}
               <button
-                onClick={() => setShowAddColumnModal(true)}
-                className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl border-none shadow-sm flex items-center gap-1.5"
+                type="button"
+                onClick={() => setIsKanbanFullscreen((prev) => !prev)}
+                className={`btn btn-sm rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border shadow-2xs ${
+                  isKanbanFullscreen
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600'
+                    : 'bg-white hover:bg-indigo-50 text-indigo-700 border-indigo-200 hover:border-indigo-300'
+                }`}
+                title={isKanbanFullscreen ? 'Exit Full View (Esc)' : 'Expand Kanban to Full View'}
               >
-                <Plus className="w-4 h-4" />
-                <span>Add Column</span>
+                {isKanbanFullscreen ? (
+                  <>
+                    <Minimize2 className="w-3.5 h-3.5" />
+                    <span>Exit Full View</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    <span>Full View</span>
+                  </>
+                )}
               </button>
-            )}
+
+              {/* Head Unit Add Column Control */}
+              {canManageColumns && (
+                <button
+                  onClick={() => setShowAddColumnModal(true)}
+                  className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl border-none shadow-sm flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Add Column</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Color Rule Guide Banner */}
@@ -1436,7 +1552,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           </div>
 
           {/* Kanban Columns Horizontal Container */}
-          <div className="flex gap-4 overflow-x-auto pb-6 pt-1 min-h-[550px] items-start">
+          <div className={`flex gap-4 overflow-x-auto pb-6 pt-1 items-start ${isKanbanFullscreen ? 'flex-1 min-h-0' : 'min-h-[550px]'}`}>
             {kanbanColumns.map((col, index) => {
               const rawColJobs = kanbanJobs.filter((job) => getJobStageId(job) === col.id);
               const orderList = stageOrders[col.id];
@@ -1494,7 +1610,13 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     setDragOverColId(null);
                     setDragOverIndex(null);
                   }}
-                  className={`w-80 shrink-0 rounded-3xl border p-4 space-y-3.5 flex flex-col transition-all duration-200 ${
+                  className={`rounded-3xl border p-4 space-y-3.5 flex flex-col transition-all duration-200 ${
+                    kanbanFitMode === 'fit'
+                      ? 'flex-1 min-w-[240px] max-w-sm shrink-0 xl:shrink'
+                      : 'w-80 shrink-0'
+                  } ${
+                    isKanbanFullscreen ? 'h-full max-h-full' : ''
+                  } ${
                     isColumnDraggedOver
                       ? 'bg-indigo-50/90 border-indigo-400 ring-2 ring-indigo-500/60 shadow-lg scale-[1.01]'
                       : 'bg-slate-100/90 border-slate-200/80 shadow-xs'
@@ -1566,7 +1688,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                         setDragOverIndex(0);
                       }
                     }}
-                    className="space-y-3 flex-1 overflow-y-auto max-h-[70vh] pr-1"
+                    className={`space-y-3 flex-1 overflow-y-auto pr-1 ${
+                      isKanbanFullscreen ? 'max-h-[calc(100vh-230px)]' : 'max-h-[70vh]'
+                    }`}
                   >
                     {displayJobs.length === 0 ? (
                       <div
