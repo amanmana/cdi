@@ -242,12 +242,22 @@ export const PublicHome: React.FC = () => {
   };
 
   const [activeUnitIndex, setActiveUnitIndex] = useState(0);
+  const stepperRailRef = React.useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (activeUnitIndex >= selectedItems.length && selectedItems.length > 0) {
       setActiveUnitIndex(selectedItems.length - 1);
     }
   }, [selectedItems.length, activeUnitIndex]);
+
+  useEffect(() => {
+    if (stepperRailRef.current && stepperRailRef.current.children) {
+      const activeEl = stepperRailRef.current.children[activeUnitIndex * 2] as HTMLElement;
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [activeUnitIndex]);
 
   const isUnitComplete = (item: SelectedServiceItem) => {
     const scopeData = unitScopes[item.key];
@@ -749,22 +759,59 @@ export const PublicHome: React.FC = () => {
                               Step {activeUnitIndex + 1} of {selectedItems.length}: <span className="text-blue-600">{selectedItems[activeUnitIndex]?.display_label}</span>
                             </span>
                           </div>
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-[11px] font-bold text-slate-500">
-                              {selectedItems.filter(isUnitComplete).length} of {selectedItems.length} Units Ready
-                            </span>
-                            <div className="w-24 bg-slate-200 h-2 rounded-full overflow-hidden">
-                              <div
-                                className="bg-emerald-500 h-full transition-all duration-300 rounded-full"
-                                style={{ width: `${(selectedItems.filter(isUnitComplete).length / selectedItems.length) * 100}%` }}
-                              />
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-bold text-slate-500">
+                                {selectedItems.filter(isUnitComplete).length} of {selectedItems.length} Units Ready
+                              </span>
+                              <div className="w-20 bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div
+                                  className="bg-emerald-500 h-full transition-all duration-300 rounded-full"
+                                  style={{ width: `${(selectedItems.filter(isUnitComplete).length / selectedItems.length) * 100}%` }}
+                                />
+                              </div>
                             </div>
+
+                            {/* Optional quick scroll buttons if many units */}
+                            {selectedItems.length > 4 && (
+                              <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (stepperRailRef.current?.parentElement) {
+                                      stepperRailRef.current.parentElement.scrollBy({ left: -220, behavior: 'smooth' });
+                                    }
+                                  }}
+                                  className="btn btn-xs btn-circle bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 shadow-2xs"
+                                  title="Scroll Left"
+                                >
+                                  <ArrowLeft className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (stepperRailRef.current?.parentElement) {
+                                      stepperRailRef.current.parentElement.scrollBy({ left: 220, behavior: 'smooth' });
+                                    }
+                                  }}
+                                  className="btn btn-xs btn-circle bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 shadow-2xs"
+                                  title="Scroll Right"
+                                >
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        {/* Responsive Stepper Trail (Scrolls cleanly inside container if many units) */}
-                        <div className="overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-slate-300 flex items-center justify-start md:justify-center">
-                          <div className="flex items-center shrink-0 px-2 min-w-max mx-auto">
+                        {/* Responsive Stepper Trail (Scrolls cleanly inside container without negative offset) */}
+                        <div className="overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-slate-300 w-full scroll-smooth">
+                          <div
+                            ref={stepperRailRef}
+                            className={`flex items-center shrink-0 px-4 min-w-max ${
+                              selectedItems.length <= 4 ? 'mx-auto justify-center' : 'justify-start'
+                            }`}
+                          >
                             {selectedItems.map((sItem, sIdx) => {
                               const isCompleted = isUnitComplete(sItem);
                               const isActive = sIdx === activeUnitIndex;
