@@ -1920,7 +1920,13 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
         return c.json({ error: 'Unauthorized to assign team to this inter-unit request. Only the Target Unit Head may assign staff.' }, 403);
       }
     } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
-      return c.json({ error: 'Unauthorized to approve and assign team to this request.' }, 403);
+      const isCustomServiceHeadUnit = isTargetUnitHead && (
+        additionalDataObj.routing_target === 'head_unit' ||
+        request.current_step_name === 'Unit Head Review'
+      );
+      if (!isCustomServiceHeadUnit) {
+        return c.json({ error: 'Unauthorized to approve and assign team to this request.' }, 403);
+      }
     }
   }
 

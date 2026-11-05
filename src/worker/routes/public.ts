@@ -48,12 +48,17 @@ publicApi.get('/custom-services', async (c) => {
         target_unit_name TEXT NOT NULL,
         suggested_staff_id INTEGER,
         suggested_staff_name TEXT,
+        routing_target TEXT DEFAULT 'manager',
         is_active INTEGER DEFAULT 1,
         form_schema TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `).run();
+
+    try {
+      await db.prepare("ALTER TABLE custom_services ADD COLUMN routing_target TEXT DEFAULT 'manager'").run();
+    } catch (_) {}
 
     const countRow = await db.prepare('SELECT COUNT(*) as cnt FROM custom_services').first<{ cnt: number }>();
     if (!countRow || countRow.cnt === 0) {
@@ -68,8 +73,8 @@ publicApi.get('/custom-services', async (c) => {
         ];
 
         await db.prepare(`
-          INSERT INTO custom_services (name, display_label, description, department_id, target_unit_id, target_unit_name, suggested_staff_id, suggested_staff_name, is_active, form_schema)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+          INSERT INTO custom_services (name, display_label, description, department_id, target_unit_id, target_unit_name, suggested_staff_id, suggested_staff_name, routing_target, is_active, form_schema)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manager', 1, ?)
         `).bind(
           'Photography',
           'Photography',
@@ -86,7 +91,7 @@ publicApi.get('/custom-services', async (c) => {
 
     const { results } = await db.prepare(`
       SELECT s.id, s.name, s.display_label, s.description, s.department_id, s.target_unit_id, s.target_unit_name,
-             s.suggested_staff_id, s.suggested_staff_name, s.form_schema,
+             s.suggested_staff_id, s.suggested_staff_name, s.routing_target, s.form_schema,
              d.name as department_name
       FROM custom_services s
       LEFT JOIN departments d ON s.department_id = d.id
@@ -187,6 +192,20 @@ publicApi.post('/job-requests', async (c) => {
     const departmentId = unitRow?.department_id || (customService ? customService.department_id : null);
     const resolvedUnitName = unitRow?.name || targetUnitQuery;
 
+    const routingTarget = customService?.routing_target || 'manager';
+    let initialStatus = 'manager_approval';
+    let initialStepName = 'Manager Review';
+    let initialAssignedStaffIds: string | null = null;
+
+    if (customService && routingTarget === 'staff' && customService.suggested_staff_id) {
+      initialStatus = 'staff_processing';
+      initialStepName = 'Staff Processing';
+      initialAssignedStaffIds = String(customService.suggested_staff_id);
+    } else if (customService && routingTarget === 'head_unit') {
+      initialStatus = 'manager_approval';
+      initialStepName = 'Unit Head Review';
+    }
+
     const combinedAdditionalData = {
       ...(additional_data || {}),
       ...(customService ? {
@@ -195,13 +214,14 @@ publicApi.post('/job-requests', async (c) => {
         service_display_label: customService.display_label,
         suggested_staff_id: customService.suggested_staff_id,
         suggested_staff_name: customService.suggested_staff_name,
+        routing_target: routingTarget,
       } : {})
     };
 
     const res = await c.env.DB
       .prepare(
-        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, deadline, additional_data, unit, unit_id, department_id, status, current_step_name, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manager_approval', 'Manager Review', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        `INSERT INTO job_requests (ticket_no, client_name, client_email, title, description, deadline, additional_data, unit, unit_id, department_id, status, current_step_name, assigned_staff_ids, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
       .bind(
         ticketNo,
@@ -213,23 +233,40 @@ publicApi.post('/job-requests', async (c) => {
         JSON.stringify(combinedAdditionalData),
         resolvedUnitName,
         unitId,
-        departmentId
+        departmentId,
+        initialStatus,
+        initialStepName,
+        initialAssignedStaffIds
       )
       .run();
 
     const requestId = res.meta.last_row_id as number;
 
+    // If routed directly to staff, create task row in job_tasks
+    if (initialStatus === 'staff_processing' && customService?.suggested_staff_id) {
+      await c.env.DB.prepare(
+        `INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status) VALUES (?, ?, ?, ?, 'pending')`
+      ).bind(requestId, title, customService.suggested_staff_id, customService.suggested_staff_id).run();
+    }
+
     // Log initial workflow creation
-    const submitComment = customService
-      ? `Job request submitted by ${client_email} for service [${customService.name}]. Target Deadline: ${deadline}`
-      : `Job request submitted by ${client_email}. Target Deadline: ${deadline}`;
+    let submitComment = `Job request submitted by ${client_email}. Target Deadline: ${deadline}`;
+    if (customService) {
+      if (routingTarget === 'staff') {
+        submitComment = `Job request submitted for service [${customService.name}]. Direct routed & assigned to ${customService.suggested_staff_name}. Status: Staff Processing.`;
+      } else if (routingTarget === 'head_unit') {
+        submitComment = `Job request submitted for service [${customService.name}]. Direct routed to Unit Head for review & assignment.`;
+      } else {
+        submitComment = `Job request submitted for service [${customService.name}]. Awaiting Manager Review.`;
+      }
+    }
 
     await c.env.DB
       .prepare(
         `INSERT INTO workflow_logs (job_request_id, action, actor_name, from_step_name, to_step_name, comment)
-         VALUES (?, 'SUBMIT', ?, 'Client Form', 'Manager Review', ?)`
+         VALUES (?, 'SUBMIT', ?, 'Client Form', ?, ?)`
       )
-      .bind(requestId, client_name, submitComment)
+      .bind(requestId, client_name, initialStepName, submitComment)
       .run();
 
     // Find Manager email for target unit/department

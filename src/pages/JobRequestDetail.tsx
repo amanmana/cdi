@@ -1229,6 +1229,16 @@ export const JobRequestDetail: React.FC = () => {
                       <span className="text-[10px] font-black uppercase tracking-wider bg-purple-500/40 text-purple-100 px-2.5 py-0.5 rounded-lg border border-purple-300/30">
                         Custom Client Service
                       </span>
+                      {request.additional_data?.routing_target === 'staff' && (
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500/40 text-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-300/30">
+                          ⚡ Direct to Staff
+                        </span>
+                      )}
+                      {request.additional_data?.routing_target === 'head_unit' && (
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-teal-500/40 text-teal-100 px-2.5 py-0.5 rounded-lg border border-teal-300/30">
+                          👑 Direct to Head Unit
+                        </span>
+                      )}
                       <span className="text-xs font-semibold text-purple-200">
                         Fulfillment: <strong className="text-white">{request.unit}</strong>
                       </span>

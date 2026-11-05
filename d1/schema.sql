@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS custom_services (
   target_unit_name TEXT NOT NULL,
   suggested_staff_id INTEGER,
   suggested_staff_name TEXT,
+  routing_target TEXT DEFAULT 'manager', -- 'manager', 'head_unit', 'staff'
   is_active INTEGER DEFAULT 1,
   form_schema TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

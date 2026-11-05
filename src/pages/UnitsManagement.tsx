@@ -37,6 +37,7 @@ export interface CustomService {
   target_unit_name: string;
   suggested_staff_id: number | null;
   suggested_staff_name: string | null;
+  routing_target?: 'manager' | 'head_unit' | 'staff';
   is_active: boolean;
   form_schema: SchemaField[];
   department_name?: string;
@@ -87,6 +88,7 @@ export const UnitsManagement: React.FC = () => {
     department_id: '',
     target_unit_id: '',
     suggested_staff_id: '',
+    routing_target: 'manager' as 'manager' | 'head_unit' | 'staff',
     is_active: true,
   });
   const [isSavingCustomService, setIsSavingCustomService] = useState(false);
@@ -209,6 +211,7 @@ export const UnitsManagement: React.FC = () => {
       department_id: defaultUnit?.department_id ? String(defaultUnit.department_id) : '',
       target_unit_id: defaultUnit ? String(defaultUnit.id) : '',
       suggested_staff_id: '',
+      routing_target: 'manager',
       is_active: true,
     });
     setCustomServiceModalOpen(true);
@@ -223,6 +226,7 @@ export const UnitsManagement: React.FC = () => {
       department_id: service.department_id ? String(service.department_id) : '',
       target_unit_id: String(service.target_unit_id),
       suggested_staff_id: service.suggested_staff_id ? String(service.suggested_staff_id) : '',
+      routing_target: service.routing_target || 'manager',
       is_active: service.is_active,
     });
     setCustomServiceModalOpen(true);
@@ -240,6 +244,7 @@ export const UnitsManagement: React.FC = () => {
         department_id: customServiceForm.department_id ? Number(customServiceForm.department_id) : undefined,
         target_unit_id: Number(customServiceForm.target_unit_id),
         suggested_staff_id: customServiceForm.suggested_staff_id ? Number(customServiceForm.suggested_staff_id) : null,
+        routing_target: customServiceForm.routing_target,
         is_active: customServiceForm.is_active,
       };
 
@@ -1233,6 +1238,22 @@ export const UnitsManagement: React.FC = () => {
                         <span className="text-slate-400 font-semibold text-[11px]">Suggested Specialist:</span>
                         <span className="font-extrabold text-indigo-700 bg-indigo-50/70 px-2 py-0.5 rounded-md border border-indigo-100">
                           {service.suggested_staff_name || 'Unit Head Assigns'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 font-semibold text-[11px]">Workflow Route:</span>
+                        <span className={`font-black text-[10px] px-2 py-0.5 rounded-md border ${
+                          service.routing_target === 'staff'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : service.routing_target === 'head_unit'
+                            ? 'bg-teal-50 text-teal-800 border-teal-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
+                        }`}>
+                          {service.routing_target === 'staff'
+                            ? `⚡ Direct to Staff (${service.suggested_staff_name || 'Staff'})`
+                            : service.routing_target === 'head_unit'
+                            ? '👑 Direct to Head Unit'
+                            : '🏢 Dept. Manager Review'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -2399,6 +2420,76 @@ export const UnitsManagement: React.FC = () => {
                 <p className="text-[10px] text-slate-400 mt-1 font-medium">
                   Contoh: <strong>Zainal</strong>. Head Unit (Laurence) akan melihat cadangan nama ini untuk penugasan pantas.
                 </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                  Workflow Entry Route (Laluan Permohonan Awal) *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <label className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-1.5 text-left ${
+                    customServiceForm.routing_target === 'manager'
+                      ? 'bg-blue-50/70 border-blue-500 ring-2 ring-blue-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-white'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">🏢 Manager (Default)</span>
+                      <input
+                        type="radio"
+                        name="routing_target"
+                        value="manager"
+                        checked={customServiceForm.routing_target === 'manager'}
+                        onChange={() => setCustomServiceForm({ ...customServiceForm, routing_target: 'manager' })}
+                        className="radio radio-primary radio-xs"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Melalui semakan & kelulusan Pengurus Jabatan biasa.
+                    </span>
+                  </label>
+
+                  <label className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-1.5 text-left ${
+                    customServiceForm.routing_target === 'head_unit'
+                      ? 'bg-teal-50/70 border-teal-500 ring-2 ring-teal-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-white'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">👑 Head of Unit</span>
+                      <input
+                        type="radio"
+                        name="routing_target"
+                        value="head_unit"
+                        checked={customServiceForm.routing_target === 'head_unit'}
+                        onChange={() => setCustomServiceForm({ ...customServiceForm, routing_target: 'head_unit' })}
+                        className="radio radio-primary radio-xs"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Langkau Pengurus; terus ke Unit Head (cth: Laurence) untuk assign staf.
+                    </span>
+                  </label>
+
+                  <label className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-1.5 text-left ${
+                    customServiceForm.routing_target === 'staff'
+                      ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-white'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">⚡ Direct to Staff</span>
+                      <input
+                        type="radio"
+                        name="routing_target"
+                        value="staff"
+                        checked={customServiceForm.routing_target === 'staff'}
+                        onChange={() => setCustomServiceForm({ ...customServiceForm, routing_target: 'staff' })}
+                        className="radio radio-primary radio-xs"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Auto-approve & auto-assign terus ke staf (cth: Zainal). Staf terus mula kerja!
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <div className="pt-2">

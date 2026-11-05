@@ -601,12 +601,17 @@ async function ensureCustomServicesTable(db: any) {
       target_unit_name TEXT NOT NULL,
       suggested_staff_id INTEGER,
       suggested_staff_name TEXT,
+      routing_target TEXT DEFAULT 'manager',
       is_active INTEGER DEFAULT 1,
       form_schema TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+
+  try {
+    await db.prepare("ALTER TABLE custom_services ADD COLUMN routing_target TEXT DEFAULT 'manager'").run();
+  } catch (_) {}
 
   const countRow = await db.prepare('SELECT COUNT(*) as cnt FROM custom_services').first<{ cnt: number }>();
   if (!countRow || countRow.cnt === 0) {
@@ -662,7 +667,7 @@ admin.post('/custom-services', async (c) => {
   const db = c.env.DB;
   await ensureCustomServicesTable(db);
   const body = await c.req.json();
-  const { name, display_label, description, department_id, target_unit_id, suggested_staff_id, is_active, form_schema } = body;
+  const { name, display_label, description, department_id, target_unit_id, suggested_staff_id, routing_target, is_active, form_schema } = body;
 
   if (!name || !target_unit_id) {
     return c.json({ error: 'Service name and target unit are required.' }, 400);
@@ -679,10 +684,11 @@ admin.post('/custom-services', async (c) => {
     staffName = staffRow?.name || null;
   }
 
+  const validRouting = ['manager', 'head_unit', 'staff'].includes(routing_target) ? routing_target : 'manager';
   const deptId = department_id || unitRow.department_id || null;
   const res = await db.prepare(`
-    INSERT INTO custom_services (name, display_label, description, department_id, target_unit_id, target_unit_name, suggested_staff_id, suggested_staff_name, is_active, form_schema)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO custom_services (name, display_label, description, department_id, target_unit_id, target_unit_name, suggested_staff_id, suggested_staff_name, routing_target, is_active, form_schema)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     name.trim(),
     (display_label || name).trim(),
@@ -692,6 +698,7 @@ admin.post('/custom-services', async (c) => {
     unitRow.name,
     suggested_staff_id || null,
     staffName,
+    validRouting,
     is_active !== false ? 1 : 0,
     form_schema ? JSON.stringify(form_schema) : '[]'
   ).run();
@@ -714,6 +721,7 @@ admin.put('/custom-services/:id', async (c) => {
   const displayLabel = body.display_label !== undefined ? body.display_label.trim() : existing.display_label;
   const description = body.description !== undefined ? body.description : existing.description;
   const targetUnitId = body.target_unit_id !== undefined ? body.target_unit_id : existing.target_unit_id;
+  const routingTarget = body.routing_target !== undefined && ['manager', 'head_unit', 'staff'].includes(body.routing_target) ? body.routing_target : (existing.routing_target || 'manager');
   const isActive = body.is_active !== undefined ? (body.is_active ? 1 : 0) : existing.is_active;
   const formSchema = body.form_schema !== undefined ? (typeof body.form_schema === 'string' ? body.form_schema : JSON.stringify(body.form_schema)) : existing.form_schema;
 
@@ -744,7 +752,7 @@ admin.put('/custom-services/:id', async (c) => {
   await db.prepare(`
     UPDATE custom_services
     SET name = ?, display_label = ?, description = ?, department_id = ?, target_unit_id = ?, target_unit_name = ?,
-        suggested_staff_id = ?, suggested_staff_name = ?, is_active = ?, form_schema = ?, updated_at = CURRENT_TIMESTAMP
+        suggested_staff_id = ?, suggested_staff_name = ?, routing_target = ?, is_active = ?, form_schema = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).bind(
     name,
@@ -755,6 +763,7 @@ admin.put('/custom-services/:id', async (c) => {
     unitName,
     suggestedStaffId,
     suggestedStaffName,
+    routingTarget,
     isActive,
     formSchema,
     id
