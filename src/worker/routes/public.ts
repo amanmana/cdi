@@ -188,6 +188,7 @@ publicApi.post('/job-requests', async (c) => {
     let primaryUnitId: number | null = null;
     let primaryDeptId: number | null = null;
     let resolvedUnitName = unit || '';
+    let unitRow: any = null;
     let unitAssignmentsMap: Record<string, any> = {};
     let initialStatus = 'manager_approval';
     let initialStepName = 'Manager Review';
@@ -268,7 +269,7 @@ publicApi.post('/job-requests', async (c) => {
     } else {
       // Single unit resolution
       const targetUnitQuery = customService ? customService.target_unit_name : unit;
-      const unitRow = await c.env.DB
+      unitRow = await c.env.DB
         .prepare(`
           SELECT u.id, u.name, u.department_id, d.manager_id, m.email as manager_email, m.name as manager_name
           FROM units u
@@ -387,7 +388,7 @@ publicApi.post('/job-requests', async (c) => {
           WHERE (u.unit_id = ? OR LOWER(TRIM(u.unit)) = LOWER(TRIM(?)) OR LOWER(TRIM(un.name)) = LOWER(TRIM(?))) AND u.role = 'manager'
           LIMIT 1
         `)
-        .bind(unitId, resolvedUnitName, resolvedUnitName)
+        .bind(primaryUnitId, resolvedUnitName, resolvedUnitName)
         .first<{ email: string; name: string }>();
 
       targetManagerEmail = manager?.email || 'amanmana@gmail.com';
@@ -402,7 +403,7 @@ publicApi.post('/job-requests', async (c) => {
       <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); padding: 28px; text-align: center; border-radius: 16px;">
           <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px;">NEW JOB REQUEST</h1>
-          <p style="color: #bfdbfe; margin: 6px 0 0 0; font-size: 12px; font-weight: 600;">Unit: ${unit}</p>
+          <p style="color: #bfdbfe; margin: 6px 0 0 0; font-size: 12px; font-weight: 600;">Unit: ${resolvedUnitName}</p>
         </div>
         <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
           <p style="font-size: 14px; color: #475569;">Hello <strong>${targetManagerName}</strong>,</p>
@@ -412,7 +413,7 @@ publicApi.post('/job-requests', async (c) => {
             <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #2563eb; font-weight: 800;">#${ticketNo}</span></p>
             <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Project Title:</strong> ${title}</p>
             <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Client:</strong> ${client_name} (${client_email})</p>
-            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Unit:</strong> ${unit}</p>
+            <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Unit:</strong> ${resolvedUnitName}</p>
             <p style="margin: 0; font-size: 13px;"><strong>Target Deadline:</strong> <span style="color: #dc2626; font-weight: 700;">${deadline}</span></p>
           </div>
 
@@ -431,7 +432,7 @@ publicApi.post('/job-requests', async (c) => {
     try {
       await sendGmail({
         to: targetManagerEmail,
-        subject: `[NEW JOB REQUEST] #${ticketNo} - ${title} (${unit})`,
+        subject: `[NEW JOB REQUEST] #${ticketNo} - ${title} (${resolvedUnitName})`,
         html: managerEmailHtml,
         db: c.env.DB,
       });
@@ -457,14 +458,14 @@ publicApi.post('/job-requests', async (c) => {
           </div>
           <div style="padding: 24px 8px; text-align: left; color: #1e293b;">
             <p style="font-size: 14px; color: #475569;">Hello <strong>${client_name}</strong>,</p>
-            <p style="font-size: 14px; color: #475569; line-height: 1.6;">Thank you for submitting your job request to the <strong>${unit}</strong> unit. We have received your request and assigned it a tracking ticket number.</p>
+            <p style="font-size: 14px; color: #475569; line-height: 1.6;">Thank you for submitting your job request for <strong>${resolvedUnitName}</strong>. We have received your request and assigned it a tracking ticket number.</p>
             
             <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 16px; border-radius: 12px; margin: 20px 0;">
               <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Ticket Number:</strong> <span style="color: #2563eb; font-weight: 800;">#${ticketNo}</span></p>
               <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Project Title:</strong> ${title}</p>
-              <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Unit:</strong> ${unit}</p>
+              <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Unit(s):</strong> ${resolvedUnitName}</p>
               <p style="margin: 0 0 6px 0; font-size: 13px;"><strong>Target Deadline:</strong> <span style="color: #dc2626; font-weight: 700;">${deadline}</span></p>
-              <p style="margin: 0; font-size: 13px;"><strong>Initial Status:</strong> <span style="color: #d97706; font-weight: 700;">Manager Review</span></p>
+              <p style="margin: 0; font-size: 13px;"><strong>Initial Status:</strong> <span style="color: #d97706; font-weight: 700;">${initialStepName}</span></p>
             </div>
 
             <div style="text-align: center; margin: 28px 0;">
