@@ -785,66 +785,156 @@ export const PublicHome: React.FC = () => {
                                   Required Specifications ({publicFields.length})
                                 </span>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                                  {publicFields.map((field) => (
-                                    <div key={field.id} className={`form-control ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
-                                      <label className="label pt-0 pb-1">
-                                        <span className="label-text font-bold text-slate-700 text-xs">
-                                          {field.label} {field.required && <span className="text-rose-500">*</span>}
-                                        </span>
-                                      </label>
-                                      {field.type === 'select' && field.options && (
-                                        <select
-                                          required={field.required}
-                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
-                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
-                                          className="select select-bordered select-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
-                                        >
-                                          <option value="">-- {field.placeholder || `Select ${field.label}`} --</option>
-                                          {field.options.map((opt: string) => (
-                                            <option key={opt} value={opt}>{opt}</option>
-                                          ))}
-                                        </select>
-                                      )}
-                                      {field.type === 'text' && (
-                                        <input
-                                          type="text"
-                                          required={field.required}
-                                          placeholder={field.placeholder || `Enter ${field.label}...`}
-                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
-                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
-                                          className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
-                                        />
-                                      )}
-                                      {field.type === 'textarea' && (
-                                        <textarea
-                                          required={field.required}
-                                          placeholder={field.placeholder || `Enter ${field.label}...`}
-                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
-                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
-                                          className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full h-20 text-xs font-medium p-3"
-                                        ></textarea>
-                                      )}
-                                      {field.type === 'date' && (
-                                        <input
-                                          type="date"
-                                          required={field.required}
-                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
-                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
-                                          className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
-                                        />
-                                      )}
-                                      {field.type === 'number' && (
-                                        <input
-                                          type="number"
-                                          required={field.required}
-                                          placeholder={field.placeholder || '0'}
-                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
-                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
-                                          className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
-                                        />
-                                      )}
-                                    </div>
-                                  ))}
+                                  {publicFields.map((field) => {
+                                    const optionsList: string[] = Array.isArray(field.options)
+                                      ? field.options
+                                      : typeof (field as any).options === 'string'
+                                      ? (field as any).options.split(',').map((o: string) => o.trim()).filter(Boolean)
+                                      : [];
+                                    const isWide = field.type === 'textarea' || field.type === 'radio' || field.type === 'checkbox';
+
+                                    return (
+                                      <div key={field.id} className={`form-control ${isWide ? 'md:col-span-2' : ''}`}>
+                                        <label className="label pt-0 pb-1">
+                                          <span className="label-text font-bold text-slate-700 text-xs">
+                                            {field.label} {field.required && <span className="text-rose-500">*</span>}
+                                          </span>
+                                        </label>
+
+                                        {field.type === 'select' && (
+                                          <select
+                                            required={field.required}
+                                            value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                            onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                            className="select select-bordered select-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                          >
+                                            <option value="">-- {field.placeholder || `Select ${field.label}`} --</option>
+                                            {optionsList.map((opt: string) => (
+                                              <option key={opt} value={opt}>{opt}</option>
+                                            ))}
+                                          </select>
+                                        )}
+
+                                        {field.type === 'radio' && (
+                                          <div className="flex flex-wrap gap-2.5 pt-1">
+                                            {optionsList.map((opt: string, i: number) => {
+                                              const isSelected = (unitScopes[item.key]?.fields?.[field.id] || '') === opt;
+                                              return (
+                                                <label
+                                                  key={i}
+                                                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-all shadow-2xs ${
+                                                    isSelected
+                                                      ? 'bg-blue-50/80 border-blue-500 text-blue-900 shadow-blue-500/10'
+                                                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                                                  }`}
+                                                >
+                                                  <input
+                                                    type="radio"
+                                                    name={`unit_${item.key}_field_${field.id}`}
+                                                    value={opt}
+                                                    checked={isSelected}
+                                                    onChange={() => handleUnitFieldChange(item.key, field.id, opt)}
+                                                    className="radio radio-primary radio-xs"
+                                                  />
+                                                  <span>{opt}</span>
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+
+                                        {field.type === 'checkbox' && (
+                                          <div className="flex flex-wrap gap-2.5 pt-1">
+                                            {optionsList.map((opt: string, i: number) => {
+                                              const currentVal = unitScopes[item.key]?.fields?.[field.id];
+                                              const currentArr: string[] = Array.isArray(currentVal)
+                                                ? currentVal
+                                                : typeof currentVal === 'string'
+                                                ? currentVal.split(', ').filter(Boolean)
+                                                : [];
+                                              const isChecked = currentArr.includes(opt);
+                                              return (
+                                                <label
+                                                  key={i}
+                                                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-all shadow-2xs ${
+                                                    isChecked
+                                                      ? 'bg-blue-50/80 border-blue-500 text-blue-900 shadow-blue-500/10'
+                                                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                                                  }`}
+                                                >
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={(e) => {
+                                                      const updated = e.target.checked
+                                                        ? [...currentArr, opt]
+                                                        : currentArr.filter((v: string) => v !== opt);
+                                                      handleUnitFieldChange(item.key, field.id, updated.join(', '));
+                                                    }}
+                                                    className="checkbox checkbox-primary checkbox-xs rounded"
+                                                  />
+                                                  <span>{opt}</span>
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+
+                                        {field.type === 'text' && (
+                                          <input
+                                            type="text"
+                                            required={field.required}
+                                            placeholder={field.placeholder || `Enter ${field.label}...`}
+                                            value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                            onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                            className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                          />
+                                        )}
+
+                                        {field.type === 'textarea' && (
+                                          <textarea
+                                            required={field.required}
+                                            placeholder={field.placeholder || `Enter ${field.label}...`}
+                                            value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                            onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                            className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full h-20 text-xs font-medium p-3"
+                                          ></textarea>
+                                        )}
+
+                                        {field.type === 'date' && (
+                                          <input
+                                            type="date"
+                                            required={field.required}
+                                            value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                            onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                            className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                          />
+                                        )}
+
+                                        {field.type === 'number' && (
+                                          <input
+                                            type="number"
+                                            required={field.required}
+                                            placeholder={field.placeholder || '0'}
+                                            value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                            onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                            className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                          />
+                                        )}
+
+                                        {!['select', 'radio', 'checkbox', 'text', 'textarea', 'date', 'number'].includes(field.type) && (
+                                          <input
+                                            type="text"
+                                            required={field.required}
+                                            placeholder={field.placeholder || `Enter ${field.label}...`}
+                                            value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                            onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                            className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                          />
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
