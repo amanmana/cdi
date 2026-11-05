@@ -83,6 +83,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [staffFilter, setStaffFilter] = useState<string>('all');
   const [pillarFilter, setPillarFilter] = useState<string>('all');
+  const [showCompletedOnKanban, setShowCompletedOnKanban] = useState<boolean>(false);
 
   // Compute Accessible Units based on strict role scoping:
   // - Admin & Director: All units
@@ -420,6 +421,60 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     return job.status === 'completed' || job.status === 'done';
   };
 
+  // Helper: Render status badge matching the system status pills (Staff Processing, Head Unit Approval, etc.)
+  const renderCardStatusBadge = (job: any) => {
+    const isDone = isJobCompleted(job);
+    const status = job.status;
+    const isInterUnit = Boolean(job.additional_data?.is_inter_unit || job.ticket_no?.startsWith('IU'));
+
+    if (isDone) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white shadow-2xs">
+          <Check className="w-2.5 h-2.5 stroke-[3]" />
+          <span>Completed</span>
+        </span>
+      );
+    }
+
+    if (status === 'manager_approval') {
+      if (isInterUnit) {
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-600 text-white shadow-2xs">
+            <span>Head Unit Approval</span>
+          </span>
+        );
+      }
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white shadow-2xs">
+          <span>Manager Approval</span>
+        </span>
+      );
+    }
+
+    if (status === 'on_hold') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500 text-white shadow-2xs">
+          <span>On Hold</span>
+        </span>
+      );
+    }
+
+    if (status === 'rejected') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-600 text-white shadow-2xs">
+          <span>Rejected</span>
+        </span>
+      );
+    }
+
+    // Default active work in progress
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-600 text-white shadow-2xs">
+        <span>Staff Processing</span>
+      </span>
+    );
+  };
+
   // Helper: Map a job into a kanban column ID
   const getJobStageId = (job: any): string => {
     if (kanbanColumns.length === 0) return 'planning';
@@ -483,6 +538,12 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
       return true;
     });
   }, [unitJobs, searchQuery, staffFilter, pillarFilter]);
+
+  // Filtered Jobs for Kanban board: By default only shows Current / Incomplete jobs (Work In Progress)
+  const kanbanJobs = useMemo(() => {
+    if (showCompletedOnKanban) return filteredJobs;
+    return filteredJobs.filter((job) => !isJobCompleted(job));
+  }, [filteredJobs, showCompletedOnKanban]);
 
   // Overall Stats
   const stats = useMemo(() => {
@@ -1225,7 +1286,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
             <FolderKanban className="w-4 h-4" />
             <span>Kanban Board</span>
             <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${activeTab === 'kanban' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
-              {filteredJobs.length}
+              {kanbanJobs.length}
             </span>
           </button>
         )}
@@ -1318,6 +1379,21 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   </select>
                 </div>
               )}
+
+              {/* Show Completed Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setShowCompletedOnKanban((prev) => !prev)}
+                className={`btn btn-sm rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border normal-case ${
+                  showCompletedOnKanban
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+                title="Toggle completed projects visibility on whiteboard"
+              >
+                <CheckCircle2 className={`w-3.5 h-3.5 ${showCompletedOnKanban ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <span>{showCompletedOnKanban ? 'Hide Completed' : `Show Completed (${unitJobs.filter(isJobCompleted).length})`}</span>
+              </button>
             </div>
 
             {/* Head Unit Add Column Control */}
@@ -1334,28 +1410,36 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
           {/* Color Rule Guide Banner */}
           <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 p-3 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <span className="font-extrabold text-slate-600">Card Status Legend:</span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 font-bold border border-rose-200">
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
-                <span>Incomplete (In Progress / Drafting / Review / Scheduled)</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-100 text-purple-800 font-bold border border-purple-200">
+                <span className="w-2 h-2 rounded-full bg-purple-600" />
+                <span>Staff Processing</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span>Completed (Published / Done)</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-100 text-teal-800 font-bold border border-teal-200">
+                <span className="w-2 h-2 rounded-full bg-teal-600" />
+                <span>Head Unit Approval</span>
               </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-100 text-blue-800 font-bold border border-blue-200">
+                <span className="w-2 h-2 rounded-full bg-blue-600" />
+                <span>Manager Approval</span>
+              </span>
+              {showCompletedOnKanban && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                  <span>Completed</span>
+                </span>
+              )}
             </div>
             <span className="text-[11px] text-slate-400 font-medium">
-              {canMoveCards
-                ? '💡 Drag and drop cards or select stage to update workflow'
-                : '🔒 Workflow planning and stages are managed exclusively by the Head Unit'}
+              💡 Drag and drop cards or select stage to update workflow
             </span>
           </div>
 
           {/* Kanban Columns Horizontal Container */}
           <div className="flex gap-4 overflow-x-auto pb-6 pt-1 min-h-[550px] items-start">
             {kanbanColumns.map((col, index) => {
-              const colJobs = filteredJobs.filter((job) => getJobStageId(job) === col.id);
+              const colJobs = kanbanJobs.filter((job) => getJobStageId(job) === col.id);
               const isColumnDraggedOver = Boolean(canMoveCards && dragOverColId === col.id);
 
               return (
@@ -1485,19 +1569,23 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                               setDraggedJobId(null);
                               setDragOverColId(null);
                             }}
-                            className={`p-4 rounded-2xl transition-all duration-150 space-y-2.5 select-none ${
+                            className={`p-4 rounded-2xl transition-all duration-150 space-y-2.5 select-none bg-white border border-slate-200/80 shadow-xs hover:shadow-md border-l-4 ${
+                              isDone
+                                ? 'border-l-emerald-500 hover:border-emerald-400'
+                                : job.status === 'manager_approval'
+                                ? (Boolean(job.additional_data?.is_inter_unit || job.ticket_no?.startsWith('IU')) ? 'border-l-teal-500 hover:border-teal-400' : 'border-l-blue-500 hover:border-blue-400')
+                                : job.status === 'on_hold'
+                                ? 'border-l-amber-500 hover:border-amber-400'
+                                : 'border-l-purple-500 hover:border-purple-400'
+                            } ${
                               canMoveCards ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
                             } ${
                               isThisCardDragged
                                 ? 'opacity-40 scale-[0.98] border-dashed border-indigo-500 shadow-inner rotate-1'
                                 : ''
-                            } ${
-                              isDone
-                                ? 'bg-white border-l-4 border-l-emerald-500 border border-emerald-200/80 shadow-xs hover:shadow-md hover:border-emerald-400'
-                                : 'bg-white border-l-4 border-l-rose-500 border border-rose-200/80 shadow-xs hover:shadow-md hover:border-rose-400'
                             }`}
                           >
-                            {/* Card Header: Ticket No + Red / Green Status Badge */}
+                            {/* Card Header: Ticket No + Exact CDI Status Badge */}
                             <div className="flex items-center justify-between gap-1.5">
                               <div className="flex items-center gap-1.5 text-slate-400">
                                 {canMoveCards && <GripVertical className="w-3.5 h-3.5 shrink-0 hover:text-slate-600" />}
@@ -1505,17 +1593,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                                   {job.ticket_no}
                                 </span>
                               </div>
-                              {isDone ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                  <Check className="w-2.5 h-2.5" />
-                                  <span>Completed</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                                  <span>Incomplete</span>
-                                </span>
-                              )}
+                              {renderCardStatusBadge(job)}
                             </div>
 
                             {/* Job Title */}
