@@ -882,6 +882,22 @@ export const JobRequestDetail: React.FC = () => {
 
   const isCustomServiceHeadUnit = Boolean(isRequestUnitHead && isDirectToHeadUnit);
 
+  const canActOnManagerApproval = Boolean(
+    isDirectToHeadUnit
+      ? (user?.role === 'admin' || isCustomServiceHeadUnit)
+      : (
+          user?.role === 'admin' ||
+          (user?.role === 'manager' && !isInterUnitJob) ||
+          user?.is_acting_manager ||
+          (isInterUnitJob && isTargetUnitHead)
+        )
+  );
+
+  const targetHeadDisplayName =
+    targetUnitHead?.name ||
+    request?.additional_data?.target_unit_head_name ||
+    (data?.targetUnitHeads && data.targetUnitHeads.length > 0 ? data.targetUnitHeads[0].name : null);
+
   const requesterUnit = request?.additional_data?.requester_unit?.toLowerCase().trim();
   const requesterId = request?.additional_data?.requester_id ? Number(request.additional_data.requester_id) : null;
   const isRequesterUnitHead = Boolean(
@@ -1966,13 +1982,7 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
             {!(request.status === 'staff_processing' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) &&
-             !(request.status === 'manager_approval' && !(
-               user?.role === 'admin' ||
-               (user?.role === 'manager' && !isInterUnitJob) ||
-               user?.is_acting_manager ||
-               (isInterUnitJob && isTargetUnitHead) ||
-               isCustomServiceHeadUnit
-             )) && (
+             !(request.status === 'manager_approval' && !canActOnManagerApproval) && (
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-slate-100"></div>
                 <span className="flex-shrink mx-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
@@ -1982,33 +1992,45 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             )}
 
-            {/* Notice for Unit Heads & Staff viewing requests awaiting Manager Approval */}
-            {request.status === 'manager_approval' && !(
-              user?.role === 'admin' ||
-              (user?.role === 'manager' && !isInterUnitJob) ||
-              user?.is_acting_manager ||
-              (isInterUnitJob && isTargetUnitHead) ||
-              isCustomServiceHeadUnit
-            ) && (
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-1 my-2">
-                <div className="text-xs font-bold text-slate-700">
-                  {isInterUnitJob
-                    ? (multiTargetUnits.length > 1
+            {/* Notice for requests awaiting Review/Approval when user does not have direct action responsibility */}
+            {request.status === 'manager_approval' && !canActOnManagerApproval && (
+              <div className={`p-4 rounded-2xl text-center space-y-1.5 my-2 border ${
+                isDirectToHeadUnit ? 'bg-teal-50/70 border-teal-200/80' : 'bg-slate-50 border-slate-200/80'
+              }`}>
+                {isDirectToHeadUnit ? (
+                  <>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 border border-teal-200/80">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                      Direct to Unit Head
+                    </div>
+                    <div className="text-xs font-bold text-slate-800">
+                      Awaiting Unit Head Review & Assignment{targetHeadDisplayName ? ` (${targetHeadDisplayName})` : ''}
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                      Permohonan ini telah diserahkan terus kepada Ketua Unit untuk semakan dan penugasan staf tanpa memerlukan kelulusan Pengurus.
+                    </div>
+                  </>
+                ) : isInterUnitJob ? (
+                  <>
+                    <div className="text-xs font-bold text-slate-700">
+                      {multiTargetUnits.length > 1
                         ? `Awaiting Target Unit Heads (${multiTargetUnits.join(', ')}) Review`
-                        : `Awaiting Head Unit${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''} Approval`)
-                    : isDirectToHeadUnit
-                    ? `Awaiting Unit Head${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''} Review & Assignment`
-                    : 'Awaiting Manager Approval'}
-                </div>
-                <div className="text-[11px] text-slate-400 font-medium">
-                  {isInterUnitJob && isCurrentUserOriginStaff
-                    ? `Target unit acceptance is pending — but you can start and finalize your own work portion independently.`
-                    : isInterUnitJob
-                    ? `Inter-Unit collaboration requests are reviewed and accepted by the designated Unit Head(s).`
-                    : isDirectToHeadUnit
-                    ? `This service request was routed directly to the Unit Head for review and staff assignment.`
-                    : 'Online client job requests are reviewed and approved exclusively by Department Managers.'}
-                </div>
+                        : `Awaiting Head Unit${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''} Approval`}
+                    </div>
+                    <div className="text-[11px] text-slate-400 font-medium">
+                      {isCurrentUserOriginStaff
+                        ? `Target unit acceptance is pending — but you can start and finalize your own work portion independently.`
+                        : `Inter-Unit collaboration requests are reviewed and accepted by the designated Unit Head(s).`}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xs font-bold text-slate-700">Awaiting Manager Approval</div>
+                    <div className="text-[11px] text-slate-400 font-medium">
+                      Online client job requests are reviewed and approved exclusively by Department Managers.
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -2051,13 +2073,7 @@ export const JobRequestDetail: React.FC = () => {
             {/* Action Buttons & Oversight based on Role & Status */}
             {(canAct || user?.role === 'director' || user?.is_unit_head) && (
               <div className="space-y-2">
-                {request.status === 'manager_approval' && (
-                  user?.role === 'admin' ||
-                  (user?.role === 'manager' && !isInterUnitJob) ||
-                  user?.is_acting_manager ||
-                  (isInterUnitJob && isTargetUnitHead) ||
-                  isCustomServiceHeadUnit
-                ) && (
+                {request.status === 'manager_approval' && canActOnManagerApproval && (
                   <>
                     <button
                       onClick={handleOpenApproveModal}

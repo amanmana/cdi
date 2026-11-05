@@ -66,8 +66,18 @@ export class WorkflowEngine {
         request.current_step_name === 'Unit Head Review'
       );
 
-      // Online client requests: Manager, Admin, Acting Manager, or designated Unit Head (for direct Head Unit routes)
-      return user.role === 'manager' || user.role === 'admin' || Boolean((user as any).is_acting_manager) || isCustomServiceHeadUnit;
+      const isDirectToHeadUnit = Boolean(
+        addDataObj?.routing_target === 'head_unit' ||
+        request.current_step_name === 'Unit Head Review'
+      );
+
+      // Direct to Head Unit routes: Only Admin or the designated Unit Head has approval/assignment authority
+      if (isDirectToHeadUnit) {
+        return user.role === 'admin' || isCustomServiceHeadUnit;
+      }
+
+      // Online client requests: Manager, Admin, or Acting Manager
+      return user.role === 'manager' || user.role === 'admin' || Boolean((user as any).is_acting_manager);
     }
 
     if (request.status === 'staff_processing') {
