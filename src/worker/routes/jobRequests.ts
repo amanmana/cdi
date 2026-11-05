@@ -1630,6 +1630,11 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
   );
 
+  const isMultiUnit = Boolean(
+    request.ticket_no?.startsWith('MU') ||
+    (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_multi_unit : String(request.additional_data).includes('is_multi_unit')))
+  );
+
   const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
   const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
 
@@ -1653,7 +1658,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     (user.unit && targetUnits.some(tUnit => tUnit.toLowerCase().trim() === user.unit.toLowerCase().trim()))
   );
 
-  const isTargetUnitHead = isInterUnit && isUnitHeadForRequest;
+  const isTargetUnitHead = (isInterUnit || isMultiUnit) && isUnitHeadForRequest;
   const isCustomServiceHeadUnit = isUnitHeadForRequest && (
     additionalDataObj?.routing_target === 'head_unit' ||
     request.current_step_name === 'Unit Head Review'
@@ -1672,7 +1677,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     if (user.role !== 'admin' && !isCustomServiceHeadUnit) {
       return c.json({ error: 'Unauthorized. This request is routed directly to the Unit Head for review and staff assignment.' }, 403);
     }
-  } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
+  } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager && (!isMultiUnit || !isTargetUnitHead)) {
     return c.json({ error: 'Unauthorized to approve this request.' }, 403);
   }
 
@@ -1680,8 +1685,8 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const newStepName = 'Staff Processing & Design';
   const fromStep = request.current_step_name || 'Manager Review';
 
-  // If this is an inter-unit job, mark the acting unit head's unit assignment as accepted
-  if (isInterUnit && additionalDataObj.unit_assignments) {
+  // If this is an inter-unit or multi-unit job, mark the acting unit head's unit assignment as accepted
+  if ((isInterUnit || isMultiUnit) && additionalDataObj.unit_assignments) {
     for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
       if (
         userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
@@ -1726,6 +1731,11 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
     request.ticket_no?.startsWith('IU') ||
     request.request_type === 'inter_unit' ||
     (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
+  );
+
+  const isMultiUnit = Boolean(
+    request.ticket_no?.startsWith('MU') ||
+    (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_multi_unit : String(request.additional_data).includes('is_multi_unit')))
   );
 
   const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
@@ -1921,6 +1931,11 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit')))
   );
 
+  const isMultiUnit = Boolean(
+    request.ticket_no?.startsWith('MU') ||
+    (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_multi_unit : String(request.additional_data).includes('is_multi_unit')))
+  );
+
   const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
   const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
 
@@ -1944,7 +1959,7 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     (user.unit && targetUnits.some(tUnit => tUnit.toLowerCase().trim() === user.unit.toLowerCase().trim()))
   );
 
-  const isTargetUnitHead = isInterUnit && isUnitHeadForRequest;
+  const isTargetUnitHead = (isInterUnit || isMultiUnit) && isUnitHeadForRequest;
   const isCustomServiceHeadUnit = isUnitHeadForRequest && (
     additionalDataObj.routing_target === 'head_unit' ||
     request.current_step_name === 'Unit Head Review'
@@ -1964,13 +1979,13 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
       if (user.role !== 'admin' && !isCustomServiceHeadUnit) {
         return c.json({ error: 'Unauthorized. This request is routed directly to the Unit Head for staff assignment.' }, 403);
       }
-    } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
+    } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager && (!isMultiUnit || !isTargetUnitHead)) {
       return c.json({ error: 'Unauthorized to approve and assign team to this request.' }, 403);
     }
   }
 
   // Update unit_assignments for the acting unit head
-  if (isInterUnit && additionalDataObj.unit_assignments) {
+  if ((isInterUnit || isMultiUnit) && additionalDataObj.unit_assignments) {
     let staffUnitMap: Record<number, string> = {};
     if (Array.isArray(staff_ids) && staff_ids.length > 0) {
       const placeholders = staff_ids.map(() => '?').join(',');

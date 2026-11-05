@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { StatusBadge } from '../components/StatusBadge';
-import { CheckCircle2, Clock, Calendar, ArrowLeft, AlertCircle, Search, ListTodo } from 'lucide-react';
+import { CheckCircle2, Clock, Calendar, ArrowLeft, AlertCircle, Search, ListTodo, Layers, User } from 'lucide-react';
 import { Footer } from '../components/Footer';
 
 interface TicketData {
@@ -227,6 +227,85 @@ export const TrackTicket: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Participating Service Units & Deliverables */}
+            {(data.request.additional_data?.selected_services || data.request.additional_data?.is_multi_unit) && (
+              <div className="bg-slate-50/70 border-t border-slate-100 p-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-blue-600" /> Participating Units & Deliverables
+                  </h3>
+                  <span className="badge bg-blue-100 text-blue-800 border-none font-bold text-xs uppercase px-2.5 py-1">
+                    Multi-Unit Package
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(Array.isArray(data.request.additional_data?.selected_services)
+                    ? data.request.additional_data.selected_services
+                    : Object.entries(data.request.additional_data?.unit_assignments || {}).map(([uName, uMeta]: [string, any]) => ({
+                        name: uName,
+                        display_label: uMeta?.service_name || uName,
+                        target_unit_name: uName,
+                        scope: uMeta?.scope || '',
+                        fields: uMeta?.custom_fields || {},
+                      }))
+                  ).map((srv: any, idx: number) => {
+                    const uMeta = data.request.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name];
+                    const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
+                    return (
+                      <div key={idx} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                        <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                          <div>
+                            <span className="font-bold text-slate-800 text-sm block">
+                              {srv.display_label || srv.name}
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-medium">
+                              Handling Unit: {srv.target_unit_name || srv.name}
+                            </span>
+                          </div>
+                          <span className={`badge border-none font-bold text-[10px] uppercase px-2.5 py-0.5 ${
+                            isAccepted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {isAccepted ? 'Assigned & In Progress' : 'Reviewing / Pending Staff'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                            Deliverable Scope
+                          </span>
+                          <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100 whitespace-pre-wrap leading-relaxed">
+                            {srv.scope || 'No specific description provided.'}
+                          </p>
+                        </div>
+
+                        {srv.fields && Object.keys(srv.fields).length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => (
+                              <div key={fk} className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase block truncate">
+                                  {fk.replace(/_/g, ' ')}
+                                </span>
+                                <span className="text-xs font-semibold text-slate-800 block truncate">
+                                  {String(fv)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {uMeta?.assigned_staff_names && uMeta.assigned_staff_names.length > 0 && (
+                          <div className="pt-1 text-xs text-blue-700 font-medium flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5" />
+                            <span>Assigned Specialist: <strong>{uMeta.assigned_staff_names.join(', ')}</strong></span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Task Breakdown for Client */}
             {data.tasks && data.tasks.length > 0 && (

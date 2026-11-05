@@ -54,14 +54,29 @@ const DEFAULT_UNITS: Unit[] = [
   },
 ];
 
+export interface SelectedServiceItem {
+  key: string;
+  type: 'unit' | 'custom_service';
+  id: number;
+  name: string;
+  display_label: string;
+  target_unit_name: string;
+  target_unit_id?: number | null;
+  department_name?: string;
+  form_schema?: any[];
+  routing_target?: string;
+  suggested_staff_id?: number | null;
+  suggested_staff_name?: string | null;
+}
+
 export const PublicHome: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const [units, setUnits] = useState<Unit[]>(DEFAULT_UNITS);
   const [customServices, setCustomServices] = useState<any[]>([]);
-  const [selectedUnit, setSelectedUnit] = useState<string>('');
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [selectedServiceKeys, setSelectedServiceKeys] = useState<string[]>([]);
+  const [unitScopes, setUnitScopes] = useState<Record<string, { description: string; fields: Record<string, string> }>>({});
   const [clientName, setClientName] = useState(user?.role === 'client' ? (user?.name || '') : '');
   const [clientEmail, setClientEmail] = useState(user?.role === 'client' ? (user?.email || '') : '');
   const [title, setTitle] = useState('');
@@ -73,7 +88,6 @@ export const PublicHome: React.FC = () => {
       'Notice: The selected target completion deadline is on short notice (within {days} days). Urgent requests are subject to approval and team schedule availability.',
     deadline_alert_enabled: true,
   });
-  const [dynamicFields, setDynamicFields] = useState<Record<string, string>>({});
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,32 +161,109 @@ export const PublicHome: React.FC = () => {
     String(deadlineSettings.deadline_min_days)
   );
 
-  const selectedCustomService = customServices.find((s) => s.id === selectedServiceId);
-  const currentUnitObj = selectedCustomService || units.find((u) => u.name === selectedUnit);
+  const selectedItems: SelectedServiceItem[] = React.useMemo(() => {
+    const items: SelectedServiceItem[] = [];
+    selectedServiceKeys.forEach((k) => {
+      if (k.startsWith('unit_')) {
+        const uName = k.replace('unit_', '');
+        const u = units.find((unit) => unit.name === uName);
+        if (u) {
+          items.push({
+            key: k,
+            type: 'unit',
+            id: u.id,
+            name: u.name,
+            display_label: u.display_label || u.public_label || u.name,
+            target_unit_name: u.name,
+            target_unit_id: u.id,
+            department_name: u.department_name || '',
+            form_schema: u.form_schema || [],
+            routing_target: 'manager',
+          });
+        }
+      } else if (k.startsWith('service_')) {
+        const sId = Number(k.replace('service_', ''));
+        const s = customServices.find((service) => service.id === sId);
+        if (s) {
+          items.push({
+            key: k,
+            type: 'custom_service',
+            id: s.id,
+            name: s.name,
+            display_label: s.display_label || s.name,
+            target_unit_name: s.target_unit_name,
+            target_unit_id: s.target_unit_id,
+            department_name: s.department_name,
+            form_schema: s.form_schema
+              ? (typeof s.form_schema === 'string' ? JSON.parse(s.form_schema) : s.form_schema)
+              : [],
+            routing_target: s.routing_target || 'manager',
+            suggested_staff_id: s.suggested_staff_id,
+            suggested_staff_name: s.suggested_staff_name,
+          });
+        }
+      }
+    });
+    return items;
+  }, [selectedServiceKeys, units, customServices]);
 
-  const handleDynamicChange = (fieldId: string, val: string) => {
-    setDynamicFields((prev) => ({ ...prev, [fieldId]: val }));
+  const handleToggleService = (key: string) => {
+    setSelectedServiceKeys((prev) => {
+      if (prev.includes(key)) {
+        return prev.filter((k) => k !== key);
+      } else {
+        return [...prev, key];
+      }
+    });
+    setError(null);
+  };
+
+  const handleUnitDescriptionChange = (key: string, val: string) => {
+    setUnitScopes((prev) => ({
+      ...prev,
+      [key]: {
+        fields: prev[key]?.fields || {},
+        description: val,
+      },
+    }));
+  };
+
+  const handleUnitFieldChange = (key: string, fieldId: string, val: string) => {
+    setUnitScopes((prev) => ({
+      ...prev,
+      [key]: {
+        description: prev[key]?.description || '',
+        fields: {
+          ...(prev[key]?.fields || {}),
+          [fieldId]: val,
+        },
+      },
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedUnit && !selectedServiceId) {
-      setError('Please select a target service unit or custom service.');
+    if (selectedItems.length === 0) {
+      setError('Please select at least one Target Service Unit or Custom Service.');
       return;
     }
 
-    const missing: Record<string, string> = {};
-    const publicFields = (currentUnitObj?.form_schema || []).filter((f: any) => f.scope !== 'internal');
-    publicFields.forEach(field => {
-      if (field.required && !dynamicFields[field.id]) {
-        missing[field.id] = field.label;
+    // Check required fields for each selected unit
+    for (const item of selectedItems) {
+      const scopeData = unitScopes[item.key];
+      const scopeText = scopeData?.description;
+      if (!scopeText || !scopeText.trim()) {
+        setError(`Please specify the scope/deliverables description for [${item.display_label}].`);
+        return;
       }
-    });
-
-    if (Object.keys(missing).length > 0) {
-      setError(`Please complete all required specifications: ${Object.keys(missing).map(k => missing[k]).join(', ')}`);
-      return;
+      const publicFields = (item.form_schema || []).filter((f: any) => f.scope !== 'internal');
+      for (const field of publicFields) {
+        if (field.required && !scopeData?.fields?.[field.id]) {
+          setError(`Please complete [${field.label}] for ${item.display_label}.`);
+          return;
+        }
+      }
     }
 
     if (!deadline) {
@@ -189,6 +280,25 @@ export const PublicHome: React.FC = () => {
     setError(null);
 
     try {
+      const selectedServicesPayload = selectedItems.map((item) => ({
+        key: item.key,
+        type: item.type,
+        id: item.id,
+        name: item.name,
+        display_label: item.display_label,
+        target_unit_name: item.target_unit_name,
+        target_unit_id: item.target_unit_id,
+        department_name: item.department_name,
+        routing_target: item.routing_target,
+        suggested_staff_id: item.suggested_staff_id,
+        suggested_staff_name: item.suggested_staff_name,
+        scope: unitScopes[item.key]?.description || '',
+        fields: unitScopes[item.key]?.fields || {},
+      }));
+
+      const primaryUnitName = selectedItems.map((s) => s.target_unit_name).join(', ');
+      const singleService = selectedItems.length === 1 && selectedItems[0].type === 'custom_service' ? selectedItems[0] : null;
+
       const res = await fetch('/api/public/job-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -196,13 +306,29 @@ export const PublicHome: React.FC = () => {
           client_name: clientName,
           client_email: clientEmail,
           title,
-          description,
+          description, // General overview
           deadline,
-          unit: selectedUnit,
-          service_id: selectedServiceId || undefined,
-          service_name: selectedCustomService?.name || undefined,
+          unit: primaryUnitName,
+          service_id: singleService ? singleService.id : undefined,
+          service_name: singleService ? singleService.name : undefined,
           turnstileToken,
-          additional_data: dynamicFields,
+          is_multi_unit: selectedItems.length > 1,
+          selected_services: selectedServicesPayload,
+          additional_data: {
+            is_multi_unit: selectedItems.length > 1,
+            selected_services: selectedServicesPayload,
+            unit_scopes: Object.fromEntries(
+              selectedItems.map((item) => [
+                item.target_unit_name,
+                {
+                  service_name: item.name,
+                  service_display_label: item.display_label,
+                  scope: unitScopes[item.key]?.description || '',
+                  fields: unitScopes[item.key]?.fields || {},
+                },
+              ])
+            ),
+          },
         }),
       });
 
@@ -332,9 +458,9 @@ export const PublicHome: React.FC = () => {
                 </div>
               </div>
 
-              {/* SECTION 2: TARGET UNIT SELECTION */}
+              {/* SECTION 2: TARGET UNIT SELECTION (MULTI-SELECT) */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
                   <div className="flex items-center gap-3">
                     <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
                       2
@@ -342,33 +468,45 @@ export const PublicHome: React.FC = () => {
                     <div>
                       <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                         <Layers className="w-3.5 h-3.5 text-blue-600" />
-                        Target Service Unit <span className="text-rose-500">*</span>
+                        Target Service Units <span className="text-rose-500">*</span>
                       </h2>
-                      <p className="text-[11px] text-slate-400 font-medium">Select the specialized service unit for your job request</p>
+                      <p className="text-[11px] text-slate-400 font-medium">Select one or more specialized service units for your job request</p>
                     </div>
                   </div>
-                  <span className="text-xs text-slate-400 font-semibold hidden md:inline">
-                    {units.length + customServices.length} Service Offerings
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedItems.length > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                        <Check className="w-3.5 h-3.5" />
+                        {selectedItems.length} {selectedItems.length === 1 ? 'Unit Selected' : 'Units Selected'}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-semibold">
+                        Multi-selection enabled
+                      </span>
+                    )}
+                    {selectedItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedServiceKeys([])}
+                        className="btn btn-xs btn-ghost text-slate-400 hover:text-slate-600 text-[11px] font-bold"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
                   {units.map((u) => {
-                    const isSelected = !selectedServiceId && selectedUnit === u.name;
+                    const key = `unit_${u.name}`;
+                    const isSelected = selectedServiceKeys.includes(key);
                     const displayTitle = u.display_label || u.public_label || u.name;
                     const deptTag = u.department_name ? u.department_name.toUpperCase() : 'GENERAL';
                     return (
                       <button
                         key={u.id}
                         type="button"
-                        onClick={() => {
-                          if (selectedServiceId || selectedUnit !== u.name) {
-                            setSelectedServiceId(null);
-                            setSelectedUnit(u.name);
-                            setDynamicFields({});
-                            setError(null);
-                          }
-                        }}
+                        onClick={() => handleToggleService(key)}
                         className={`p-4 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between relative group min-h-[105px] ${
                           isSelected
                             ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25 ring-2 ring-blue-600/30 -translate-y-0.5'
@@ -385,11 +523,13 @@ export const PublicHome: React.FC = () => {
                           >
                             {deptTag}
                           </span>
-                          {isSelected && (
-                            <div className="w-4 h-4 rounded-full bg-white text-blue-600 flex items-center justify-center shrink-0">
-                              <Check className="w-2.5 h-2.5 stroke-[3]" />
-                            </div>
-                          )}
+                          <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border transition-all ${
+                            isSelected
+                              ? 'bg-white text-blue-600 border-white shadow-sm'
+                              : 'border-slate-300 bg-white/50 group-hover:border-blue-400'
+                          }`}>
+                            {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                          </div>
                         </div>
                         <div>
                           <div className="font-extrabold text-sm tracking-tight leading-snug">
@@ -407,21 +547,15 @@ export const PublicHome: React.FC = () => {
 
                   {/* Custom Client Services (e.g. Photography under Events Management) */}
                   {customServices.map((s) => {
-                    const isSelected = selectedServiceId === s.id;
+                    const key = `service_${s.id}`;
+                    const isSelected = selectedServiceKeys.includes(key);
                     const displayTitle = s.display_label || s.name;
                     const deptTag = s.department_name ? s.department_name.toUpperCase() : 'CORPORATE EVENT';
                     return (
                       <button
                         key={`service-${s.id}`}
                         type="button"
-                        onClick={() => {
-                          if (selectedServiceId !== s.id) {
-                            setSelectedServiceId(s.id);
-                            setSelectedUnit(s.target_unit_name);
-                            setDynamicFields({});
-                            setError(null);
-                          }
-                        }}
+                        onClick={() => handleToggleService(key)}
                         className={`p-4 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between relative group min-h-[105px] ${
                           isSelected
                             ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-500/25 ring-2 ring-purple-600/30 -translate-y-0.5'
@@ -438,13 +572,17 @@ export const PublicHome: React.FC = () => {
                           >
                             {deptTag}
                           </span>
-                          {isSelected ? (
-                            <div className="w-4 h-4 rounded-full bg-white text-purple-600 flex items-center justify-center shrink-0">
+                          <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border transition-all ${
+                            isSelected
+                              ? 'bg-white text-purple-600 border-white shadow-sm'
+                              : 'border-slate-300 bg-white/50 group-hover:border-purple-400'
+                          }`}>
+                            {isSelected ? (
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
-                            </div>
-                          ) : (
-                            <Sparkles className="w-3.5 h-3.5 text-purple-400 group-hover:text-purple-600 transition-colors" />
-                          )}
+                            ) : (
+                              <Sparkles className="w-2.5 h-2.5 text-purple-400 group-hover:text-purple-600 transition-colors" />
+                            )}
+                          </div>
                         </div>
                         <div>
                           <div className="font-extrabold text-sm tracking-tight leading-snug flex items-center gap-1.5">
@@ -462,7 +600,7 @@ export const PublicHome: React.FC = () => {
               </div>
 
               {/* SECTION 3: SCOPE & TIMELINE */}
-              <div className="space-y-5">
+              <div className="space-y-6">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
                   <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
                     3
@@ -472,22 +610,22 @@ export const PublicHome: React.FC = () => {
                       <FileText className="w-3.5 h-3.5 text-blue-600" />
                       Scope & Timeline
                     </h2>
-                    <p className="text-[11px] text-slate-400 font-medium">Specify the job title, target delivery deadline, and detailed project scope</p>
+                    <p className="text-[11px] text-slate-400 font-medium">Specify the master job title, completion deadline, and deliverables for each selected unit</p>
                   </div>
                 </div>
 
-                {/* Paired Title (2 cols) & Dateline (1 col) */}
+                {/* Paired Master Title (2 cols) & Dateline (1 col) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div className="form-control md:col-span-2">
                     <label className="label pt-0 pb-1.5">
                       <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
-                        Job Title <span className="text-rose-500">*</span>
+                        Master Job Title <span className="text-rose-500">*</span>
                       </span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Corporate Awareness Campaign Poster Design"
+                      placeholder="e.g. Annual Summit 2026 & Corporate Campaign Launch"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
@@ -534,139 +672,189 @@ export const PublicHome: React.FC = () => {
                   </div>
                 )}
 
-                {/* Description Field */}
+                {/* Overall Project Description / General Brief */}
                 <div className="form-control">
                   <label className="label pt-0 pb-1.5">
                     <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
-                      Job Description
+                      General Project Overview & Background <span className="text-slate-400 font-normal lowercase">(optional)</span>
                     </span>
                   </label>
                   <textarea
-                    rows={4}
-                    placeholder="Provide detailed instructions, project objectives, required dimensions/formats, or reference asset links..."
+                    rows={2}
+                    placeholder="Provide overarching event context, background objectives, or reference links for all collaborating units..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-4"
+                    className="textarea textarea-bordered w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-2xl text-sm font-medium text-slate-800 p-3.5"
                   ></textarea>
                 </div>
-              </div>
 
-              {/* Dynamic Unit Schema Fields */}
-              {(() => {
-                const publicFields = (currentUnitObj?.form_schema || []).filter((f: any) => f.scope !== 'internal');
-                if (publicFields.length === 0) return null;
-                return (
-                  <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-                    <div className="border-b border-slate-200/80 pb-2 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        Additional Requirements: {selectedUnit} Unit
+                {/* DYNAMIC PER-UNIT DELIVERABLES SPECIFICATION CARDS */}
+                {selectedItems.length === 0 ? (
+                  <div className="p-8 rounded-2xl bg-slate-50/80 border border-dashed border-slate-200 text-center space-y-2">
+                    <Layers className="w-8 h-8 text-slate-300 mx-auto" />
+                    <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                      No Service Unit Selected Yet
+                    </div>
+                    <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto">
+                      Please select one or more service units in Step 2 above to configure deliverables and specifications.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                        <span>Unit Deliverables & Requirements</span>
+                        <span className="text-[10px] font-extrabold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          {selectedItems.length} {selectedItems.length === 1 ? 'Unit' : 'Units'}
+                        </span>
                       </span>
-                      <span className="text-[11px] text-slate-400 font-medium">Unit-Specific Specifications</span>
+                      <span className="text-[11px] font-medium text-slate-400">
+                        Specify exact requirements for each chosen team
+                      </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {publicFields.map((field) => (
-                      <div key={field.id} className={`form-control ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
-                        <label className="label pt-0 pb-1">
-                          <span className="label-text font-bold text-slate-700 text-xs">
-                            {field.label} {field.required && <span className="text-rose-500">*</span>}
-                          </span>
-                        </label>
-
-                        {field.type === 'select' && field.options && field.options.length > 0 && (
-                          <select
-                            required={field.required}
-                            value={dynamicFields[field.id] || ''}
-                            onChange={(e) => handleDynamicChange(field.id, e.target.value)}
-                            className="select select-bordered select-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                    <div className="space-y-4">
+                      {selectedItems.map((item, idx) => {
+                        const publicFields = (item.form_schema || []).filter((f: any) => f.scope !== 'internal');
+                        const isCustom = item.type === 'custom_service';
+                        return (
+                          <div
+                            key={item.key}
+                            className={`p-5 md:p-6 rounded-2xl border transition-all duration-200 ${
+                              isCustom
+                                ? 'bg-purple-50/30 border-purple-200/80 shadow-xs'
+                                : 'bg-slate-50/60 border-slate-200/90 shadow-xs'
+                            }`}
                           >
-                            <option value="">-- {field.placeholder || `Select ${field.label}`} --</option>
-                            {field.options?.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        
-                        {field.type === 'textarea' && (
-                          <textarea
-                            required={field.required}
-                            placeholder={field.placeholder || `Enter ${field.label}...`}
-                            value={dynamicFields[field.id] || ''}
-                            onChange={(e) => handleDynamicChange(field.id, e.target.value)}
-                            className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full h-24 text-xs font-medium p-3"
-                          ></textarea>
-                        )}
-                        
-                        {field.type === 'radio' && field.options && field.options.length > 0 && (
-                          <div className="space-y-2 mt-1">
-                            {field.options?.map((opt) => (
-                              <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                                <input 
-                                  type="radio" 
-                                  name={`dynamic_${field.id}`}
-                                  value={opt}
-                                  checked={dynamicFields[field.id] === opt}
-                                  onChange={(e) => handleDynamicChange(field.id, e.target.value)}
-                                  required={field.required}
-                                  className="radio radio-primary radio-sm" 
-                                />
-                                <span className="text-sm text-slate-700">{opt}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {field.type === 'checkbox' && field.options && field.options.length > 0 && (
-                          <div className="space-y-2 mt-1">
-                            {field.options?.map((opt) => {
-                              const currentValues = dynamicFields[field.id] ? dynamicFields[field.id].split(', ') : [];
-                              const isChecked = currentValues.includes(opt);
-                              
-                              return (
-                                <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                                  <input 
-                                    type="checkbox" 
-                                    value={opt}
-                                    checked={isChecked}
-                                    onChange={(e) => {
-                                      let newValues = [...currentValues];
-                                      if (e.target.checked) {
-                                        newValues.push(opt);
-                                      } else {
-                                        newValues = newValues.filter(v => v !== opt);
-                                      }
-                                      handleDynamicChange(field.id, newValues.join(', '));
-                                    }}
-                                    className="checkbox checkbox-primary checkbox-sm rounded" 
-                                  />
-                                  <span className="text-sm text-slate-700">{opt}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
+                            <div className="flex items-center justify-between border-b border-slate-200/70 pb-3 mb-4">
+                              <div className="flex items-center gap-2.5">
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                                  isCustom ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {idx + 1}
+                                </div>
+                                <div>
+                                  <h3 className="text-sm font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
+                                    {isCustom && <Camera className="w-3.5 h-3.5 text-purple-600" />}
+                                    <span>{item.display_label}</span>
+                                  </h3>
+                                  <p className="text-[10px] font-semibold text-slate-400">
+                                    Fulfillment: <strong className="text-slate-600">{item.target_unit_name}</strong>
+                                    {item.department_name ? ` • Department: ${item.department_name}` : ''}
+                                  </p>
+                                </div>
+                              </div>
+                              <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                                isCustom ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {isCustom ? 'Custom Service' : 'Standard Unit'}
+                              </span>
+                            </div>
 
-                        {((['text', 'number', 'date'].includes(field.type)) ||
-                          (['select', 'radio', 'checkbox'].includes(field.type) && (!field.options || field.options.length === 0)) ||
-                          field.type === 'file'
-                        ) && (
-                          <input
-                            type={['number', 'date'].includes(field.type) ? field.type : 'text'}
-                            required={field.required}
-                            placeholder={field.placeholder || `Enter ${field.label}...`}
-                            value={dynamicFields[field.id] || ''}
-                            onChange={(e) => handleDynamicChange(field.id, e.target.value)}
-                            className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
-                          />
-                        )}
-                      </div>
-                    ))}
+                            {/* Specific Scope / Deliverables textarea */}
+                            <div className="form-control mb-4">
+                              <label className="label pt-0 pb-1.5">
+                                <span className="label-text font-bold text-slate-700 text-xs uppercase tracking-wider">
+                                  Scope of Work / Deliverables for {item.display_label} <span className="text-rose-500">*</span>
+                                </span>
+                              </label>
+                              <textarea
+                                required
+                                rows={3}
+                                placeholder={
+                                  item.name.toLowerCase().includes('photo')
+                                    ? 'e.g. VIP arrival coverage, stage opening ceremony, group photography with delegates...'
+                                    : item.name.toLowerCase().includes('graphic')
+                                    ? 'e.g. 1x Stage Backdrop (20x10ft), 2x Bunting (6x2ft), 3x Digital Poster for Instagram...'
+                                    : item.name.toLowerCase().includes('socmed')
+                                    ? 'e.g. 3x teaser reels, event highlights story, 1x LinkedIn post...'
+                                    : item.name.toLowerCase().includes('writer')
+                                    ? 'e.g. Press release in BM & BI, speech text for Director...'
+                                    : `Provide specific instructions, deliverables, dimensions, or references for ${item.display_label}...`
+                                }
+                                value={unitScopes[item.key]?.description || ''}
+                                onChange={(e) => handleUnitDescriptionChange(item.key, e.target.value)}
+                                className="textarea textarea-bordered w-full bg-white border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-xs font-medium text-slate-800 p-3"
+                              ></textarea>
+                            </div>
+
+                            {/* Dynamic Schema Fields (if any) */}
+                            {publicFields.length > 0 && (
+                              <div className="pt-2 border-t border-slate-200/50 space-y-3">
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                                  Required Specifications ({publicFields.length})
+                                </span>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                  {publicFields.map((field) => (
+                                    <div key={field.id} className={`form-control ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
+                                      <label className="label pt-0 pb-1">
+                                        <span className="label-text font-bold text-slate-700 text-xs">
+                                          {field.label} {field.required && <span className="text-rose-500">*</span>}
+                                        </span>
+                                      </label>
+                                      {field.type === 'select' && field.options && (
+                                        <select
+                                          required={field.required}
+                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                          className="select select-bordered select-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                        >
+                                          <option value="">-- {field.placeholder || `Select ${field.label}`} --</option>
+                                          {field.options.map((opt: string) => (
+                                            <option key={opt} value={opt}>{opt}</option>
+                                          ))}
+                                        </select>
+                                      )}
+                                      {field.type === 'text' && (
+                                        <input
+                                          type="text"
+                                          required={field.required}
+                                          placeholder={field.placeholder || `Enter ${field.label}...`}
+                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                          className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                        />
+                                      )}
+                                      {field.type === 'textarea' && (
+                                        <textarea
+                                          required={field.required}
+                                          placeholder={field.placeholder || `Enter ${field.label}...`}
+                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                          className="textarea textarea-bordered bg-white border-slate-200 rounded-xl w-full h-20 text-xs font-medium p-3"
+                                        ></textarea>
+                                      )}
+                                      {field.type === 'date' && (
+                                        <input
+                                          type="date"
+                                          required={field.required}
+                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                          className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                        />
+                                      )}
+                                      {field.type === 'number' && (
+                                        <input
+                                          type="number"
+                                          required={field.required}
+                                          placeholder={field.placeholder || '0'}
+                                          value={unitScopes[item.key]?.fields?.[field.id] || ''}
+                                          onChange={(e) => handleUnitFieldChange(item.key, field.id, e.target.value)}
+                                          className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-medium"
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
+                )}
+              </div>
 
               {/* Turnstile verification */}
               <div className="pt-2 flex justify-center">

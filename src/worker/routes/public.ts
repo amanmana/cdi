@@ -131,9 +131,22 @@ publicApi.get('/settings', async (c) => {
 // Submit a new job request (Public)
 publicApi.post('/job-requests', async (c) => {
   try {
-    const { client_name, client_email, title, description, deadline, unit, service_id, service_name, additional_data, turnstileToken } = await c.req.json();
+    const {
+      client_name,
+      client_email,
+      title,
+      description,
+      deadline,
+      unit,
+      service_id,
+      service_name,
+      additional_data,
+      turnstileToken,
+      selected_services,
+      is_multi_unit,
+    } = await c.req.json();
 
-    if (!client_name || !client_email || !title || (!unit && !service_id && !service_name) || !deadline || !turnstileToken) {
+    if (!client_name || !client_email || !title || (!unit && !service_id && !service_name && (!Array.isArray(selected_services) || selected_services.length === 0)) || !deadline || !turnstileToken) {
       return c.json({ error: 'Please complete all required fields: full name, email, job title, target deadline, target unit/service, and security verification.' }, 400);
     }
 
@@ -161,6 +174,29 @@ publicApi.post('/job-requests', async (c) => {
       }
     }
 
+    const isMultiUnit = Boolean(is_multi_unit || (Array.isArray(selected_services) && selected_services.length > 1));
+
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const letters = isMultiUnit
+      ? 'MU'
+      : (chars.charAt(Math.floor(Math.random() * chars.length)) + chars.charAt(Math.floor(Math.random() * chars.length)));
+    const numbers = Math.floor(100000 + Math.random() * 900000).toString();
+    const ticketNo = letters + numbers;
+
+    let targetUnitsList: string[] = [];
+    let targetUnitIdsList: number[] = [];
+    let primaryUnitId: number | null = null;
+    let primaryDeptId: number | null = null;
+    let resolvedUnitName = unit || '';
+    let unitAssignmentsMap: Record<string, any> = {};
+    let initialStatus = 'manager_approval';
+    let initialStepName = 'Manager Review';
+    let initialAssignedStaffIds: string | null = null;
+    const initialStaffIdsList: number[] = [];
+    const directStaffTasks: Array<{ staffId: number; title: string }> = [];
+    let hasManager = false;
+    let hasHeadUnit = false;
+
     // Check if submitted under a Custom Service (e.g. Photography)
     let customService: any = null;
     if (service_id) {
@@ -169,53 +205,120 @@ publicApi.post('/job-requests', async (c) => {
       customService = await c.env.DB.prepare('SELECT * FROM custom_services WHERE name = ? OR display_label = ?').bind(service_name, service_name).first<any>();
     }
 
-    const targetUnitQuery = customService ? customService.target_unit_name : unit;
+    if (Array.isArray(selected_services) && selected_services.length > 0) {
+      for (const s of selected_services) {
+        const uName = s.target_unit_name || s.name;
+        if (!targetUnitsList.includes(uName)) {
+          targetUnitsList.push(uName);
+        }
 
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const letters = chars.charAt(Math.floor(Math.random() * chars.length)) + chars.charAt(Math.floor(Math.random() * chars.length));
-    const numbers = Math.floor(100000 + Math.random() * 900000).toString();
-    const ticketNo = letters + numbers;
+        const uRow = await c.env.DB
+          .prepare('SELECT id, name, department_id FROM units WHERE name = ? OR public_label = ? LIMIT 1')
+          .bind(uName, uName)
+          .first<any>();
 
-    // Resolve target unit & department
-    const unitRow = await c.env.DB
-      .prepare(`
-        SELECT u.id, u.name, u.department_id, d.manager_id, m.email as manager_email, m.name as manager_name
-        FROM units u
-        LEFT JOIN departments d ON u.department_id = d.id
-        LEFT JOIN users m ON d.manager_id = m.id
-        WHERE u.name = ? OR u.public_label = ? OR CAST(u.id AS TEXT) = ?
-      `)
-      .bind(targetUnitQuery, targetUnitQuery, targetUnitQuery)
-      .first<any>();
+        const uId = uRow?.id || s.target_unit_id || null;
+        if (uId && !targetUnitIdsList.includes(Number(uId))) {
+          targetUnitIdsList.push(Number(uId));
+        }
 
-    const unitId = unitRow?.id || (customService ? customService.target_unit_id : null);
-    const departmentId = unitRow?.department_id || (customService ? customService.department_id : null);
-    const resolvedUnitName = unitRow?.name || targetUnitQuery;
+        if (!primaryUnitId && uId) primaryUnitId = Number(uId);
+        if (!primaryDeptId && uRow?.department_id) primaryDeptId = Number(uRow.department_id);
 
-    const routingTarget = customService?.routing_target || 'manager';
-    let initialStatus = 'manager_approval';
-    let initialStepName = 'Manager Review';
-    let initialAssignedStaffIds: string | null = null;
+        const rTarget = s.routing_target || 'manager';
+        if (rTarget === 'manager') hasManager = true;
+        if (rTarget === 'head_unit') hasHeadUnit = true;
 
-    if (customService && routingTarget === 'staff' && customService.suggested_staff_id) {
-      initialStatus = 'staff_processing';
-      initialStepName = 'Staff Processing';
-      initialAssignedStaffIds = String(customService.suggested_staff_id);
-    } else if (customService && routingTarget === 'head_unit') {
-      initialStatus = 'manager_approval';
-      initialStepName = 'Unit Head Review';
+        const isDirectStaff = rTarget === 'staff' && s.suggested_staff_id;
+        if (isDirectStaff && !initialStaffIdsList.includes(Number(s.suggested_staff_id))) {
+          initialStaffIdsList.push(Number(s.suggested_staff_id));
+          directStaffTasks.push({
+            staffId: Number(s.suggested_staff_id),
+            title: s.scope || title,
+          });
+        }
+
+        unitAssignmentsMap[uName] = {
+          status: isDirectStaff ? 'accepted' : 'pending',
+          assigned_staff_ids: isDirectStaff ? [Number(s.suggested_staff_id)] : [],
+          assigned_staff_names: isDirectStaff && s.suggested_staff_name ? [s.suggested_staff_name] : [],
+          service_name: s.display_label || s.name,
+          routing_target: rTarget,
+          scope: s.scope || '',
+          custom_fields: s.fields || {},
+        };
+      }
+
+      resolvedUnitName = targetUnitsList.join(', ');
+
+      if (hasManager) {
+        initialStatus = 'manager_approval';
+        initialStepName = 'Manager Review';
+      } else if (hasHeadUnit) {
+        initialStatus = 'manager_approval';
+        initialStepName = 'Unit Head Review';
+      } else if (initialStaffIdsList.length > 0) {
+        initialStatus = 'staff_processing';
+        initialStepName = 'Staff Processing';
+      }
+
+      if (initialStaffIdsList.length > 0) {
+        initialAssignedStaffIds = initialStaffIdsList.join(',');
+      }
+    } else {
+      // Single unit resolution
+      const targetUnitQuery = customService ? customService.target_unit_name : unit;
+      const unitRow = await c.env.DB
+        .prepare(`
+          SELECT u.id, u.name, u.department_id, d.manager_id, m.email as manager_email, m.name as manager_name
+          FROM units u
+          LEFT JOIN departments d ON u.department_id = d.id
+          LEFT JOIN users m ON d.manager_id = m.id
+          WHERE u.name = ? OR u.public_label = ? OR CAST(u.id AS TEXT) = ?
+        `)
+        .bind(targetUnitQuery, targetUnitQuery, targetUnitQuery)
+        .first<any>();
+
+      primaryUnitId = unitRow?.id || (customService ? customService.target_unit_id : null);
+      primaryDeptId = unitRow?.department_id || (customService ? customService.department_id : null);
+      resolvedUnitName = unitRow?.name || targetUnitQuery;
+
+      const routingTarget = customService?.routing_target || 'manager';
+      if (customService && routingTarget === 'staff' && customService.suggested_staff_id) {
+        initialStatus = 'staff_processing';
+        initialStepName = 'Staff Processing';
+        initialAssignedStaffIds = String(customService.suggested_staff_id);
+        directStaffTasks.push({
+          staffId: Number(customService.suggested_staff_id),
+          title: title,
+        });
+      } else if (customService && routingTarget === 'head_unit') {
+        initialStatus = 'manager_approval';
+        initialStepName = 'Unit Head Review';
+      }
     }
 
     const combinedAdditionalData = {
       ...(additional_data || {}),
-      ...(customService ? {
-        service_id: customService.id,
-        service_name: customService.name,
-        service_display_label: customService.display_label,
-        suggested_staff_id: customService.suggested_staff_id,
-        suggested_staff_name: customService.suggested_staff_name,
-        routing_target: routingTarget,
-      } : {})
+      ...(isMultiUnit || targetUnitsList.length > 1
+        ? {
+            is_multi_unit: true,
+            target_units: targetUnitsList,
+            target_unit_ids: targetUnitIdsList,
+            unit_assignments: unitAssignmentsMap,
+            selected_services: selected_services,
+            routing_target: hasManager ? 'manager' : hasHeadUnit ? 'head_unit' : 'staff',
+          }
+        : customService
+        ? {
+            service_id: customService.id,
+            service_name: customService.name,
+            service_display_label: customService.display_label,
+            suggested_staff_id: customService.suggested_staff_id,
+            suggested_staff_name: customService.suggested_staff_name,
+            routing_target: customService.routing_target || 'manager',
+          }
+        : {}),
     };
 
     const res = await c.env.DB
@@ -232,8 +335,8 @@ publicApi.post('/job-requests', async (c) => {
         deadline,
         JSON.stringify(combinedAdditionalData),
         resolvedUnitName,
-        unitId,
-        departmentId,
+        primaryUnitId,
+        primaryDeptId,
         initialStatus,
         initialStepName,
         initialAssignedStaffIds
@@ -242,16 +345,19 @@ publicApi.post('/job-requests', async (c) => {
 
     const requestId = res.meta.last_row_id as number;
 
-    // If routed directly to staff, create task row in job_tasks
-    if (initialStatus === 'staff_processing' && customService?.suggested_staff_id) {
+    // Insert job_tasks for any direct routed staff
+    for (const dt of directStaffTasks) {
       await c.env.DB.prepare(
         `INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status) VALUES (?, ?, ?, ?, 'pending')`
-      ).bind(requestId, title, customService.suggested_staff_id, customService.suggested_staff_id).run();
+      ).bind(requestId, dt.title, dt.staffId, dt.staffId).run();
     }
 
     // Log initial workflow creation
     let submitComment = `Job request submitted by ${client_email}. Target Deadline: ${deadline}`;
-    if (customService) {
+    if (isMultiUnit && targetUnitsList.length > 1) {
+      submitComment = `Multi-unit job request submitted by ${client_email} for units: [${targetUnitsList.join(', ')}]. Initial Stage: ${initialStepName}. Target Deadline: ${deadline}`;
+    } else if (customService) {
+      const routingTarget = customService.routing_target || 'manager';
       if (routingTarget === 'staff') {
         submitComment = `Job request submitted for service [${customService.name}]. Direct routed & assigned to ${customService.suggested_staff_name}. Status: Staff Processing.`;
       } else if (routingTarget === 'head_unit') {

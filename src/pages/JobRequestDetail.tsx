@@ -27,6 +27,8 @@ import {
   Sparkles,
   ExternalLink,
   Camera,
+  Layers,
+  User,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
@@ -846,6 +848,12 @@ export const JobRequestDetail: React.FC = () => {
     request?.additional_data?.is_inter_unit
   );
 
+  const isMultiUnitJob = Boolean(
+    request?.ticket_no?.startsWith('MU') ||
+    request?.additional_data?.is_multi_unit ||
+    (Array.isArray(request?.additional_data?.target_units) && request.additional_data.target_units.length > 1)
+  );
+
   const managedUnits: string[] = (user as any)?.managed_units || [];
   const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
   const reqUnit = request?.unit?.toLowerCase().trim();
@@ -873,7 +881,7 @@ export const JobRequestDetail: React.FC = () => {
     )
   );
 
-  const isTargetUnitHead = Boolean(isInterUnitJob && isRequestUnitHead);
+  const isTargetUnitHead = Boolean((isInterUnitJob || isMultiUnitJob) && isRequestUnitHead);
 
   const isDirectToHeadUnit = Boolean(
     request?.additional_data?.routing_target === 'head_unit' ||
@@ -884,12 +892,12 @@ export const JobRequestDetail: React.FC = () => {
 
   const canActOnManagerApproval = Boolean(
     isDirectToHeadUnit
-      ? (user?.role === 'admin' || isCustomServiceHeadUnit)
+      ? (user?.role === 'admin' || isCustomServiceHeadUnit || (isMultiUnitJob && isRequestUnitHead))
       : (
           user?.role === 'admin' ||
           (user?.role === 'manager' && !isInterUnitJob) ||
           user?.is_acting_manager ||
-          (isInterUnitJob && isTargetUnitHead)
+          ((isInterUnitJob || isMultiUnitJob) && isTargetUnitHead)
         )
   );
 
@@ -1037,8 +1045,8 @@ export const JobRequestDetail: React.FC = () => {
   );
 
   const renderStatusCapsule = (status: string) => {
-    if (status === 'manager_approval' || (isInterUnitJob && status === 'staff_processing' && multiTargetUnits.length > 1)) {
-      if (isInterUnitJob) {
+    if (status === 'manager_approval' || ((isInterUnitJob || isMultiUnitJob) && status === 'staff_processing' && multiTargetUnits.length > 1)) {
+      if (isInterUnitJob || isMultiUnitJob) {
         // Multi-Unit Live Badges
         if (multiTargetUnits.length > 1) {
           const unitAssignments = request.additional_data?.unit_assignments || {};
@@ -1810,7 +1818,7 @@ export const JobRequestDetail: React.FC = () => {
                       // Hide raw database IDs
                       if (lower.endsWith('_id') || lower === 'id' || lower.endsWith('_ids')) return false;
                       // Hide internal routing/type flags
-                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields'].includes(lower)) return false;
+                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target'].includes(lower)) return false;
                       return true;
                     })
                     .map(([k, v]) => {
@@ -1846,6 +1854,97 @@ export const JobRequestDetail: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Multi-Unit Deliverables & Specifications Breakdown */}
+            {(request.additional_data?.selected_services || (request.additional_data?.is_multi_unit && request.additional_data?.unit_assignments)) && (
+              <div className="bg-indigo-50/40 p-6 rounded-2xl border border-indigo-100/80 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-black text-indigo-800 uppercase tracking-wider">
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                    <span>Unit Deliverables & Specifications ({Array.isArray(request.additional_data?.selected_services) ? request.additional_data.selected_services.length : Object.keys(request.additional_data?.unit_assignments || {}).length} Units Selected)</span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">
+                    Multi-Unit Request
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(Array.isArray(request.additional_data?.selected_services)
+                    ? request.additional_data.selected_services
+                    : Object.entries(request.additional_data?.unit_assignments || {}).map(([uName, uMeta]: [string, any]) => ({
+                        name: uName,
+                        display_label: uMeta?.service_name || uName,
+                        target_unit_name: uName,
+                        scope: uMeta?.scope || '',
+                        fields: uMeta?.custom_fields || {},
+                      }))
+                  ).map((srv: any, idx: number) => {
+                    const uMeta = request.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name];
+                    const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
+                    return (
+                      <div key={idx} className="bg-white rounded-xl p-4 border border-indigo-100/70 shadow-sm space-y-3">
+                        <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-slate-900 text-sm">{srv.display_label || srv.name}</span>
+                              {srv.department_tag && (
+                                <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                                  {srv.department_tag}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] font-semibold text-slate-400 block mt-0.5">
+                              Unit: {srv.target_unit_name || srv.name}
+                            </span>
+                          </div>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider shrink-0 ${
+                            isAccepted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {isAccepted ? '✓ In Progress' : 'Pending Assignment'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                            Deliverable Scope & Brief
+                          </span>
+                          <p className="text-xs font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed whitespace-pre-wrap">
+                            {srv.scope || 'No specific deliverable brief specified.'}
+                          </p>
+                        </div>
+
+                        {srv.fields && Object.keys(srv.fields).length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                              Unit Specifications
+                            </span>
+                            <div className="grid grid-cols-2 gap-2">
+                              {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => (
+                                <div key={fk} className="bg-slate-50/80 p-2 rounded-lg border border-slate-100">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase block truncate">
+                                    {fk.replace(/_/g, ' ')}
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-800 block truncate">
+                                    {String(fv)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {uMeta?.assigned_staff_names && uMeta.assigned_staff_names.length > 0 && (
+                          <div className="pt-1 flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50/50 px-2.5 py-1.5 rounded-lg">
+                            <User className="w-3.5 h-3.5" />
+                            <span>Assigned Specialist: {uMeta.assigned_staff_names.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Comment from Manager Card */}
@@ -2086,7 +2185,7 @@ export const JobRequestDetail: React.FC = () => {
                       disabled={actionLoading}
                       className="btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-2xl h-12 border-none shadow-lg shadow-emerald-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
                     >
-                      <CheckCircle2 className="w-4.5 h-4.5" /> {isInterUnitJob ? 'ACCEPT & ASSIGN TEAM' : isCustomServiceHeadUnit ? 'REVIEW & ASSIGN TEAM' : 'APPROVE REQUEST'}
+                      <CheckCircle2 className="w-4.5 h-4.5" /> {isInterUnitJob ? 'ACCEPT & ASSIGN TEAM' : (isCustomServiceHeadUnit || isMultiUnitJob) ? 'REVIEW & ASSIGN TEAM' : 'APPROVE REQUEST'}
                     </button>
                     <button
                       onClick={() => setShowRejectModal(true)}
