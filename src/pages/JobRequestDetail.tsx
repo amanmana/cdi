@@ -1621,7 +1621,13 @@ export const JobRequestDetail: React.FC = () => {
 
                 {/* Team Assignment Action Buttons */}
                 <div className="flex flex-wrap items-center gap-2">
-                  {request.status === 'staff_processing' && (isAssignedStaff || isManagerOrAdminUser || isCollaboratingUnitHead) && (
+                  {request.status === 'staff_processing' && (
+                    isAssignedStaff ||
+                    isManagerOrAdminUser ||
+                    isCollaboratingUnitHead ||
+                    isRequestUnitHead ||
+                    Boolean(user?.is_unit_head)
+                  ) && (
                     <button
                       type="button"
                       onClick={() => {
