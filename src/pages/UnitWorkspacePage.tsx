@@ -194,9 +194,11 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [editingColumn, setEditingColumn] = useState<KanbanColumn | null>(null);
   const [selectedTaskPreview, setSelectedTaskPreview] = useState<any | null>(null);
 
-  // Drag and Drop State
+  // Drag and Drop & Whiteboard Ordering State
   const [draggedJobId, setDraggedJobId] = useState<number | null>(null);
   const [dragOverColId, setDragOverColId] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [stageOrders, setStageOrders] = useState<Record<string, number[]>>({});
 
   // Calendar State
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
@@ -324,7 +326,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     setLoading(true);
 
     try {
-      // Fetch Kanban Columns
+      // Fetch Kanban Columns & Stage Orders
       const colRes = await fetch(`/api/job-requests/kanban-columns/${encodeURIComponent(currentUnit)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -339,6 +341,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           { id: 'scheduled', label: 'Scheduled', color: 'blue' },
           { id: 'published', label: 'Published / Done', color: 'emerald' },
         ]);
+      }
+      if (colData.stage_orders && typeof colData.stage_orders === 'object') {
+        setStageOrders(colData.stage_orders);
       }
 
       // Fetch All Job Requests (for this workspace unit)
@@ -553,11 +558,39 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     return { total, completed, unfinished, rate };
   }, [unitJobs]);
 
-  // Move Card to a New Kanban Stage (Purely visual whiteboard update - does NOT mutate job status)
-  const handleMoveCard = async (jobId: number, targetStageId: string) => {
+  // Move / Reorder Card on Kanban Board (Supports Vertical Ordering + Stage Moving)
+  const handleDropCard = async (jobId: number, targetStageId: string, targetIndex: number) => {
     if (!canMoveCards) return;
     const targetCol = kanbanColumns.find((c) => c.id === targetStageId);
     if (!targetCol) return;
+
+    const currentJob = unitJobs.find((j) => j.id === jobId);
+    if (!currentJob) return;
+    const currentStageId = getJobStageId(currentJob);
+
+    // Helper: get current ordered job IDs for a stage
+    const getColJobIds = (stageId: string) => {
+      const existing = stageOrders[stageId];
+      if (existing && Array.isArray(existing) && existing.length > 0) {
+        return [...existing];
+      }
+      return kanbanJobs.filter((j) => getJobStageId(j) === stageId).map((j) => j.id);
+    };
+
+    const sourceList = getColJobIds(currentStageId).filter((id) => id !== jobId);
+    let targetList = currentStageId === targetStageId ? sourceList : getColJobIds(targetStageId).filter((id) => id !== jobId);
+
+    const safeIdx = Math.max(0, Math.min(targetIndex, targetList.length));
+    targetList.splice(safeIdx, 0, jobId);
+
+    const newStageOrders: Record<string, number[]> = {
+      ...stageOrders,
+      [currentStageId]: sourceList,
+      [targetStageId]: targetList,
+    };
+
+    // Optimistically update local stage orders
+    setStageOrders(newStageOrders);
 
     // Optimistically update local whiteboard stage
     setJobRequests((prev) =>
@@ -577,23 +610,28 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     );
 
     try {
-      const res = await fetch(`/api/job-requests/${jobId}/kanban-stage`, {
+      await fetch(`/api/job-requests/kanban-order/${encodeURIComponent(currentUnit)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          stage_orders: newStageOrders,
+          job_id: jobId,
           stage_id: targetStageId,
           stage_label: targetCol.label,
         }),
       });
-      if (!res.ok) {
-        console.error('Failed to persist stage movement');
-      }
     } catch (e) {
-      console.error('Network error moving card:', e);
+      console.error('Network error persisting card whiteboard order:', e);
     }
+  };
+
+  // Quick Move Card to a New Kanban Stage via Dropdown
+  const handleMoveCard = (jobId: number, targetStageId: string) => {
+    const existing = stageOrders[targetStageId] || [];
+    handleDropCard(jobId, targetStageId, existing.length);
   };
 
   // Add Column Handler
@@ -1400,14 +1438,30 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           {/* Kanban Columns Horizontal Container */}
           <div className="flex gap-4 overflow-x-auto pb-6 pt-1 min-h-[550px] items-start">
             {kanbanColumns.map((col, index) => {
-              const colJobs = kanbanJobs.filter((job) => getJobStageId(job) === col.id);
+              const rawColJobs = kanbanJobs.filter((job) => getJobStageId(job) === col.id);
+              const orderList = stageOrders[col.id];
+              const colJobs = orderList && orderList.length > 0
+                ? [...rawColJobs].sort((a, b) => {
+                    const idxA = orderList.indexOf(a.id);
+                    const idxB = orderList.indexOf(b.id);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return b.id - a.id;
+                  })
+                : rawColJobs;
+
               const isColumnDraggedOver = Boolean(canMoveCards && dragOverColId === col.id);
+              // Filter out the dragged card if it is in this column so the drop slot represents where it will land!
+              const displayJobs = isColumnDraggedOver && draggedJobId
+                ? colJobs.filter((j) => j.id !== draggedJobId)
+                : colJobs;
 
               return (
                 <div
                   key={col.id}
                   onDragOver={(e) => {
-                    if (!canMoveCards) return;
+                    if (!canMoveCards || !draggedJobId) return;
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
                     if (dragOverColId !== col.id) {
@@ -1415,7 +1469,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     }
                   }}
                   onDragEnter={(e) => {
-                    if (!canMoveCards) return;
+                    if (!canMoveCards || !draggedJobId) return;
                     e.preventDefault();
                     setDragOverColId(col.id);
                   }}
@@ -1424,18 +1478,21 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                     if (e.currentTarget.contains(e.relatedTarget as Node)) return;
                     if (dragOverColId === col.id) {
                       setDragOverColId(null);
+                      setDragOverIndex(null);
                     }
                   }}
                   onDrop={(e) => {
                     if (!canMoveCards) return;
                     e.preventDefault();
-                    setDragOverColId(null);
                     const idStr = e.dataTransfer.getData('text/plain');
                     const jobId = idStr ? Number(idStr) : draggedJobId;
+                    const targetSlot = dragOverIndex !== null ? dragOverIndex : displayJobs.length;
                     if (jobId) {
-                      handleMoveCard(jobId, col.id);
+                      handleDropCard(jobId, col.id, targetSlot);
                     }
                     setDraggedJobId(null);
+                    setDragOverColId(null);
+                    setDragOverIndex(null);
                   }}
                   className={`w-80 shrink-0 rounded-3xl border p-4 space-y-3.5 flex flex-col transition-all duration-200 ${
                     isColumnDraggedOver
@@ -1497,160 +1554,323 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                   </div>
 
                   {/* Cards inside this Column */}
-                  <div className="space-y-3 flex-1 overflow-y-auto max-h-[70vh] pr-1">
-                    {colJobs.length === 0 ? (
+                  <div
+                    onDragOver={(e) => {
+                      if (!canMoveCards || !draggedJobId) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragOverColId !== col.id) {
+                        setDragOverColId(col.id);
+                      }
+                      if (displayJobs.length === 0) {
+                        setDragOverIndex(0);
+                      }
+                    }}
+                    className="space-y-3 flex-1 overflow-y-auto max-h-[70vh] pr-1"
+                  >
+                    {displayJobs.length === 0 ? (
                       <div
-                        className={`p-6 text-center border-2 border-dashed rounded-2xl text-xs font-semibold transition-all ${
+                        onDragOver={(e) => {
+                          if (!canMoveCards || !draggedJobId) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverColId(col.id);
+                          setDragOverIndex(0);
+                        }}
+                        onDrop={(e) => {
+                          if (!canMoveCards) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const idStr = e.dataTransfer.getData('text/plain');
+                          const jobId = idStr ? Number(idStr) : draggedJobId;
+                          if (jobId) {
+                            handleDropCard(jobId, col.id, 0);
+                          }
+                          setDraggedJobId(null);
+                          setDragOverColId(null);
+                          setDragOverIndex(null);
+                        }}
+                        className={`p-6 text-center border-2 border-dashed rounded-2xl text-xs font-bold transition-all duration-200 ${
                           isColumnDraggedOver
-                            ? 'border-indigo-400 bg-indigo-100/50 text-indigo-700 animate-pulse'
+                            ? 'border-indigo-500 bg-indigo-100/80 text-indigo-700 ring-2 ring-indigo-300 shadow-sm animate-pulse scale-[1.01]'
                             : 'border-slate-300 text-slate-400'
                         }`}
                       >
-                        {isColumnDraggedOver ? '⇩ Drop card here' : 'No tasks in this stage'}
+                        {isColumnDraggedOver ? '⇩ Drop Card Here (Position #1)' : 'No tasks in this stage'}
                       </div>
                     ) : (
-                      colJobs.map((job) => {
-                        const isDone = isJobCompleted(job);
-                        const cFields = job.additional_data?.custom_fields_data || {};
-                        const pillars = cFields.pillar || cFields.Pillar;
-                        const category = cFields.category || cFields.Category;
-                        const isThisCardDragged = draggedJobId === job.id;
+                      <>
+                        {displayJobs.map((job, idx) => {
+                          const isDone = isJobCompleted(job);
+                          const cFields = job.additional_data?.custom_fields_data || {};
+                          const pillars = cFields.pillar || cFields.Pillar;
+                          const category = cFields.category || cFields.Category;
+                          const isThisCardDragged = draggedJobId === job.id;
 
-                        return (
+                          return (
+                            <React.Fragment key={job.id}>
+                              {/* Animated Opening Slot: Appears before this card when hovering over this position */}
+                              {isColumnDraggedOver && dragOverIndex === idx && (
+                                <div
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setDragOverColId(col.id);
+                                    setDragOverIndex(idx);
+                                  }}
+                                  onDrop={(e) => {
+                                    if (!canMoveCards) return;
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const idStr = e.dataTransfer.getData('text/plain');
+                                    const jobId = idStr ? Number(idStr) : draggedJobId;
+                                    if (jobId) {
+                                      handleDropCard(jobId, col.id, idx);
+                                    }
+                                    setDraggedJobId(null);
+                                    setDragOverColId(null);
+                                    setDragOverIndex(null);
+                                  }}
+                                  className="h-16 rounded-2xl border-2 border-dashed border-indigo-500 bg-gradient-to-r from-indigo-50/95 via-purple-50/90 to-indigo-50/95 flex items-center justify-center gap-2 text-indigo-700 shadow-sm transition-all duration-200 ease-out animate-pulse ring-2 ring-indigo-300/60 my-2"
+                                >
+                                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-ping" />
+                                  <span className="text-xs font-black uppercase tracking-wider text-indigo-700">
+                                    ⇩ Drop Card Here (Position #{idx + 1})
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Kanban Card */}
+                              <div
+                                draggable={canMoveCards}
+                                onDragStart={(e) => {
+                                  if (!canMoveCards) return;
+                                  e.dataTransfer.setData('text/plain', String(job.id));
+                                  e.dataTransfer.effectAllowed = 'move';
+
+                                  // Physical lift effect: Tilt and elevate so browser drag ghost is tilted!
+                                  const el = e.currentTarget;
+                                  el.style.transform = 'rotate(-3deg) scale(1.03)';
+                                  el.style.boxShadow = '0 25px 30px -5px rgba(99, 102, 241, 0.35)';
+
+                                  setTimeout(() => {
+                                    el.style.transform = '';
+                                    el.style.boxShadow = '';
+                                    setDraggedJobId(job.id);
+                                  }, 0);
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedJobId(null);
+                                  setDragOverColId(null);
+                                  setDragOverIndex(null);
+                                }}
+                                onDragOver={(e) => {
+                                  if (!canMoveCards || !draggedJobId) return;
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  e.dataTransfer.dropEffect = 'move';
+
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const relY = e.clientY - rect.top;
+                                  const isBottomHalf = relY > rect.height / 2;
+                                  const targetSlot = isBottomHalf ? idx + 1 : idx;
+
+                                  if (dragOverColId !== col.id || dragOverIndex !== targetSlot) {
+                                    setDragOverColId(col.id);
+                                    setDragOverIndex(targetSlot);
+                                  }
+                                }}
+                                onDrop={(e) => {
+                                  if (!canMoveCards) return;
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const relY = e.clientY - rect.top;
+                                  const isBottomHalf = relY > rect.height / 2;
+                                  const targetSlot = isBottomHalf ? idx + 1 : idx;
+                                  const idStr = e.dataTransfer.getData('text/plain');
+                                  const jobId = idStr ? Number(idStr) : draggedJobId;
+                                  if (jobId) {
+                                    handleDropCard(jobId, col.id, targetSlot);
+                                  }
+                                  setDraggedJobId(null);
+                                  setDragOverColId(null);
+                                  setDragOverIndex(null);
+                                }}
+                                className={`p-4 rounded-2xl transition-all duration-200 ease-out space-y-2.5 select-none bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:-translate-y-0.5 border-l-4 ${
+                                  isDone
+                                    ? 'border-l-emerald-500 hover:border-emerald-400'
+                                    : job.status === 'manager_approval'
+                                    ? (Boolean(job.additional_data?.is_inter_unit || job.ticket_no?.startsWith('IU')) ? 'border-l-teal-500 hover:border-teal-400' : 'border-l-blue-500 hover:border-blue-400')
+                                    : job.status === 'on_hold'
+                                    ? 'border-l-amber-500 hover:border-amber-400'
+                                    : 'border-l-purple-500 hover:border-purple-400'
+                                } ${
+                                  canMoveCards
+                                    ? 'cursor-grab active:cursor-grabbing active:-rotate-2 active:scale-[1.03] active:shadow-2xl active:border-indigo-400 active:ring-2 active:ring-indigo-300'
+                                    : 'cursor-default'
+                                } ${
+                                  isThisCardDragged
+                                    ? 'opacity-35 scale-[0.98] border-2 border-dashed border-indigo-400 bg-indigo-50/40 -rotate-1'
+                                    : ''
+                                }`}
+                              >
+                                {/* Card Header: Ticket No + Exact CDI Status Badge */}
+                                <div className="flex items-center justify-between gap-1.5">
+                                  <div className="flex items-center gap-1.5 text-slate-400">
+                                    {canMoveCards && <GripVertical className="w-3.5 h-3.5 shrink-0 hover:text-slate-600" />}
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                      {job.ticket_no}
+                                    </span>
+                                  </div>
+                                  {renderCardStatusBadge(job)}
+                                </div>
+
+                                {/* Job Title */}
+                                <Link
+                                  to={`/portal/job-requests/${job.id}`}
+                                  className="font-extrabold text-xs text-slate-900 hover:text-indigo-600 line-clamp-2 block tracking-tight"
+                                >
+                                  {job.title}
+                                </Link>
+
+                                {/* Client & Project */}
+                                {(job.client_name || job.project_name) && (
+                                  <div className="text-[11px] text-slate-500 font-medium truncate">
+                                    {job.client_name || 'Direct Task'} {job.project_name ? `• ${job.project_name}` : ''}
+                                  </div>
+                                )}
+
+                                {/* Tags: Pillars & Category */}
+                                <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                                  {job.additional_data?.is_direct_task && (
+                                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                      Direct Work
+                                    </span>
+                                  )}
+                                  {category && (
+                                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                      {category}
+                                    </span>
+                                  )}
+                                  {pillars && (
+                                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                      {Array.isArray(pillars) ? pillars.join(', ') : pillars}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Footer: Date & Assignees */}
+                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] text-slate-400">
+                                  <div className="flex items-center gap-1 truncate font-semibold">
+                                    <Clock className="w-3 h-3 shrink-0" />
+                                    <span>{job.deadline ? new Date(job.deadline).toLocaleDateString() : job.start_date || 'No Date'}</span>
+                                  </div>
+
+                                  {/* Assignees initials */}
+                                  <div className="flex items-center -space-x-1 shrink-0">
+                                    {Array.isArray(job.assigned_staff || job.assigned_staff_details) &&
+                                      (job.assigned_staff || job.assigned_staff_details).slice(0, 3).map((s: any) => (
+                                        <span
+                                          key={s.id}
+                                          className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 border border-white flex items-center justify-center font-black text-[9px]"
+                                          title={s.name}
+                                        >
+                                          {(s.name || '?')[0]}
+                                        </span>
+                                      ))}
+                                  </div>
+                                </div>
+
+                                {/* Quick Move Stage Dropdown (Head Unit / Admin only) or Read-Only Stage Badge */}
+                                {canMoveCards ? (
+                                  <div className="pt-1 flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                      Move to:
+                                    </span>
+                                    <select
+                                      value={col.id}
+                                      onChange={(e) => handleMoveCard(job.id, e.target.value)}
+                                      className="select select-xs select-bordered bg-slate-50 border-slate-200 rounded-lg text-[10px] font-bold text-slate-700"
+                                    >
+                                      {kanbanColumns.map((targetOption) => (
+                                        <option key={targetOption.id} value={targetOption.id}>
+                                          {targetOption.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <div className="pt-1 flex items-center justify-between gap-2 border-t border-slate-50">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                      Stage:
+                                    </span>
+                                    <span className="text-[10px] font-black text-indigo-700 bg-indigo-50/80 border border-indigo-100/80 px-2 py-0.5 rounded-md truncate max-w-[170px]">
+                                      {col.label}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </React.Fragment>
+                          );
+                        })}
+
+                        {/* Animated Opening Slot at the bottom of the column */}
+                        {isColumnDraggedOver && dragOverIndex === displayJobs.length && (
                           <div
-                            key={job.id}
-                            draggable={canMoveCards}
-                            onDragStart={(e) => {
-                              if (!canMoveCards) return;
-                              e.dataTransfer.setData('text/plain', String(job.id));
-                              e.dataTransfer.effectAllowed = 'move';
-                              setDraggedJobId(job.id);
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setDragOverColId(col.id);
+                              setDragOverIndex(displayJobs.length);
                             }}
-                            onDragEnd={() => {
+                            onDrop={(e) => {
+                              if (!canMoveCards) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const idStr = e.dataTransfer.getData('text/plain');
+                              const jobId = idStr ? Number(idStr) : draggedJobId;
+                              if (jobId) {
+                                handleDropCard(jobId, col.id, displayJobs.length);
+                              }
                               setDraggedJobId(null);
                               setDragOverColId(null);
+                              setDragOverIndex(null);
                             }}
-                            className={`p-4 rounded-2xl transition-all duration-150 space-y-2.5 select-none bg-white border border-slate-200/80 shadow-xs hover:shadow-md border-l-4 ${
-                              isDone
-                                ? 'border-l-emerald-500 hover:border-emerald-400'
-                                : job.status === 'manager_approval'
-                                ? (Boolean(job.additional_data?.is_inter_unit || job.ticket_no?.startsWith('IU')) ? 'border-l-teal-500 hover:border-teal-400' : 'border-l-blue-500 hover:border-blue-400')
-                                : job.status === 'on_hold'
-                                ? 'border-l-amber-500 hover:border-amber-400'
-                                : 'border-l-purple-500 hover:border-purple-400'
-                            } ${
-                              canMoveCards ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-                            } ${
-                              isThisCardDragged
-                                ? 'opacity-40 scale-[0.98] border-dashed border-indigo-500 shadow-inner rotate-1'
-                                : ''
-                            }`}
+                            className="h-16 rounded-2xl border-2 border-dashed border-indigo-500 bg-gradient-to-r from-indigo-50/95 via-purple-50/90 to-indigo-50/95 flex items-center justify-center gap-2 text-indigo-700 shadow-sm transition-all duration-200 ease-out animate-pulse ring-2 ring-indigo-300/60 my-2"
                           >
-                            {/* Card Header: Ticket No + Exact CDI Status Badge */}
-                            <div className="flex items-center justify-between gap-1.5">
-                              <div className="flex items-center gap-1.5 text-slate-400">
-                                {canMoveCards && <GripVertical className="w-3.5 h-3.5 shrink-0 hover:text-slate-600" />}
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                                  {job.ticket_no}
-                                </span>
-                              </div>
-                              {renderCardStatusBadge(job)}
-                            </div>
-
-                            {/* Job Title */}
-                            <Link
-                              to={`/portal/job-requests/${job.id}`}
-                              className="font-extrabold text-xs text-slate-900 hover:text-indigo-600 line-clamp-2 block tracking-tight"
-                            >
-                              {job.title}
-                            </Link>
-
-                            {/* Client & Project */}
-                            {(job.client_name || job.project_name) && (
-                              <div className="text-[11px] text-slate-500 font-medium truncate">
-                                {job.client_name || 'Direct Task'} {job.project_name ? `• ${job.project_name}` : ''}
-                              </div>
-                            )}
-
-                            {/* Tags: Pillars & Category */}
-                            <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                              {job.additional_data?.is_direct_task && (
-                                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                                  Direct Work
-                                </span>
-                              )}
-                              {category && (
-                                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                  {category}
-                                </span>
-                              )}
-                              {pillars && (
-                                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                  {Array.isArray(pillars) ? pillars.join(', ') : pillars}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Footer: Date & Assignees */}
-                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] text-slate-400">
-                              <div className="flex items-center gap-1 truncate font-semibold">
-                                <Clock className="w-3 h-3 shrink-0" />
-                                <span>{job.deadline ? new Date(job.deadline).toLocaleDateString() : job.start_date || 'No Date'}</span>
-                              </div>
-
-                              {/* Assignees initials */}
-                              <div className="flex items-center -space-x-1 shrink-0">
-                                {Array.isArray(job.assigned_staff || job.assigned_staff_details) &&
-                                  (job.assigned_staff || job.assigned_staff_details).slice(0, 3).map((s: any) => (
-                                    <span
-                                      key={s.id}
-                                      className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 border border-white flex items-center justify-center font-black text-[9px]"
-                                      title={s.name}
-                                    >
-                                      {(s.name || '?')[0]}
-                                    </span>
-                                  ))}
-                              </div>
-                            </div>
-
-                            {/* Quick Move Stage Dropdown (Head Unit / Admin only) or Read-Only Stage Badge */}
-                            {canMoveCards ? (
-                              <div className="pt-1 flex items-center justify-between gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                  Move to:
-                                </span>
-                                <select
-                                  value={col.id}
-                                  onChange={(e) => handleMoveCard(job.id, e.target.value)}
-                                  className="select select-xs select-bordered bg-slate-50 border-slate-200 rounded-lg text-[10px] font-bold text-slate-700"
-                                >
-                                  {kanbanColumns.map((targetOption) => (
-                                    <option key={targetOption.id} value={targetOption.id}>
-                                      {targetOption.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            ) : (
-                              <div className="pt-1 flex items-center justify-between gap-2 border-t border-slate-50">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                  Stage:
-                                </span>
-                                <span className="text-[10px] font-black text-indigo-700 bg-indigo-50/80 border border-indigo-100/80 px-2 py-0.5 rounded-md truncate max-w-[170px]">
-                                  {col.label}
-                                </span>
-                              </div>
-                            )}
+                            <div className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-ping" />
+                            <span className="text-xs font-black uppercase tracking-wider text-indigo-700">
+                              ⇩ Drop Card Here (Position #{displayJobs.length + 1})
+                            </span>
                           </div>
-                        );
-                      })
-                    )}
+                        )}
 
-                    {/* Drop target indicator when dragging over a column that already has cards */}
-                    {isColumnDraggedOver && colJobs.length > 0 && (
-                      <div className="p-3 rounded-2xl border-2 border-dashed border-indigo-400 bg-indigo-100/50 text-indigo-700 text-xs font-extrabold text-center animate-pulse flex items-center justify-center gap-2">
-                        <span>⇩ Drop to move to {col.label}</span>
-                      </div>
+                        {/* Bottom Drop Zone / Spacer */}
+                        <div
+                          onDragOver={(e) => {
+                            if (!canMoveCards || !draggedJobId) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDragOverColId(col.id);
+                            setDragOverIndex(displayJobs.length);
+                          }}
+                          onDrop={(e) => {
+                            if (!canMoveCards) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const idStr = e.dataTransfer.getData('text/plain');
+                            const jobId = idStr ? Number(idStr) : draggedJobId;
+                            if (jobId) {
+                              handleDropCard(jobId, col.id, displayJobs.length);
+                            }
+                            setDraggedJobId(null);
+                            setDragOverColId(null);
+                            setDragOverIndex(null);
+                          }}
+                          className="h-8 w-full shrink-0"
+                        />
+                      </>
                     )}
                   </div>
                 </div>

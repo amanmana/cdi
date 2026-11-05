@@ -794,21 +794,9 @@ jobRequestsRouter.get('/kanban-columns/:unitName', async (c) => {
   const db = c.env.DB;
   const unitName = c.req.param('unitName');
   const cleanKey = `kanban_cols_${unitName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  const orderKey = `kanban_order_${unitName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
 
-  try {
-    const row = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(cleanKey).first<{ value: string }>();
-    if (row && row.value) {
-      const parsed = JSON.parse(row.value);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return c.json({ success: true, columns: parsed });
-      }
-    }
-  } catch (e) {
-    console.error('Error reading kanban columns:', e);
-  }
-
-  // Default initial columns
-  const defaultColumns = [
+  let columns = [
     { id: 'planning', label: 'Planning / Idea', color: 'slate' },
     { id: 'drafting', label: 'Drafting & Design', color: 'indigo' },
     { id: 'review', label: 'Review & Approval', color: 'amber' },
@@ -816,7 +804,87 @@ jobRequestsRouter.get('/kanban-columns/:unitName', async (c) => {
     { id: 'published', label: 'Published / Done', color: 'emerald' },
   ];
 
-  return c.json({ success: true, columns: defaultColumns });
+  try {
+    const row = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(cleanKey).first<{ value: string }>();
+    if (row && row.value) {
+      const parsed = JSON.parse(row.value);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        columns = parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading kanban columns:', e);
+  }
+
+  let stageOrders: Record<string, number[]> = {};
+  try {
+    const orderRow = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(orderKey).first<{ value: string }>();
+    if (orderRow && orderRow.value) {
+      stageOrders = JSON.parse(orderRow.value);
+    }
+  } catch (e) {
+    console.error('Error reading kanban stage orders:', e);
+  }
+
+  return c.json({ success: true, columns, stage_orders: stageOrders });
+});
+
+// PUT /api/job-requests/kanban-order/:unitName - Update vertical card orders and stage for whiteboard
+jobRequestsRouter.put('/kanban-order/:unitName', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const unitName = c.req.param('unitName');
+  const { stage_orders, job_id, stage_id, stage_label } = await c.req.json();
+
+  const isSocMedUnitName = (u?: string | null) => {
+    if (!u) return false;
+    const s = u.toLowerCase().trim();
+    return s === 'social media' || s === 'socmed' || s.includes('social') || s.includes('socmed');
+  };
+  const isSocMedStaff = isSocMedUnitName(user?.unit) || (user?.role === 'staff' && isSocMedUnitName(unitName));
+  const isSuperAdmin = user?.role === 'admin';
+  const isHeadOfThisUnit = Boolean(
+    user?.is_unit_head && (
+      (user?.unit && user.unit.toLowerCase().trim() === unitName.toLowerCase().trim()) ||
+      ((user as any)?.managed_units && (user as any).managed_units.some((u: string) => u.toLowerCase().trim() === unitName.toLowerCase().trim()))
+    )
+  );
+
+  if (!isSuperAdmin && !isHeadOfThisUnit && !isSocMedStaff) {
+    return c.json({ error: 'Permission denied: Cannot reorder whiteboard cards.' }, 403);
+  }
+
+  const cleanKey = `kanban_order_${unitName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  if (stage_orders && typeof stage_orders === 'object') {
+    await db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)')
+      .bind(cleanKey, JSON.stringify(stage_orders))
+      .run();
+  }
+
+  if (job_id && stage_id) {
+    const req = await db.prepare('SELECT * FROM job_requests WHERE id = ?').bind(job_id).first<any>();
+    if (req) {
+      let addData: any = {};
+      try {
+        addData = req.additional_data ? JSON.parse(req.additional_data) : {};
+      } catch {}
+      addData.kanban_stage = stage_id || stage_label;
+      addData.kanban_stage_label = stage_label;
+      addData.kanban_updated_at = new Date().toISOString();
+      addData.kanban_updated_by = user.name || user.email;
+
+      await db.prepare('UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .bind(JSON.stringify(addData), job_id)
+        .run();
+
+      await db.prepare(`
+        INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment)
+        VALUES (?, 'KANBAN_STAGE_MOVED', ?, ?, ?)
+      `).bind(job_id, user.id, user.name, `Reordered task on whiteboard: stage ${stage_label || stage_id}`).run();
+    }
+  }
+
+  return c.json({ success: true, stage_orders });
 });
 
 // PUT /api/job-requests/kanban-columns/:unitName - Update customized Kanban columns (Head Unit, Manager, Admin, Director only)
@@ -854,7 +922,7 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const id = c.req.param('id');
-  const { stage_id, stage_label } = await c.req.json();
+  const { stage_id, stage_label, stage_orders, unit_name } = await c.req.json();
 
   const req = await db.prepare('SELECT * FROM job_requests WHERE id = ?').bind(id).first<any>();
   if (!req) {
@@ -909,6 +977,14 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
   await db.prepare('UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .bind(JSON.stringify(addData), id)
     .run();
+
+  if (stage_orders && typeof stage_orders === 'object') {
+    const targetUnitName = unit_name || reqUnit;
+    const cleanKey = `kanban_order_${targetUnitName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    await db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)')
+      .bind(cleanKey, JSON.stringify(stage_orders))
+      .run();
+  }
 
   // Log workflow action
   await db.prepare(`
