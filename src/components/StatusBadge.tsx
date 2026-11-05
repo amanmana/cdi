@@ -19,6 +19,13 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, stepName, isIn
             label: 'Head Unit Approval',
           };
         }
+        if (stepName === 'Unit Head Review') {
+          return {
+            bg: 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-900/40 dark:text-teal-300',
+            icon: <Clock className="w-3.5 h-3.5 mr-1" />,
+            label: 'Unit Head Review',
+          };
+        }
         return {
           bg: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300',
           icon: <Clock className="w-3.5 h-3.5 mr-1" />,

@@ -288,12 +288,15 @@ export const JobRequestDetail: React.FC = () => {
     if (!deadline && request.deadline) {
       setDeadline(request.deadline);
     }
-    if (isInterUnitJob && isTargetUnitHead && user?.unit) {
+    if (((isInterUnitJob && isTargetUnitHead) || isCustomServiceHeadUnit) && user?.unit) {
       setStaffUnitFilter(user.unit);
     } else if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
       setStaffUnitFilter('Head');
     } else {
       setStaffUnitFilter('All');
+    }
+    if ((!selectedStaff || selectedStaff.length === 0) && request.additional_data?.suggested_staff_id) {
+      setSelectedStaff([Number(request.additional_data.suggested_staff_id)]);
     }
     setShowApproveModal(true);
   };
@@ -857,8 +860,7 @@ export const JobRequestDetail: React.FC = () => {
     ? request.additional_data.target_unit_ids
     : (reqUnitId ? [reqUnitId] : []);
 
-  const isTargetUnitHead = Boolean(
-    isInterUnitJob &&
+  const isRequestUnitHead = Boolean(
     user?.is_unit_head &&
     (
       (reqUnitId && managedUnitIds.includes(reqUnitId)) ||
@@ -870,6 +872,15 @@ export const JobRequestDetail: React.FC = () => {
       (userUnit && multiTargetUnits.some((tUnit) => tUnit.toLowerCase().trim() === userUnit))
     )
   );
+
+  const isTargetUnitHead = Boolean(isInterUnitJob && isRequestUnitHead);
+
+  const isDirectToHeadUnit = Boolean(
+    request?.additional_data?.routing_target === 'head_unit' ||
+    request?.current_step_name === 'Unit Head Review'
+  );
+
+  const isCustomServiceHeadUnit = Boolean(isRequestUnitHead && isDirectToHeadUnit);
 
   const requesterUnit = request?.additional_data?.requester_unit?.toLowerCase().trim();
   const requesterId = request?.additional_data?.requester_id ? Number(request.additional_data.requester_id) : null;
@@ -1053,6 +1064,15 @@ export const JobRequestDetail: React.FC = () => {
           <span className="bg-teal-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-teal-300 animate-pulse" />
             <span>{headName ? `HEAD UNIT (${headName}) APPROVAL` : 'HEAD UNIT APPROVAL'}</span>
+          </span>
+        );
+      }
+      if (isDirectToHeadUnit) {
+        const headName = targetUnitHead?.name || request.additional_data?.target_unit_head_name;
+        return (
+          <span className="bg-teal-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-teal-300 animate-pulse" />
+            <span>{headName ? `UNIT HEAD REVIEW (${headName})` : 'UNIT HEAD REVIEW'}</span>
           </span>
         );
       }
@@ -1950,7 +1970,8 @@ export const JobRequestDetail: React.FC = () => {
                user?.role === 'admin' ||
                (user?.role === 'manager' && !isInterUnitJob) ||
                user?.is_acting_manager ||
-               (isInterUnitJob && isTargetUnitHead)
+               (isInterUnitJob && isTargetUnitHead) ||
+               isCustomServiceHeadUnit
              )) && (
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-slate-100"></div>
@@ -1966,7 +1987,8 @@ export const JobRequestDetail: React.FC = () => {
               user?.role === 'admin' ||
               (user?.role === 'manager' && !isInterUnitJob) ||
               user?.is_acting_manager ||
-              (isInterUnitJob && isTargetUnitHead)
+              (isInterUnitJob && isTargetUnitHead) ||
+              isCustomServiceHeadUnit
             ) && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-1 my-2">
                 <div className="text-xs font-bold text-slate-700">
@@ -1974,6 +1996,8 @@ export const JobRequestDetail: React.FC = () => {
                     ? (multiTargetUnits.length > 1
                         ? `Awaiting Target Unit Heads (${multiTargetUnits.join(', ')}) Review`
                         : `Awaiting Head Unit${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''} Approval`)
+                    : isDirectToHeadUnit
+                    ? `Awaiting Unit Head${(targetUnitHead?.name || request.additional_data?.target_unit_head_name) ? ` (${targetUnitHead?.name || request.additional_data?.target_unit_head_name})` : ''} Review & Assignment`
                     : 'Awaiting Manager Approval'}
                 </div>
                 <div className="text-[11px] text-slate-400 font-medium">
@@ -1981,6 +2005,8 @@ export const JobRequestDetail: React.FC = () => {
                     ? `Target unit acceptance is pending — but you can start and finalize your own work portion independently.`
                     : isInterUnitJob
                     ? `Inter-Unit collaboration requests are reviewed and accepted by the designated Unit Head(s).`
+                    : isDirectToHeadUnit
+                    ? `This service request was routed directly to the Unit Head for review and staff assignment.`
                     : 'Online client job requests are reviewed and approved exclusively by Department Managers.'}
                 </div>
               </div>
@@ -2029,7 +2055,8 @@ export const JobRequestDetail: React.FC = () => {
                   user?.role === 'admin' ||
                   (user?.role === 'manager' && !isInterUnitJob) ||
                   user?.is_acting_manager ||
-                  (isInterUnitJob && isTargetUnitHead)
+                  (isInterUnitJob && isTargetUnitHead) ||
+                  isCustomServiceHeadUnit
                 ) && (
                   <>
                     <button
@@ -2037,7 +2064,7 @@ export const JobRequestDetail: React.FC = () => {
                       disabled={actionLoading}
                       className="btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-2xl h-12 border-none shadow-lg shadow-emerald-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
                     >
-                      <CheckCircle2 className="w-4.5 h-4.5" /> {isInterUnitJob ? 'ACCEPT & ASSIGN TEAM' : 'APPROVE REQUEST'}
+                      <CheckCircle2 className="w-4.5 h-4.5" /> {isInterUnitJob ? 'ACCEPT & ASSIGN TEAM' : isCustomServiceHeadUnit ? 'REVIEW & ASSIGN TEAM' : 'APPROVE REQUEST'}
                     </button>
                     <button
                       onClick={() => setShowRejectModal(true)}

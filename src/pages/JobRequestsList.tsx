@@ -563,6 +563,9 @@ export const JobRequestsList: React.FC = () => {
       if (isInterUnit) {
         return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">HEAD UNIT APPROVAL</span>;
       }
+      if (stepName === 'Unit Head Review') {
+        return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">UNIT HEAD REVIEW</span>;
+      }
       return <span className="inline-flex items-center justify-center whitespace-nowrap bg-blue-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">MANAGER APPROVAL</span>;
     }
     if (status === 'on_hold') {

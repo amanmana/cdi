@@ -181,7 +181,12 @@ export const TrackTicket: React.FC = () => {
                 <div className="space-y-8">
                   {[
                     { key: 'submitted', label: 'Request Submitted' },
-                    { key: 'manager_approval', label: 'Manager Review' },
+                    {
+                      key: 'manager_approval',
+                      label: data.request.current_step_name === 'Unit Head Review' || data.request.additional_data?.routing_target === 'head_unit'
+                        ? 'Unit Head Review'
+                        : 'Manager Review',
+                    },
                     { key: 'staff_processing', label: 'Staff Processing' },
                     { key: 'completed', label: data.request.status === 'rejected' ? 'Rejected' : 'Completed' },
                   ].map((step, idx) => {

@@ -33,7 +33,7 @@ export class WorkflowEngine {
         const targetUnits: string[] = Array.isArray(addDataObj?.target_units) ? addDataObj.target_units : (request.unit ? [request.unit] : []);
         const targetUnitIds: number[] = Array.isArray(addDataObj?.target_unit_ids) ? addDataObj.target_unit_ids : (request.unit_id ? [Number(request.unit_id)] : []);
 
-        const isTargetUnitHead = Boolean((user as any).is_unit_head) && (
+        const isUnitHeadForRequest = Boolean((user as any).is_unit_head) && (
           (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
           (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
           (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||
@@ -43,11 +43,31 @@ export class WorkflowEngine {
         );
         // Inter-Unit jobs: ONLY admin, target unit head, or acting manager can Accept/Reject
         // Regular managers are excluded — this is a Head Unit to Head Unit collaboration
-        return user.role === 'admin' || Boolean((user as any).is_acting_manager) || isTargetUnitHead;
+        return user.role === 'admin' || Boolean((user as any).is_acting_manager) || isUnitHeadForRequest;
       }
 
-      // Online client requests: ONLY Manager, Admin, or Acting Manager has approval authority
-      return user.role === 'manager' || user.role === 'admin' || Boolean((user as any).is_acting_manager);
+      // Check if this is a custom service job routed directly to Head of Unit
+      let addDataObj: any = null;
+      if (request.additional_data) {
+        try {
+          addDataObj = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
+        } catch (e) {}
+      }
+      const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
+      const userManagedUnitIds: number[] = (user as any).managed_unit_ids || ((user as any).unit_id ? [(user as any).unit_id] : []);
+      const isUnitHeadForRequest = Boolean((user as any).is_unit_head) && (
+        (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
+        (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
+        (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||
+        (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+      );
+      const isCustomServiceHeadUnit = isUnitHeadForRequest && (
+        addDataObj?.routing_target === 'head_unit' ||
+        request.current_step_name === 'Unit Head Review'
+      );
+
+      // Online client requests: Manager, Admin, Acting Manager, or designated Unit Head (for direct Head Unit routes)
+      return user.role === 'manager' || user.role === 'admin' || Boolean((user as any).is_acting_manager) || isCustomServiceHeadUnit;
     }
 
     if (request.status === 'staff_processing') {
