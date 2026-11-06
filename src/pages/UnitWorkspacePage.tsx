@@ -345,11 +345,18 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     setCurrentUnit(unitName);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('unit', unitName);
-    const targetIsSocMed = unitName.toLowerCase().trim() === 'social media' || unitName.toLowerCase().includes('social');
-    const targetKanbanEnabled = Boolean(targetIsSocMed && (!isLeadership || user?.role === 'admin'));
+    const uLower = unitName.toLowerCase().trim();
+    const targetKanbanConfigured =
+      enabledKanbanUnits.some((u) => u && u.toLowerCase().trim() === uLower) ||
+      uLower.includes('social') ||
+      uLower.includes('socmed');
+    const targetKanbanEnabled = Boolean(targetKanbanConfigured && (!isLeadership || user?.role === 'admin'));
     if (!targetKanbanEnabled && activeTab === 'kanban') {
       setActiveTab('calendar');
       newParams.set('tab', 'calendar');
+    } else if (targetKanbanEnabled && !searchParams.get('tab')) {
+      setActiveTab('kanban');
+      newParams.set('tab', 'kanban');
     }
     setSearchParams(newParams);
   };

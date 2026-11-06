@@ -38,7 +38,15 @@ export const SettingsPage: React.FC = () => {
   );
 
   // Unit Kanban Whiteboard feature toggles (Self-service Admin control)
-  const [allUnits, setAllUnits] = useState<any[]>([]);
+  const [allUnits, setAllUnits] = useState<any[]>([
+    { id: 11, name: 'Social Media' },
+    { id: 5, name: 'Graphic' },
+    { id: 13, name: 'Web' },
+    { id: 9, name: 'Writer' },
+    { id: 16, name: '3D Modelling & Video' },
+    { id: 14, name: 'Rapid Prototyping Lab' },
+    { id: 15, name: 'Events Mangements' },
+  ]);
   const [enabledKanbanUnits, setEnabledKanbanUnits] = useState<string[]>(['Social Media']);
   
   // Database maintenance state
@@ -77,13 +85,20 @@ export const SettingsPage: React.FC = () => {
       });
 
     // Fetch all active units
-    fetch('/api/units', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/admin/units', { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) setAllUnits(data);
-        else if (data && Array.isArray(data.units)) setAllUnits(data.units);
+        if (Array.isArray(data) && data.length > 0) setAllUnits(data);
+        else if (data && Array.isArray(data.units) && data.units.length > 0) setAllUnits(data.units);
       })
-      .catch(() => {});
+      .catch(() => {
+        fetch('/api/public/units')
+          .then((r) => r.json())
+          .then((d) => {
+            if (Array.isArray(d) && d.length > 0) setAllUnits(d);
+          })
+          .catch(() => {});
+      });
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
