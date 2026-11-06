@@ -1382,7 +1382,18 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
       return c.json({ error: 'Work title is required.' }, 400);
     }
 
-    const targetUnit = user.acting_manager_unit || user.unit || 'Graphic Design';
+    let targetUnit = user.acting_manager_unit || user.unit;
+    if (!targetUnit && Array.isArray(assigned_staff_ids) && assigned_staff_ids.length > 0) {
+      const firstStaffRow = await db.prepare('SELECT unit FROM users WHERE id = ?').bind(Number(assigned_staff_ids[0])).first<{ unit: string }>();
+      if (firstStaffRow?.unit) {
+        targetUnit = firstStaffRow.unit;
+      }
+    }
+    if (!targetUnit) {
+      const managedUnits: string[] = (user as any).managed_units || [];
+      targetUnit = managedUnits[0] || 'Graphic';
+    }
+
     const numbers = Math.floor(100000 + Math.random() * 900000).toString();
     const ticketNo = 'SELF' + numbers;
 
@@ -1396,7 +1407,7 @@ jobRequestsRouter.post('/self-initiated', async (c) => {
     const finalStatus = status === 'completed' ? 'completed' : 'staff_processing';
     const stepName = finalStatus === 'completed' ? 'Completed' : 'Staff Processing';
     let assignedStr = user.id.toString();
-    if (user.is_unit_head) {
+    if (user.is_unit_head || ['admin', 'manager'].includes(user.role) || user.is_acting_manager) {
       if (Array.isArray(assigned_staff_ids) && assigned_staff_ids.length > 0) {
         assignedStr = assigned_staff_ids.map((id: any) => String(id).trim()).filter(Boolean).join(',');
       } else if (assigned_staff_id) {

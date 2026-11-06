@@ -121,7 +121,36 @@ export const JobRequestsList: React.FC = () => {
   const unitInternalFields = (myUnitObj?.form_schema || []).filter(
     (f: any) => f.scope === 'internal' || f.scope === 'both'
   );
+  const userDeptId = (user as any)?.managed_department_id || user?.department_id || (user as any)?.acting_manager_department_id;
+  const managedUnits: string[] = (user as any)?.managed_units || [];
+  const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
+
   const unitStaffList = staffMembers.filter((s: any) => {
+    // 1. If Manager or Acting Manager: include all staff in their department or managed units
+    if (user?.role === 'manager' || user?.is_acting_manager) {
+      if (userDeptId && s.department_id && String(s.department_id) === String(userDeptId)) {
+        return true;
+      }
+      if (managedUnits.length > 0 && s.unit && managedUnits.some((mu: string) => mu.toLowerCase().trim() === s.unit.toLowerCase().trim())) {
+        return true;
+      }
+      if (managedUnitIds.length > 0 && s.unit_id && managedUnitIds.includes(Number(s.unit_id))) {
+        return true;
+      }
+      return false;
+    }
+
+    // 2. Unit Head with multiple managed units
+    if (managedUnits.length > 0) {
+      if (s.unit && managedUnits.some((mu: string) => mu.toLowerCase().trim() === s.unit.toLowerCase().trim())) {
+        return true;
+      }
+      if (managedUnitIds.length > 0 && s.unit_id && managedUnitIds.includes(Number(s.unit_id))) {
+        return true;
+      }
+    }
+
+    // 3. Regular Unit Head / Staff
     if (userUnitId && s.unit_id && Number(s.unit_id) === Number(userUnitId)) return true;
     if (userUnitName && s.unit && s.unit.toLowerCase().trim() === userUnitName.toLowerCase().trim()) return true;
     return false;
@@ -1423,8 +1452,8 @@ export const JobRequestsList: React.FC = () => {
                 </select>
               </div>
 
-              {/* ASSIGN TEAM MEMBERS (MULTI-SELECT FOR HEAD UNIT) */}
-              {user?.is_unit_head && (
+              {/* ASSIGN TEAM MEMBERS (MULTI-SELECT FOR HEAD UNIT & MANAGERS) */}
+              {(user?.is_unit_head || user?.role === 'manager' || user?.is_acting_manager || user?.role === 'admin') && (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
@@ -1435,7 +1464,7 @@ export const JobRequestsList: React.FC = () => {
 
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
                     <div className="flex flex-wrap gap-2">
-                      {/* Myself (Head Unit) */}
+                      {/* Myself */}
                       {(() => {
                         const myId = Number(user?.id);
                         const isSelected = selfAssigneeIds.includes(myId);
@@ -1465,7 +1494,7 @@ export const JobRequestsList: React.FC = () => {
                         );
                       })()}
 
-                      {/* Other unit staff */}
+                      {/* Department / Unit Staff */}
                       {unitStaffList
                         .filter((s: any) => Number(s.id) !== Number(user?.id))
                         .map((s: any) => {
@@ -1492,7 +1521,9 @@ export const JobRequestsList: React.FC = () => {
                                 }}
                                 className="checkbox checkbox-xs rounded checkbox-primary"
                               />
-                              <span>{s.name}</span>
+                              <span>
+                                {s.name} {s.unit ? `(${s.unit})` : ''} {Boolean(s.is_unit_head) ? '★' : ''}
+                              </span>
                             </label>
                           );
                         })}
