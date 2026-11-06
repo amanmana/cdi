@@ -961,7 +961,7 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   // Strictly origin manager or admin can update timeline (Pilihan A)
-  const canEditTimeline = useMemo(() => {
+  const canEditTimeline = (() => {
     if (user?.role === 'admin' || user?.role === 'director') return true;
     if (user?.role !== 'manager' && !user?.is_acting_manager) return false;
 
@@ -994,7 +994,7 @@ export const JobRequestDetail: React.FC = () => {
     }
 
     return false;
-  }, [user, request, isInterUnitJob, requesterUnit, managedUnits]);
+  })();
 
   // Helper for unit badge styling
   const getUnitBadgeStyle = (name: string) => {
