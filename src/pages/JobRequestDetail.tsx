@@ -290,28 +290,20 @@ export const JobRequestDetail: React.FC = () => {
     if (!deadline && request.deadline) {
       setDeadline(request.deadline);
     }
-    if (user?.role === 'manager' || user?.is_acting_manager) {
-      const myMatchingUnit = multiTargetUnits.find((tu) => 
-        managedUnits.some((mu) => mu.toLowerCase().trim() === tu.toLowerCase().trim())
-      );
-      if (myMatchingUnit) {
-        setStaffUnitFilter(myMatchingUnit);
-      } else {
-        setStaffUnitFilter('Head');
+    if (isUnitHeadActor) {
+      setStaffUnitFilter(myUnitName || user?.unit || 'All');
+      if ((!selectedStaff || selectedStaff.length === 0) && myUnitMeta?.suggested_staff_id) {
+        setSelectedStaff([Number(myUnitMeta.suggested_staff_id)]);
       }
-    } else if (((isInterUnitJob && isTargetUnitHead) || isCustomServiceHeadUnit) && user?.unit) {
     } else {
-      setStaffUnitFilter('All');
-    }
-    if ((!selectedStaff || selectedStaff.length === 0) && request.additional_data?.suggested_staff_id) {
-      setSelectedStaff([Number(request.additional_data.suggested_staff_id)]);
+      setSelectedStaff([]);
     }
     setShowApproveModal(true);
   };
 
   const handleConfirmApprove = async () => {
-    if (!selectedStaff || selectedStaff.length === 0) {
-      alert("Please select at least one staff member before approving this request.");
+    if (isUnitHeadActor && (!selectedStaff || selectedStaff.length === 0)) {
+      alert("Please select at least one staff member before assigning team.");
       return;
     }
     if (!deadline) {
@@ -329,25 +321,25 @@ export const JobRequestDetail: React.FC = () => {
     }
     setActionLoading(true);
     try {
-      // 1. Update assigned team (for Inter-Unit jobs, preserve origin staff and all existing assigned staff)
-      let combinedStaff = [...selectedStaff];
-      if (request.additional_data?.origin_staff_id) {
-        const oId = Number(request.additional_data.origin_staff_id);
-        if (!combinedStaff.includes(oId)) {
-          combinedStaff.push(oId);
+      // 1. Update assigned team if acting as Unit Head
+      if (isUnitHeadActor && selectedStaff.length > 0) {
+        let combinedStaff = [...selectedStaff];
+        if (request.additional_data?.origin_staff_id) {
+          const oId = Number(request.additional_data.origin_staff_id);
+          if (!combinedStaff.includes(oId)) {
+            combinedStaff.push(oId);
+          }
         }
-      }
-      if (request.assigned_staff_ids) {
-        const existingIds = String(request.assigned_staff_ids)
-          .split(',')
-          .map((s: string) => Number(s.trim()))
-          .filter((n: number) => !isNaN(n));
-        existingIds.forEach((eid: number) => {
-          if (!combinedStaff.includes(eid)) combinedStaff.push(eid);
-        });
-      }
+        if (request.assigned_staff_ids) {
+          const existingIds = String(request.assigned_staff_ids)
+            .split(',')
+            .map((s: string) => Number(s.trim()))
+            .filter((n: number) => !isNaN(n));
+          existingIds.forEach((eid: number) => {
+            if (!combinedStaff.includes(eid)) combinedStaff.push(eid);
+          });
+        }
 
-      if (combinedStaff.length > 0) {
         await fetch(`/api/job-requests/${id}/update-team`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -372,9 +364,10 @@ export const JobRequestDetail: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          comment: comment || 'Request approved. Proceed with implementation.',
+          comment: comment || (isManagerActor ? 'Request approved by Manager. Forwarded to Unit Head for staff assignment.' : 'Staff team assigned by Unit Head.'),
           start_date: startDate,
           deadline: deadline,
+          staff_ids: isUnitHeadActor ? selectedStaff : undefined,
         }),
       });
 
@@ -383,6 +376,8 @@ export const JobRequestDetail: React.FC = () => {
         setShowApproveModal(false);
         setComment('');
         fetchDetail();
+      } else {
+        alert(resData.error || 'Failed to approve request.');
       }
     } finally {
       setActionLoading(false);
@@ -918,14 +913,61 @@ export const JobRequestDetail: React.FC = () => {
     )
   );
 
-  const canActOnManagerApproval = Boolean(
-    isDirectToHeadUnit
-      ? (user?.role === 'admin' || isCustomServiceHeadUnit)
-      : (
-          user?.role === 'admin' ||
-          isDepartmentManagerForJob ||
-          (isInterUnitJob && isTargetUnitHead)
+  const isManagerActor = Boolean(
+    user?.role === 'manager' || user?.is_acting_manager || user?.role === 'admin' || user?.role === 'director'
+  );
+
+  const isUnitHeadActor = Boolean(
+    user?.is_unit_head && user?.role !== 'manager'
+  );
+
+  // Check unit entry matching current Unit Head
+  const myUnitEntry = Object.entries(request?.additional_data?.unit_assignments || {}).find(([uName]) => {
+    return managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+           (userUnit && userUnit === uName.toLowerCase().trim());
+  });
+  const myUnitMeta: any = myUnitEntry ? myUnitEntry[1] : null;
+  const myUnitName = myUnitEntry ? myUnitEntry[0] : (user?.unit || '');
+
+  // Is Unit Head waiting for Manager approval?
+  const isUnitHeadWaitingManager = Boolean(
+    isUnitHeadActor &&
+    myUnitMeta &&
+    myUnitMeta.routing_target === 'manager' &&
+    !myUnitMeta.manager_approved
+  );
+
+  // Can this Unit Head assign staff?
+  const canUnitHeadAct = Boolean(
+    isUnitHeadActor &&
+    !isUnitHeadWaitingManager &&
+    (
+      (isInterUnitJob && isTargetUnitHead) ||
+      isDirectToHeadUnit ||
+      (myUnitMeta && (myUnitMeta.routing_target === 'head_unit' || myUnitMeta.manager_approved === true || myUnitMeta.status === 'awaiting_head_assignment'))
+    )
+  );
+
+  // Can Manager approve?
+  const canManagerAct = Boolean(
+    isManagerActor &&
+    (
+      user?.role === 'admin' ||
+      user?.role === 'director' ||
+      (
+        isDepartmentManagerForJob &&
+        (!request?.additional_data?.unit_assignments ||
+         Object.entries(request.additional_data.unit_assignments).some(([uName, uMeta]: [string, any]) => {
+           const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim());
+           return belongsToMyDept && !uMeta?.manager_approved;
+         })
         )
+      )
+    )
+  );
+
+  const canActOnManagerApproval = Boolean(
+    isManagerActor ? canManagerAct : canUnitHeadAct
   );
 
   const targetHeadDisplayName =
@@ -2167,9 +2209,26 @@ export const JobRequestDetail: React.FC = () => {
             {/* Notice for requests awaiting Review/Approval when user does not have direct action responsibility */}
             {request.status === 'manager_approval' && !canActOnManagerApproval && (
               <div className={`p-4 rounded-2xl text-center space-y-1.5 my-2 border ${
-                isDirectToHeadUnit ? 'bg-teal-50/70 border-teal-200/80' : 'bg-slate-50 border-slate-200/80'
+                isUnitHeadWaitingManager
+                  ? 'bg-amber-50/80 border-amber-200/90'
+                  : isDirectToHeadUnit
+                  ? 'bg-teal-50/70 border-teal-200/80'
+                  : 'bg-slate-50 border-slate-200/80'
               }`}>
-                {isDirectToHeadUnit ? (
+                {isUnitHeadWaitingManager ? (
+                  <>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200/80">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Menunggu Kelulusan Pengurus
+                    </div>
+                    <div className="text-xs font-bold text-slate-800">
+                      Awaiting Manager Approval
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                      Permohonan ini masih dalam semakan Pengurus Jabatan. Selepas diluluskan, anda boleh melantik pasukan staf unit ini.
+                    </div>
+                  </>
+                ) : isDirectToHeadUnit ? (
                   <>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 border border-teal-200/80">
                       <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
@@ -2252,7 +2311,7 @@ export const JobRequestDetail: React.FC = () => {
                       disabled={actionLoading}
                       className="btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-2xl h-12 border-none shadow-lg shadow-emerald-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
                     >
-                      <CheckCircle2 className="w-4.5 h-4.5" /> {isInterUnitJob ? 'ACCEPT & ASSIGN TEAM' : (isCustomServiceHeadUnit || isMultiUnitJob) ? 'REVIEW & ASSIGN TEAM' : 'APPROVE REQUEST'}
+                      <CheckCircle2 className="w-4.5 h-4.5" /> {isInterUnitJob ? 'ACCEPT & ASSIGN TEAM' : isUnitHeadActor ? 'ASSIGN STAFF TEAM' : 'APPROVE REQUEST'}
                     </button>
                     <button
                       onClick={() => setShowRejectModal(true)}
@@ -3248,184 +3307,161 @@ export const JobRequestDetail: React.FC = () => {
             {/* Modal Title & Subtitle */}
             <div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                {request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU')
+                {isInterUnitJob
                   ? 'Accept & Assign Staff'
-                  : 'Approve This Request?'}
+                  : isManagerActor
+                  ? 'Approve This Request?'
+                  : `Assign Staff Team — ${myUnitName || 'Unit'}`}
               </h3>
               <p className="text-xs text-slate-400 font-semibold mt-1">
-                {request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU')
+                {isInterUnitJob
                   ? 'Accept this request from another unit and assign tasks to your team members.'
-                  : 'This will move the request to the staff processing stage.'}
+                  : isManagerActor
+                  ? 'Tetapkan tarikh mula dan tarikh siap. Permohonan akan diluluskan dan diserahkan kepada Ketua Unit untuk melantik staf.'
+                  : `Lantik staf pakar dari unit ${myUnitName || 'anda'} untuk menjalankan tugasan projek ini.`}
               </p>
             </div>
 
-            {/* Assign to Staff Member Container matching Reference Image 1 */}
-            <div className="space-y-2">
-              <label className="block text-xs font-extrabold text-slate-800">
-                Assign to Staff Member <span className="text-rose-500 font-bold">*</span>
-              </label>
+            {/* Assign to Staff Member Container (Shown only for Unit Heads & Inter-Unit) */}
+            {!isManagerActor && (
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-800">
+                  Assign to Staff Member <span className="text-rose-500 font-bold">*</span>
+                </label>
 
-              {/* Unit Filter Tabs - Wrapped and directly visible */}
-              {(availableModalUnits.length > 1 || accessibleTeamMembers.some((m) => Boolean(m.is_unit_head))) && (
-                <div className="flex flex-wrap items-center gap-1.5 pb-1">
-                  {/* Head Tab (Default for Manager) */}
-                  <button
-                    type="button"
-                    onClick={() => setStaffUnitFilter('Head')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-                      staffUnitFilter === 'Head'
-                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                    }`}
-                  >
-                    <span>Head</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
-                        staffUnitFilter === 'Head' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'
+                {/* Unit Filter Tabs - Wrapped and directly visible */}
+                {(availableModalUnits.length > 1 || accessibleTeamMembers.some((m) => Boolean(m.is_unit_head))) && !myUnitName && (
+                  <div className="flex flex-wrap items-center gap-1.5 pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setStaffUnitFilter('All')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                        staffUnitFilter === 'All'
+                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                       }`}
                     >
-                      {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head)).length}
-                    </span>
-                    {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head) && selectedStaff.includes(m.id)).length > 0 && (
+                      <span>All</span>
                       <span
-                        className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${
-                          staffUnitFilter === 'Head' ? 'bg-emerald-400 text-slate-900' : 'bg-blue-100 text-blue-700'
+                        className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                          staffUnitFilter === 'All' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'
                         }`}
                       >
-                        {accessibleTeamMembers.filter((m) => Boolean(m.is_unit_head) && selectedStaff.includes(m.id)).length}
+                        {accessibleTeamMembers.length}
                       </span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStaffUnitFilter('All')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-                      staffUnitFilter === 'All'
-                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                    }`}
-                  >
-                    <span>All</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
-                        staffUnitFilter === 'All' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {accessibleTeamMembers.length}
-                    </span>
-                    {selectedStaff.length > 0 && (
-                      <span
-                        className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${
-                          staffUnitFilter === 'All' ? 'bg-emerald-400 text-slate-900' : 'bg-blue-100 text-blue-700'
-                        }`}
-                      >
-                        {selectedStaff.length}
-                      </span>
-                    )}
-                  </button>
-                  {availableModalUnits.map((u) => {
-                    const unitStaff = accessibleTeamMembers.filter((m) => m.unit?.trim().toLowerCase() === u.trim().toLowerCase());
-                    const selectedInUnit = unitStaff.filter((m) => selectedStaff.includes(m.id)).length;
-                    const isSelectedTab = staffUnitFilter === u;
-
-                    return (
-                      <button
-                        key={u}
-                        type="button"
-                        onClick={() => setStaffUnitFilter(u)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-                          isSelectedTab
-                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                        }`}
-                      >
-                        <span>{u}</span>
+                      {selectedStaff.length > 0 && (
                         <span
-                          className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
-                            isSelectedTab ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'
+                          className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${
+                            staffUnitFilter === 'All' ? 'bg-emerald-400 text-slate-900' : 'bg-blue-100 text-blue-700'
                           }`}
                         >
-                          {unitStaff.length}
+                          {selectedStaff.length}
                         </span>
-                        {selectedInUnit > 0 && (
+                      )}
+                    </button>
+                    {availableModalUnits.map((u) => {
+                      const unitStaff = accessibleTeamMembers.filter((m) => m.unit?.trim().toLowerCase() === u.trim().toLowerCase());
+                      const selectedInUnit = unitStaff.filter((m) => selectedStaff.includes(m.id)).length;
+                      const isSelectedTab = staffUnitFilter === u;
+
+                      return (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setStaffUnitFilter(u)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                            isSelectedTab
+                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                          }`}
+                        >
+                          <span>{u}</span>
                           <span
-                            className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${
-                              isSelectedTab ? 'bg-emerald-400 text-slate-900' : 'bg-blue-100 text-blue-700'
+                            className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                              isSelectedTab ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'
                             }`}
                           >
-                            {selectedInUnit}
+                            {unitStaff.length}
                           </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                          {selectedInUnit > 0 && (
+                            <span
+                              className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${
+                                isSelectedTab ? 'bg-emerald-400 text-slate-900' : 'bg-blue-100 text-blue-700'
+                              }`}
+                            >
+                              {selectedInUnit}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
-              <div
-                className={`border rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 bg-white transition-all ${
-                  selectedStaff.length === 0 ? 'border-rose-400 bg-rose-50/20' : 'border-blue-600'
-                }`}
-              >
-                {filteredModalStaff.length === 0 ? (
-                  <div className="text-center py-4 text-slate-400 text-xs font-semibold">
-                    No staff members found in this unit.
+                <div
+                  className={`border rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 bg-white transition-all ${
+                    selectedStaff.length === 0 ? 'border-rose-400 bg-rose-50/20' : 'border-blue-600'
+                  }`}
+                >
+                  {filteredModalStaff.length === 0 ? (
+                    <div className="text-center py-4 text-slate-400 text-xs font-semibold">
+                      No staff members found in this unit.
+                    </div>
+                  ) : (
+                    filteredModalStaff.map((m) => {
+                      const isChecked = selectedStaff.includes(m.id);
+                      return (
+                        <label
+                          key={m.id}
+                          onClick={() => {
+                            if (isChecked) setSelectedStaff(selectedStaff.filter((sid) => sid !== m.id));
+                            else setSelectedStaff([...selectedStaff, m.id]);
+                          }}
+                          className="flex items-center justify-between p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                isChecked ? 'border-blue-600 bg-white' : 'border-slate-300 bg-white'
+                              }`}
+                            >
+                              {isChecked && <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>}
+                            </div>
+                            <div>
+                              <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                                <span>{m.name}</span>
+                                {Boolean(m.is_unit_head) && (
+                                  <span className="text-[9px] bg-amber-50 text-amber-700 font-black px-1.5 py-0.2 rounded border border-amber-200">
+                                    HEAD
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{m.unit ? `${m.unit} Unit` : 'General Unit'}</div>
+                            </div>
+                          </div>
+                          {m.unit && (
+                            <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md shrink-0">
+                              {m.unit}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+
+                {selectedStaff.length === 0 ? (
+                  <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-200 text-[11px] font-bold text-rose-700 flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
+                    <span>At least one staff member must be selected.</span>
                   </div>
                 ) : (
-                  filteredModalStaff.map((m) => {
-                    const isChecked = selectedStaff.includes(m.id);
-                    return (
-                      <label
-                        key={m.id}
-                        onClick={() => {
-                          if (isChecked) setSelectedStaff(selectedStaff.filter((sid) => sid !== m.id));
-                          else setSelectedStaff([...selectedStaff, m.id]);
-                        }}
-                        className="flex items-center justify-between p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                              isChecked ? 'border-blue-600 bg-white' : 'border-slate-300 bg-white'
-                            }`}
-                          >
-                            {isChecked && <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>}
-                          </div>
-                          <div>
-                            <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
-                              <span>{m.name}</span>
-                              {Boolean(m.is_unit_head) && (
-                                <span className="text-[9px] bg-amber-50 text-amber-700 font-black px-1.5 py-0.2 rounded border border-amber-200">
-                                  HEAD
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{m.unit ? `${m.unit} Unit` : 'General Unit'}</div>
-                          </div>
-                        </div>
-                        {m.unit && (
-                          <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md shrink-0">
-                            {m.unit}
-                          </span>
-                        )}
-                      </label>
-                    );
-                  })
+                  <p className="text-[11px] text-slate-400 font-semibold italic">
+                    Select one or more staff members to handle this project
+                  </p>
                 )}
               </div>
-
-              {selectedStaff.length === 0 ? (
-                <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-200 text-[11px] font-bold text-rose-700 flex items-center gap-2">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
-                  <span>At least one staff member must be selected.</span>
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-400 font-semibold italic">
-                  Select one or more staff members to handle this project
-                </p>
-              )}
-            </div>
+            )}
 
             {/* Start Date & Deadline 2-Column Inputs matching Reference Image 1 */}
             <div className="grid grid-cols-2 gap-3 text-xs">
@@ -3494,10 +3530,18 @@ export const JobRequestDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmApprove}
-                disabled={actionLoading || selectedStaff.length === 0 || Boolean(startDate && deadline && deadline < startDate)}
+                disabled={actionLoading || (!isManagerActor && selectedStaff.length === 0) || Boolean(startDate && deadline && deadline < startDate)}
                 className="btn bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-12 uppercase tracking-wider shadow-lg shadow-emerald-500/25"
               >
-                {actionLoading ? <span className="loading loading-spinner"></span> : request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU') ? 'CONFIRM ACCEPT & ASSIGN' : 'CONFIRM & ASSIGN'}
+                {actionLoading ? (
+                  <span className="loading loading-spinner"></span>
+                ) : isManagerActor ? (
+                  'CONFIRM & APPROVE'
+                ) : isInterUnitJob ? (
+                  'CONFIRM ACCEPT & ASSIGN'
+                ) : (
+                  'CONFIRM & ASSIGN TEAM'
+                )}
               </button>
             </div>
           </div>

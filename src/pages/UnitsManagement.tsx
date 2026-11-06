@@ -119,6 +119,9 @@ export const UnitsManagement: React.FC = () => {
     public_label: '',
     is_public: true,
     head_id: '',
+    routing_target: 'manager',
+    suggested_staff_id: '',
+    suggested_staff_name: '',
   });
   const [isSavingUnitConfig, setIsSavingUnitConfig] = useState(false);
 
@@ -486,6 +489,9 @@ export const UnitsManagement: React.FC = () => {
       public_label: u.public_label || '',
       is_public: u.is_public !== undefined ? Boolean(u.is_public) : true,
       head_id: u.head_id ? String(u.head_id) : '',
+      routing_target: u.routing_target || 'manager',
+      suggested_staff_id: u.suggested_staff_id ? String(u.suggested_staff_id) : '',
+      suggested_staff_name: u.suggested_staff_name || '',
     });
     setUnitConfigModalOpen(true);
   };
@@ -505,6 +511,9 @@ export const UnitsManagement: React.FC = () => {
           public_label: unitConfigForm.public_label.trim() || null,
           is_public: unitConfigForm.is_public ? 1 : 0,
           head_id: unitConfigForm.head_id ? Number(unitConfigForm.head_id) : null,
+          routing_target: unitConfigForm.routing_target || 'manager',
+          suggested_staff_id: unitConfigForm.suggested_staff_id ? Number(unitConfigForm.suggested_staff_id) : null,
+          suggested_staff_name: unitConfigForm.suggested_staff_name || null,
         }),
       });
 
@@ -2146,6 +2155,112 @@ export const UnitsManagement: React.FC = () => {
                 <p className="text-[10px] text-slate-400 mt-1 font-medium">
                   The Unit Head receives tasks assigned by the Manager and can invite staff & distribute work for their unit's projects.
                 </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">
+                  Suggested Specialist Staff (Pilihan)
+                </label>
+                <select
+                  value={unitConfigForm.suggested_staff_id}
+                  onChange={(e) => {
+                    const sid = e.target.value;
+                    const found = usersList.find((u) => String(u.id) === String(sid));
+                    setUnitConfigForm({
+                      ...unitConfigForm,
+                      suggested_staff_id: sid,
+                      suggested_staff_name: found ? found.name : '',
+                    });
+                  }}
+                  className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-medium focus:bg-white"
+                >
+                  <option value="">-- No Suggested Staff (Let Unit Head decide) --</option>
+                  {usersList
+                    .filter((u) => {
+                      if (!configuringUnit) return false;
+                      const uUnit = (u.unit || '').toLowerCase().trim();
+                      const cfgUnit = (configuringUnit.name || '').toLowerCase().trim();
+                      return u.role === 'staff' && (u.unit_id === configuringUnit.id || uUnit === cfgUnit);
+                    })
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.unit || configuringUnit.name}) — {u.email}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                  Cadangan staf pakar untuk penugasan pantas atau penugasan terus (Direct to Staff).
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                  Workflow Entry Route (Laluan Permohonan Awal) *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <label className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-1.5 text-left ${
+                    unitConfigForm.routing_target === 'manager'
+                      ? 'bg-blue-50/70 border-blue-500 ring-2 ring-blue-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-white'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">🏢 Manager (Default)</span>
+                      <input
+                        type="radio"
+                        name="unit_routing_target"
+                        value="manager"
+                        checked={unitConfigForm.routing_target === 'manager'}
+                        onChange={() => setUnitConfigForm({ ...unitConfigForm, routing_target: 'manager' })}
+                        className="radio radio-primary radio-xs"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Melalui semakan & kelulusan Pengurus Jabatan biasa.
+                    </span>
+                  </label>
+
+                  <label className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-1.5 text-left ${
+                    unitConfigForm.routing_target === 'head_unit'
+                      ? 'bg-teal-50/70 border-teal-500 ring-2 ring-teal-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-white'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">👑 Head of Unit</span>
+                      <input
+                        type="radio"
+                        name="unit_routing_target"
+                        value="head_unit"
+                        checked={unitConfigForm.routing_target === 'head_unit'}
+                        onChange={() => setUnitConfigForm({ ...unitConfigForm, routing_target: 'head_unit' })}
+                        className="radio radio-primary radio-xs"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Langkau Pengurus; terus ke Unit Head untuk semakan & lantik staf.
+                    </span>
+                  </label>
+
+                  <label className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-1.5 text-left ${
+                    unitConfigForm.routing_target === 'staff'
+                      ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-white'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">⚡ Direct to Staff</span>
+                      <input
+                        type="radio"
+                        name="unit_routing_target"
+                        value="staff"
+                        checked={unitConfigForm.routing_target === 'staff'}
+                        onChange={() => setUnitConfigForm({ ...unitConfigForm, routing_target: 'staff' })}
+                        className="radio radio-primary radio-xs"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Auto-approve & auto-assign terus ke staf pakar. Staf terus mula kerja!
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">

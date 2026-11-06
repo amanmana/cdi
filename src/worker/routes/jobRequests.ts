@@ -524,7 +524,8 @@ jobRequestsRouter.get('/', async (c) => {
           SELECT 1 FROM units u_m_dept 
           WHERE u_m_dept.department_id = ? 
             AND (
-              INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), u_m_dept.name) > 0
+              INSTR(j.unit, u_m_dept.name) > 0
+              OR INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), u_m_dept.name) > 0
               OR INSTR(JSON_EXTRACT(j.additional_data, '$.target_unit_ids'), CAST(u_m_dept.id AS TEXT)) > 0
               OR INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), u_m_dept.name) > 0
             )
@@ -1875,7 +1876,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const idParam = c.req.param('id');
-  const { comment, start_date, deadline } = await c.req.json();
+  const { comment, start_date, deadline, staff_ids, staff_tasks } = await c.req.json();
 
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
@@ -1893,6 +1894,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
 
   const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
   const userManagedUnitIds: number[] = (user as any).managed_unit_ids || (user.unit_id ? [user.unit_id] : []);
+  const managerDeptId = (user as any).managed_department_id || user.department_id || (user as any).acting_manager_department_id;
 
   let additionalDataObj: any = {};
   if (request.additional_data) {
@@ -1914,76 +1916,171 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     (user.unit && targetUnits.some(tUnit => tUnit.toLowerCase().trim() === user.unit.toLowerCase().trim()))
   );
 
-  const isTargetUnitHead = (isInterUnit || isMultiUnit) && isUnitHeadForRequest;
-  const isCustomServiceHeadUnit = isUnitHeadForRequest && (
-    additionalDataObj?.routing_target === 'head_unit' ||
-    request.current_step_name === 'Unit Head Review'
-  );
+  const isManagerActor = user.role === 'manager' || Boolean((user as any).is_acting_manager);
+  const isAdminActor = user.role === 'admin' || user.role === 'director';
 
-  const isDirectToHeadUnit = Boolean(
-    additionalDataObj?.routing_target === 'head_unit' ||
-    request.current_step_name === 'Unit Head Review'
-  );
-
-  if (isInterUnit) {
-    if (user.role !== 'admin' && !user.is_acting_manager && !isTargetUnitHead) {
-      return c.json({ error: 'Unauthorized. Inter-unit collaborations must be accepted and assigned by the Target Unit Head.' }, 403);
-    }
-  } else if (isDirectToHeadUnit) {
-    if (user.role !== 'admin' && !isCustomServiceHeadUnit) {
-      return c.json({ error: 'Unauthorized. This request is routed directly to the Unit Head for review and staff assignment.' }, 403);
-    }
-  } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
-    return c.json({ error: 'Unauthorized to approve this request.' }, 403);
-  }
-
-  const newStatus = 'staff_processing';
-  const newStepName = 'Staff Processing & Design';
   const fromStep = request.current_step_name || 'Manager Review';
 
-  // If this is an inter-unit or multi-unit job, mark the acting unit head or manager's unit assignment as accepted
-  if ((isInterUnit || isMultiUnit) && additionalDataObj.unit_assignments) {
-    for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
-      if (
-        userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
-        (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim())
-      ) {
-        (uMeta as any).status = 'accepted';
-        (uMeta as any).head_id = user.id;
-        (uMeta as any).head_name = user.name;
-      }
+  // -------------------------------------------------------------
+  // BRANCH 1: ACTOR IS MANAGER OR ADMIN (High-level Approval)
+  // Manager approves feasibility, dates, instructions. Does NOT pick staff.
+  // -------------------------------------------------------------
+  if (isManagerActor || isAdminActor) {
+    if (start_date || deadline) {
+      await db.prepare(
+        'UPDATE job_requests SET start_date = COALESCE(?, start_date), deadline = COALESCE(?, deadline), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(start_date || null, deadline || null, request.id).run();
     }
 
-    // Check if ALL participating units have accepted/assigned staff
-    const allAccepted = Object.values(additionalDataObj.unit_assignments as any).every(
-      (uMeta: any) => uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0)
-    );
+    // Query units belonging to this manager's department
+    let managerDeptUnits: string[] = [];
+    if (managerDeptId && !isAdminActor) {
+      const { results: mUnits } = await db.prepare('SELECT name FROM units WHERE department_id = ?').bind(managerDeptId).all<{ name: string }>();
+      managerDeptUnits = (mUnits || []).map(u => u.name.toLowerCase().trim());
+    }
 
-    const finalStatus = allAccepted ? 'staff_processing' : request.status;
-    const finalStepName = allAccepted ? 'Staff Processing & Design' : request.current_step_name;
+    if (additionalDataObj.unit_assignments) {
+      for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+        const uClean = uName.toLowerCase().trim();
+        const belongsToManager = isAdminActor || managerDeptUnits.includes(uClean);
+        if (belongsToManager) {
+          (uMeta as any).manager_approved = true;
+          (uMeta as any).manager_id = user.id;
+          (uMeta as any).manager_name = user.name;
+          (uMeta as any).manager_comment = comment || '';
+          if ((uMeta as any).status !== 'accepted') {
+            (uMeta as any).status = 'awaiting_head_assignment';
+          }
+        }
+      }
+
+      // Check if all units have been manager approved (or bypassed manager)
+      const allManagerApproved = Object.values(additionalDataObj.unit_assignments as any).every(
+        (uMeta: any) => uMeta?.manager_approved === true || uMeta?.routing_target === 'head_unit' || uMeta?.routing_target === 'staff' || uMeta?.status === 'accepted'
+      );
+
+      const allAccepted = Object.values(additionalDataObj.unit_assignments as any).every(
+        (uMeta: any) => uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0)
+      );
+
+      const finalStatus = allAccepted ? 'staff_processing' : 'manager_approval';
+      const finalStepName = allAccepted
+        ? 'Staff Processing & Design'
+        : allManagerApproved
+        ? 'Unit Head Review & Staff Assignment'
+        : 'Pending Secondary Manager Approval';
+
+      await db.prepare(
+        'UPDATE job_requests SET status = ?, current_step_name = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(finalStatus, finalStepName, JSON.stringify(additionalDataObj), request.id).run();
+    } else {
+      // Single unit without unit_assignments
+      await db.prepare(
+        'UPDATE job_requests SET status = "manager_approval", current_step_name = "Unit Head Review & Staff Assignment", updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(request.id).run();
+    }
 
     await db.prepare(
-      'UPDATE job_requests SET status = ?, current_step_name = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).bind(finalStatus, finalStepName, JSON.stringify(additionalDataObj), request.id).run();
-  } else {
-    await db.prepare(
-      'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).bind(newStatus, newStepName, request.id).run();
+      `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+       VALUES (?, 'APPROVE', ?, ?, ?, ?, ?)`
+    ).bind(
+      request.id,
+      user.id,
+      user.name,
+      fromStep,
+      'Unit Head Review & Staff Assignment',
+      comment || `Approved by Manager (${user.name}). Forwarded to Unit Head for staff assignment.`
+    ).run();
+
+    return c.json({ success: true, message: 'Request approved by Manager and forwarded to Unit Head.' });
   }
 
-  if (start_date || deadline) {
+  // -------------------------------------------------------------
+  // BRANCH 2: ACTOR IS UNIT HEAD (Review & Assign Staff Team)
+  // -------------------------------------------------------------
+  if (isUnitHeadForRequest) {
+    // Check if manager approval was required and whether it was given
+    if (additionalDataObj.unit_assignments) {
+      let currentUnitMeta: any = null;
+      for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+        if (
+          userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+          (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim())
+        ) {
+          currentUnitMeta = uMeta;
+          break;
+        }
+      }
+
+      if (currentUnitMeta && currentUnitMeta.routing_target === 'manager' && !currentUnitMeta.manager_approved) {
+        return c.json({ error: 'Permohonan ini masih memerlukan semakan dan kelulusan Pengurus sebelum penugasan staf.' }, 403);
+      }
+
+      // Mark unit as accepted
+      if (currentUnitMeta) {
+        currentUnitMeta.status = 'accepted';
+        currentUnitMeta.head_id = user.id;
+        currentUnitMeta.head_name = user.name;
+        if (Array.isArray(staff_ids) && staff_ids.length > 0) {
+          currentUnitMeta.assigned_staff_ids = staff_ids;
+        }
+      }
+
+      // Check if all units accepted
+      const allAccepted = Object.values(additionalDataObj.unit_assignments as any).every(
+        (uMeta: any) => uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0)
+      );
+
+      const finalStatus = allAccepted ? 'staff_processing' : request.status;
+      const finalStepName = allAccepted ? 'Staff Processing & Design' : request.current_step_name;
+
+      // Update assigned_staff_ids on job_requests if provided
+      let combinedAssigned = request.assigned_staff_ids
+        ? request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n))
+        : [];
+      if (Array.isArray(staff_ids)) {
+        staff_ids.forEach((sid: number) => {
+          if (!combinedAssigned.includes(sid)) combinedAssigned.push(sid);
+        });
+      }
+
+      await db.prepare(
+        'UPDATE job_requests SET status = ?, current_step_name = ?, assigned_staff_ids = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(
+        finalStatus,
+        finalStepName,
+        combinedAssigned.length > 0 ? combinedAssigned.join(',') : request.assigned_staff_ids,
+        JSON.stringify(additionalDataObj),
+        request.id
+      ).run();
+    } else {
+      await db.prepare(
+        'UPDATE job_requests SET status = "staff_processing", current_step_name = "Staff Processing & Design", updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(request.id).run();
+    }
+
+    if (start_date || deadline) {
+      await db.prepare(
+        'UPDATE job_requests SET start_date = COALESCE(?, start_date), deadline = COALESCE(?, deadline), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(start_date || null, deadline || null, request.id).run();
+    }
+
     await db.prepare(
-      'UPDATE job_requests SET start_date = COALESCE(?, start_date), deadline = COALESCE(?, deadline), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).bind(start_date || null, deadline || null, request.id).run();
+      `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+       VALUES (?, 'APPROVE', ?, ?, ?, ?, ?)`
+    ).bind(
+      request.id,
+      user.id,
+      user.name,
+      fromStep,
+      'Staff Processing & Design',
+      comment || `Staff team assigned by Unit Head (${user.name}).`
+    ).run();
+
+    return c.json({ success: true, message: 'Team successfully assigned by Unit Head.' });
   }
 
-  const approverTitle = (isTargetUnitHead || isCustomServiceHeadUnit) ? 'Unit Head' : 'Manager';
-  await db.prepare(
-    `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
-     VALUES (?, 'APPROVE', ?, ?, ?, ?, ?)`
-  ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || `Approved by ${approverTitle}`).run();
-
-  return c.json({ success: true, message: 'Request approved and moved to Staff Processing & Design.' });
+  return c.json({ error: 'Unauthorized to approve this request.' }, 403);
 });
 
 // POST /api/job-requests/:id/reject - Manager / Unit Head reject

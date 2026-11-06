@@ -46,6 +46,9 @@ CREATE TABLE IF NOT EXISTS units (
   is_public INTEGER DEFAULT 1,         -- 1 = visible on public request form, 0 = hidden
   head_id INTEGER,                     -- Foreign Key to users(id) (Unit Head)
   form_schema TEXT,                    -- JSON string representing custom dynamic fields
+  routing_target TEXT DEFAULT 'manager', -- 'manager', 'head_unit', 'staff'
+  suggested_staff_id INTEGER,          -- Pre-assigned staff ID if routing_target = 'staff'
+  suggested_staff_name TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (department_id) REFERENCES departments(id),
   FOREIGN KEY (head_id) REFERENCES users(id)

@@ -140,7 +140,8 @@ admin.get('/dashboard-stats', async (c) => {
             SELECT 1 FROM units u_m_dept 
             WHERE u_m_dept.department_id = ? 
               AND (
-                INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), u_m_dept.name) > 0
+                INSTR(j.unit, u_m_dept.name) > 0
+                OR INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), u_m_dept.name) > 0
                 OR INSTR(JSON_EXTRACT(j.additional_data, '$.target_unit_ids'), CAST(u_m_dept.id AS TEXT)) > 0
                 OR INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), u_m_dept.name) > 0
               )
@@ -428,19 +429,22 @@ admin.get('/units', async (c) => {
 // Add Unit
 admin.post('/units', async (c) => {
   const db = c.env.DB;
-  const { name, department_id, public_label, is_public, head_id } = await c.req.json();
+  const { name, department_id, public_label, is_public, head_id, routing_target, suggested_staff_id, suggested_staff_name } = await c.req.json();
   if (!name || !name.trim()) return c.json({ error: 'Name is required' }, 400);
 
   const cleanName = name.trim();
   const res = await db.prepare(
-    'INSERT INTO units (name, department_id, public_label, is_public, head_id, form_schema) VALUES (?, ?, ?, ?, ?, "[]")'
+    'INSERT INTO units (name, department_id, public_label, is_public, head_id, routing_target, suggested_staff_id, suggested_staff_name, form_schema) VALUES (?, ?, ?, ?, ?, ?, ?, ?, "[]")'
   )
     .bind(
       cleanName,
       department_id || null,
       public_label ? public_label.trim() : null,
       is_public !== undefined ? (is_public ? 1 : 0) : 1,
-      head_id || null
+      head_id || null,
+      routing_target || 'manager',
+      suggested_staff_id ? Number(suggested_staff_id) : null,
+      suggested_staff_name || null
     )
     .run();
 
@@ -455,19 +459,19 @@ admin.post('/units', async (c) => {
   return c.json({ success: true, message: 'Unit added', id: newUnitId });
 });
 
-// Update Unit (name, department, public_label, is_public, head_id, form_schema)
+// Update Unit (name, department, public_label, is_public, head_id, routing_target, suggested_staff, form_schema)
 admin.put('/units/:id', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const id = c.req.param('id');
   const numId = parseInt(id, 10);
-  const { name, department_id, public_label, is_public, head_id, form_schema } = await c.req.json();
+  const { name, department_id, public_label, is_public, head_id, routing_target, suggested_staff_id, suggested_staff_name, form_schema } = await c.req.json();
 
   const isAdmin = user.role === 'admin' || user.role === 'director';
   const isHeadUnit = Boolean(user.is_unit_head);
 
   if (!isAdmin && !isHeadUnit) {
-    return c.json({ error: 'Unauthorized: Only Unit Heads and Admins can configure unit form schemas.' }, 403);
+    return c.json({ error: 'Unauthorized: Only Unit Heads and Admins can configure unit settings.' }, 403);
   }
 
   // Fetch current unit info before update (needed for cascade and scope validation)
@@ -516,6 +520,18 @@ admin.put('/units/:id', async (c) => {
   if (head_id !== undefined) {
     updates.push('head_id = ?');
     params.push(head_id || null);
+  }
+  if (routing_target !== undefined) {
+    updates.push('routing_target = ?');
+    params.push(routing_target || 'manager');
+  }
+  if (suggested_staff_id !== undefined) {
+    updates.push('suggested_staff_id = ?');
+    params.push(suggested_staff_id ? Number(suggested_staff_id) : null);
+  }
+  if (suggested_staff_name !== undefined) {
+    updates.push('suggested_staff_name = ?');
+    params.push(suggested_staff_name || null);
   }
   if (form_schema !== undefined) {
     updates.push('form_schema = ?');
