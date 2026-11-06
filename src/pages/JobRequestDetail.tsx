@@ -2231,13 +2231,13 @@ export const JobRequestDetail: React.FC = () => {
                   <>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200/80">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      Menunggu Kelulusan Pengurus
-                    </div>
-                    <div className="text-xs font-bold text-slate-800">
                       Awaiting Manager Approval
                     </div>
+                    <div className="text-xs font-bold text-slate-800">
+                      Under Department Manager Review
+                    </div>
                     <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                      Permohonan ini masih dalam semakan Pengurus Jabatan. Selepas diluluskan, anda boleh melantik pasukan staf unit ini.
+                      This request is currently under review by the Department Manager. Once approved, you will be able to assign your unit's staff team.
                     </div>
                   </>
                 ) : isDirectToHeadUnit ? (
@@ -2250,7 +2250,7 @@ export const JobRequestDetail: React.FC = () => {
                       Awaiting Unit Head Review & Assignment{targetHeadDisplayName ? ` (${targetHeadDisplayName})` : ''}
                     </div>
                     <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                      Permohonan ini telah diserahkan terus kepada Ketua Unit untuk semakan dan penugasan staf tanpa memerlukan kelulusan Pengurus.
+                      This request has been routed directly to the Unit Head for review and staff assignment without requiring Manager approval.
                     </div>
                   </>
                 ) : isInterUnitJob ? (
@@ -3329,8 +3329,8 @@ export const JobRequestDetail: React.FC = () => {
                 {isInterUnitJob
                   ? 'Accept this request from another unit and assign tasks to your team members.'
                   : isManagerActor
-                  ? 'Tetapkan tarikh mula dan tarikh siap. Permohonan akan diluluskan dan diserahkan kepada Ketua Unit untuk melantik staf.'
-                  : `Lantik staf pakar dari unit ${myUnitName || 'anda'} untuk menjalankan tugasan projek ini.`}
+                  ? 'Set the project start date and deadline. The request will be approved and forwarded to the Unit Head for staff assignment.'
+                  : `Assign specialist staff from ${myUnitName || 'your unit'} to carry out this project's tasks.`}
               </p>
             </div>
 
