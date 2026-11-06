@@ -353,17 +353,23 @@ export const JobRequestDetail: React.FC = () => {
       }
 
       // 2. Update timeline
-      await fetch(`/api/job-requests/${id}/update-timeline`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ start_date: startDate, deadline }),
-      });
+      if (startDate || deadline) {
+        await fetch(`/api/job-requests/${id}/update-timeline`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ start_date: startDate, deadline }),
+        });
+      }
 
       // 3. Perform approval transition
       const res = await fetch(`/api/job-requests/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ comment: comment || 'Request approved. Proceed with implementation.' }),
+        body: JSON.stringify({
+          comment: comment || 'Request approved. Proceed with implementation.',
+          start_date: startDate,
+          deadline: deadline,
+        }),
       });
 
       const resData = await res.json();
@@ -964,7 +970,10 @@ export const JobRequestDetail: React.FC = () => {
   // Strictly origin manager or admin can update timeline (Pilihan A)
   const canEditTimeline = (() => {
     if (user?.role === 'admin' || user?.role === 'director') return true;
-    if (user?.role !== 'manager' && !user?.is_acting_manager) return false;
+    if (user?.role !== 'manager' && !user?.is_acting_manager) {
+      if (!isInterUnitJob && isRequestUnitHead) return true;
+      return false;
+    }
 
     const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
     const originDeptId = request?.origin_department_id || (!isInterUnitJob ? request?.department_id : null);

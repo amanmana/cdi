@@ -1856,7 +1856,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const idParam = c.req.param('id');
-  const { comment } = await c.req.json();
+  const { comment, start_date, deadline } = await c.req.json();
 
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
@@ -1941,6 +1941,12 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     await db.prepare(
       'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     ).bind(newStatus, newStepName, request.id).run();
+  }
+
+  if (start_date || deadline) {
+    await db.prepare(
+      'UPDATE job_requests SET start_date = COALESCE(?, start_date), deadline = COALESCE(?, deadline), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(start_date || null, deadline || null, request.id).run();
   }
 
   const approverTitle = (isTargetUnitHead || isCustomServiceHeadUnit) ? 'Unit Head' : 'Manager';
@@ -2728,23 +2734,41 @@ jobRequestsRouter.post('/:id/update-timeline', async (c) => {
   const originDeptId = request.origin_department_id || (!isInterUnitJob ? request.department_id : null);
   const userDeptId = (user as any).managed_department_id || user.department_id || (user as any).acting_manager_department_id;
   const userManagedUnits: string[] = (user as any).managed_units || [];
+  const userManagedUnitIds: number[] = (user as any).managed_unit_ids || [];
 
-  const isOriginManager = (user.role === 'manager' || user.is_acting_manager) && (
-    (originDeptId && userDeptId && String(originDeptId) === String(userDeptId)) ||
-    (isInterUnitJob && addData.requester_unit && (
-      userManagedUnits.some((u: string) => u.toLowerCase().trim() === addData.requester_unit.toLowerCase().trim()) ||
-      (user.unit && user.unit.toLowerCase().trim() === addData.requester_unit.toLowerCase().trim())
-    )) ||
-    (!isInterUnitJob && (
+  let canEditTimeline = false;
+  if (user.role === 'admin' || user.role === 'director') {
+    canEditTimeline = true;
+  } else if (request.status === 'manager_approval') {
+    // During review/approval stage, whoever has authority to review/assign can set the timeline
+    canEditTimeline = WorkflowEngine.canUserPerformAction(request, user);
+  } else if (isInterUnitJob) {
+    const isOriginUnitHead = Boolean(user.is_unit_head) && (
+      (addData.requester_unit && (
+        userManagedUnits.some((u: string) => u.toLowerCase().trim() === addData.requester_unit.toLowerCase().trim()) ||
+        (user.unit && user.unit.toLowerCase().trim() === addData.requester_unit.toLowerCase().trim())
+      )) ||
+      (addData.requester_id && Number(user.id) === Number(addData.requester_id))
+    );
+    const isOriginDeptManager = (user.role === 'manager' || user.is_acting_manager) && Boolean(originDeptId && userDeptId && String(originDeptId) === String(userDeptId));
+    canEditTimeline = isOriginUnitHead || isOriginDeptManager;
+  } else {
+    const isUnitHeadForRequest = Boolean(user.is_unit_head) && (
+      (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
+      (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
+      (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
+      (request.unit && user.unit && user.unit.toLowerCase().trim() === request.unit.toLowerCase().trim())
+    );
+    const isDeptManagerForRequest = (user.role === 'manager' || user.is_acting_manager) && Boolean(
       (request.department_id && userDeptId && String(request.department_id) === String(userDeptId)) ||
       (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim()))
-    ))
-  );
+    );
+    canEditTimeline = isUnitHeadForRequest || isDeptManagerForRequest;
+  }
 
-  const canEditTimeline = user.role === 'admin' || user.role === 'director' || isOriginManager;
   if (!canEditTimeline) {
     return c.json({ 
-      error: 'Forbidden: Tarikh akhir (timeline) projek ini hanya boleh diubah oleh Pengurus Jabatan Pemohon (Origin Manager) atau Pentadbir Sistem.' 
+      error: 'Forbidden: Tarikh akhir (timeline) projek ini hanya boleh diubah oleh Pengurus/Ketua Unit Pemohon atau Pentadbir Sistem.' 
     }, 403);
   }
 
