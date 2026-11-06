@@ -89,6 +89,7 @@ auth.post('/login', async (c) => {
     .first<any>();
 
   // Fetch all units where user is designated as Unit Head OR Department Manager / Acting Manager
+  let isDesignatedHead = Boolean(user.is_unit_head);
   let managedUnits: string[] = [];
   let managedUnitIds: number[] = [];
   try {
@@ -96,7 +97,8 @@ auth.post('/login', async (c) => {
       .prepare('SELECT id, name FROM units WHERE head_id = ?')
       .bind(user.id)
       .all<any>();
-    if (headUnits && headUnits.results) {
+    if (headUnits && headUnits.results && headUnits.results.length > 0) {
+      isDesignatedHead = true;
       managedUnits = headUnits.results.map((u: any) => u.name);
       managedUnitIds = headUnits.results.map((u: any) => u.id);
     }
@@ -126,7 +128,7 @@ auth.post('/login', async (c) => {
     console.error('Error fetching managed units:', err);
   }
 
-  const isUnitHead = Boolean(user.is_unit_head || managedUnits.length > 0);
+  const isUnitHead = user.role !== 'manager' && isDesignatedHead;
 
   const fullUser = {
     id: user.id,
@@ -281,6 +283,7 @@ auth.get('/me', async (c) => {
     .first<any>();
 
   // Fetch all units where user is designated as Unit Head OR Department Manager / Acting Manager
+  let isDesignatedHead = Boolean(user.is_unit_head);
   let managedUnits: string[] = [];
   let managedUnitIds: number[] = [];
   try {
@@ -288,7 +291,8 @@ auth.get('/me', async (c) => {
       .prepare('SELECT id, name FROM units WHERE head_id = ?')
       .bind(user.id)
       .all<any>();
-    if (headUnits && headUnits.results) {
+    if (headUnits && headUnits.results && headUnits.results.length > 0) {
+      isDesignatedHead = true;
       managedUnits = headUnits.results.map((u: any) => u.name);
       managedUnitIds = headUnits.results.map((u: any) => u.id);
     }
@@ -318,7 +322,7 @@ auth.get('/me', async (c) => {
     console.error('Error fetching managed units in /me:', err);
   }
 
-  const isUnitHead = Boolean(user.is_unit_head || managedUnits.length > 0);
+  const isUnitHead = user.role !== 'manager' && isDesignatedHead;
 
   return c.json({
     user: {

@@ -33,7 +33,7 @@ export class WorkflowEngine {
         const targetUnits: string[] = Array.isArray(addDataObj?.target_units) ? addDataObj.target_units : (request.unit ? [request.unit] : []);
         const targetUnitIds: number[] = Array.isArray(addDataObj?.target_unit_ids) ? addDataObj.target_unit_ids : (request.unit_id ? [Number(request.unit_id)] : []);
 
-        const isUnitHeadForRequest = Boolean((user as any).is_unit_head) && (
+        const isUnitHeadForRequest = Boolean((user as any).is_unit_head) && user.role !== 'manager' && (
           (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
           (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
           (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||
@@ -55,7 +55,7 @@ export class WorkflowEngine {
       }
       const userManagedUnits: string[] = (user as any).managed_units || (user.unit ? [user.unit] : []);
       const userManagedUnitIds: number[] = (user as any).managed_unit_ids || ((user as any).unit_id ? [(user as any).unit_id] : []);
-      const isUnitHeadForRequest = Boolean((user as any).is_unit_head) && (
+      const isUnitHeadForRequest = Boolean((user as any).is_unit_head) && user.role !== 'manager' && (
         (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
         (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
         (request.unit_id && (user as any).unit_id && String((user as any).unit_id) === String(request.unit_id)) ||

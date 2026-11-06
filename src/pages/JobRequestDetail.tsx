@@ -875,6 +875,7 @@ export const JobRequestDetail: React.FC = () => {
 
   const isRequestUnitHead = Boolean(
     user?.is_unit_head &&
+    user?.role !== 'manager' &&
     (
       (reqUnitId && managedUnitIds.includes(reqUnitId)) ||
       (reqUnit && managedUnits.some((u) => u.toLowerCase().trim() === reqUnit)) ||
@@ -897,7 +898,7 @@ export const JobRequestDetail: React.FC = () => {
 
   const canActOnManagerApproval = Boolean(
     isDirectToHeadUnit
-      ? (user?.role === 'admin' || isCustomServiceHeadUnit || (isMultiUnitJob && isRequestUnitHead))
+      ? (user?.role === 'admin' || (user?.role !== 'manager' && (isCustomServiceHeadUnit || (isMultiUnitJob && isRequestUnitHead))))
       : (
           user?.role === 'admin' ||
           (user?.role === 'manager' && !isInterUnitJob) ||

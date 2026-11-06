@@ -1885,7 +1885,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const targetUnits: string[] = Array.isArray(additionalDataObj?.target_units) ? additionalDataObj.target_units : (request.unit ? [request.unit] : []);
   const targetUnitIds: number[] = Array.isArray(additionalDataObj?.target_unit_ids) ? additionalDataObj.target_unit_ids : (request.unit_id ? [Number(request.unit_id)] : []);
 
-  const isUnitHeadForRequest = Boolean(user.is_unit_head) && (
+  const isUnitHeadForRequest = Boolean(user.is_unit_head) && user.role !== 'manager' && (
     (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
     (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
@@ -1988,7 +1988,7 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
   const targetUnits: string[] = Array.isArray(additionalDataObj?.target_units) ? additionalDataObj.target_units : (request.unit ? [request.unit] : []);
   const targetUnitIds: number[] = Array.isArray(additionalDataObj?.target_unit_ids) ? additionalDataObj.target_unit_ids : (request.unit_id ? [Number(request.unit_id)] : []);
 
-  const isUnitHeadForRequest = Boolean(user.is_unit_head) && (
+  const isUnitHeadForRequest = Boolean(user.is_unit_head) && user.role !== 'manager' && (
     (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
     (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
@@ -2186,7 +2186,7 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   const targetUnits: string[] = Array.isArray(additionalDataObj?.target_units) ? additionalDataObj.target_units : (request.unit ? [request.unit] : []);
   const targetUnitIds: number[] = Array.isArray(additionalDataObj?.target_unit_ids) ? additionalDataObj.target_unit_ids : (request.unit_id ? [Number(request.unit_id)] : []);
 
-  const isUnitHeadForRequest = Boolean(user.is_unit_head) && (
+  const isUnitHeadForRequest = Boolean(user.is_unit_head) && user.role !== 'manager' && (
     (request.unit_id && userManagedUnitIds.includes(Number(request.unit_id))) ||
     (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) ||
     (request.unit_id && user.unit_id && String(user.unit_id) === String(request.unit_id)) ||
