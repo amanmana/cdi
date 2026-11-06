@@ -2382,9 +2382,9 @@ export const JobRequestDetail: React.FC = () => {
               )}
 
             {/* Action Buttons & Oversight based on Role & Status */}
-            {(canAct || user?.role === 'director' || user?.is_unit_head) && (
+            {(canAct || user?.role === 'director' || user?.is_unit_head || hasUnitNeedingManagerApproval) && (
               <div className="space-y-2">
-                {request.status === 'manager_approval' && canActOnManagerApproval && (
+                {(request.status === 'manager_approval' || hasUnitNeedingManagerApproval) && canActOnManagerApproval && (
                   <>
                     <button
                       onClick={handleOpenApproveModal}
@@ -2972,7 +2972,7 @@ export const JobRequestDetail: React.FC = () => {
                         })()
                       ) : (
                         /* Standard non-inter-unit Manager Controls */
-                        (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && (
+                        (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && !hasUnitNeedingManagerApproval && (
                           <div className="space-y-2.5 mt-3 pt-3 border-t border-slate-100">
                             <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
                               MANAGER STATUS CONTROLS

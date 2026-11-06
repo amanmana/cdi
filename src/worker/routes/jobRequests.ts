@@ -2451,9 +2451,30 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
   // Automatically set status to staff_processing when staff is assigned
   let newStatus = request.status;
   let newStepName = request.current_step_name;
-  if ((request.status === 'manager_approval' || request.status === 'pending') && Array.isArray(staff_ids) && staff_ids.length > 0) {
-    newStatus = 'staff_processing';
-    newStepName = 'Staff Processing';
+
+  if (isMultiUnit && additionalDataObj.unit_assignments) {
+    const allManagerApproved = Object.values(additionalDataObj.unit_assignments as any).every(
+      (uMeta: any) => uMeta?.manager_approved === true || uMeta?.routing_target === 'head_unit' || uMeta?.routing_target === 'staff' || uMeta?.status === 'accepted'
+    );
+    const allAccepted = Object.values(additionalDataObj.unit_assignments as any).every(
+      (uMeta: any) => uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0)
+    );
+
+    if (allAccepted) {
+      newStatus = 'staff_processing';
+      newStepName = 'Staff Processing';
+    } else if (allManagerApproved) {
+      newStatus = 'manager_approval';
+      newStepName = 'Unit Head Review & Staff Assignment';
+    } else {
+      newStatus = 'manager_approval';
+      newStepName = 'Pending Secondary Manager Approval';
+    }
+  } else {
+    if ((request.status === 'manager_approval' || request.status === 'pending') && Array.isArray(staff_ids) && staff_ids.length > 0) {
+      newStatus = 'staff_processing';
+      newStepName = 'Staff Processing';
+    }
   }
 
   await db.prepare(`
