@@ -523,7 +523,11 @@ jobRequestsRouter.get('/', async (c) => {
         OR EXISTS (
           SELECT 1 FROM units u_m_dept 
           WHERE u_m_dept.department_id = ? 
-            AND INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), u_m_dept.name) > 0
+            AND (
+              INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), u_m_dept.name) > 0
+              OR INSTR(JSON_EXTRACT(j.additional_data, '$.target_unit_ids'), CAST(u_m_dept.id AS TEXT)) > 0
+              OR INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), u_m_dept.name) > 0
+            )
         )
         OR EXISTS (
           SELECT 1 FROM users u 
@@ -1773,9 +1777,10 @@ jobRequestsRouter.get('/:id', async (c) => {
 
   const canAct = WorkflowEngine.canUserPerformAction(request, user);
 
-  // Look up Target Unit Head(s) (supports both single and multi-unit Inter-Unit jobs)
+  // Look up Target Unit Head(s) and Department Manager(s) (supports both single and multi-unit jobs)
   let targetUnitHead: { id: number; name: string; email: string; unit: string } | null = null;
   const targetUnitHeads: { id: number; name: string; email: string; unit: string }[] = [];
+  const targetManagers: { id: number; name: string; email: string; unit: string; department_name: string }[] = [];
 
   let addDataObj: any = null;
   if (request.additional_data) {
@@ -1806,6 +1811,19 @@ jobRequestsRouter.get('/:id', async (c) => {
       targetUnitHeads.push(headRow);
       if (!targetUnitHead) targetUnitHead = headRow;
     }
+
+    const mgrRow = await db.prepare(`
+      SELECT m.id, m.name, m.email, un.name as unit, d.name as department_name
+      FROM units un
+      JOIN departments d ON un.department_id = d.id
+      JOIN users m ON d.manager_id = m.id
+      WHERE LOWER(TRIM(un.name)) = LOWER(TRIM(?))
+      LIMIT 1
+    `).bind(uName).first<{ id: number; name: string; email: string; unit: string; department_name: string }>();
+
+    if (mgrRow && !targetManagers.some(m => m.id === mgrRow.id && m.unit.toLowerCase().trim() === mgrRow.unit.toLowerCase().trim())) {
+      targetManagers.push(mgrRow);
+    }
   }
 
   return c.json({
@@ -1815,6 +1833,7 @@ jobRequestsRouter.get('/:id', async (c) => {
     },
     targetUnitHead,
     targetUnitHeads,
+    targetManagers,
     staffDetails,
     tasks: tasks || [],
     history: history || [],
@@ -1914,7 +1933,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     if (user.role !== 'admin' && !isCustomServiceHeadUnit) {
       return c.json({ error: 'Unauthorized. This request is routed directly to the Unit Head for review and staff assignment.' }, 403);
     }
-  } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager && (!isMultiUnit || !isTargetUnitHead)) {
+  } else if (!['admin', 'manager'].includes(user.role) && !user.is_acting_manager) {
     return c.json({ error: 'Unauthorized to approve this request.' }, 403);
   }
 
@@ -1922,7 +1941,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   const newStepName = 'Staff Processing & Design';
   const fromStep = request.current_step_name || 'Manager Review';
 
-  // If this is an inter-unit or multi-unit job, mark the acting unit head's unit assignment as accepted
+  // If this is an inter-unit or multi-unit job, mark the acting unit head or manager's unit assignment as accepted
   if ((isInterUnit || isMultiUnit) && additionalDataObj.unit_assignments) {
     for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
       if (
@@ -1934,9 +1953,18 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
         (uMeta as any).head_name = user.name;
       }
     }
+
+    // Check if ALL participating units have accepted/assigned staff
+    const allAccepted = Object.values(additionalDataObj.unit_assignments as any).every(
+      (uMeta: any) => uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0)
+    );
+
+    const finalStatus = allAccepted ? 'staff_processing' : request.status;
+    const finalStepName = allAccepted ? 'Staff Processing & Design' : request.current_step_name;
+
     await db.prepare(
       'UPDATE job_requests SET status = ?, current_step_name = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).bind(newStatus, newStepName, JSON.stringify(additionalDataObj), request.id).run();
+    ).bind(finalStatus, finalStepName, JSON.stringify(additionalDataObj), request.id).run();
   } else {
     await db.prepare(
       'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'

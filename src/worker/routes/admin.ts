@@ -139,7 +139,11 @@ admin.get('/dashboard-stats', async (c) => {
           OR EXISTS (
             SELECT 1 FROM units u_m_dept 
             WHERE u_m_dept.department_id = ? 
-              AND INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), u_m_dept.name) > 0
+              AND (
+                INSTR(JSON_EXTRACT(j.additional_data, '$.target_units'), u_m_dept.name) > 0
+                OR INSTR(JSON_EXTRACT(j.additional_data, '$.target_unit_ids'), CAST(u_m_dept.id AS TEXT)) > 0
+                OR INSTR(JSON_EXTRACT(j.additional_data, '$.assistance_requests'), u_m_dept.name) > 0
+              )
           )
           OR EXISTS (
             SELECT 1 FROM users u 

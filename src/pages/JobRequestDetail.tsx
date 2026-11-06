@@ -290,10 +290,16 @@ export const JobRequestDetail: React.FC = () => {
     if (!deadline && request.deadline) {
       setDeadline(request.deadline);
     }
-    if (((isInterUnitJob && isTargetUnitHead) || isCustomServiceHeadUnit) && user?.unit) {
-      setStaffUnitFilter(user.unit);
-    } else if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
-      setStaffUnitFilter('Head');
+    if (user?.role === 'manager' || user?.is_acting_manager) {
+      const myMatchingUnit = multiTargetUnits.find((tu) => 
+        managedUnits.some((mu) => mu.toLowerCase().trim() === tu.toLowerCase().trim())
+      );
+      if (myMatchingUnit) {
+        setStaffUnitFilter(myMatchingUnit);
+      } else {
+        setStaffUnitFilter('Head');
+      }
+    } else if (((isInterUnitJob && isTargetUnitHead) || isCustomServiceHeadUnit) && user?.unit) {
     } else {
       setStaffUnitFilter('All');
     }
@@ -902,14 +908,23 @@ export const JobRequestDetail: React.FC = () => {
 
   const isCustomServiceHeadUnit = Boolean(isRequestUnitHead && isDirectToHeadUnit);
 
+  const isDepartmentManagerForJob = Boolean(
+    (user?.role === 'manager' || user?.is_acting_manager) && (
+      (request?.department_id && userDeptId && String(request.department_id) === String(userDeptId)) ||
+      (isMultiUnitJob && multiTargetUnits.some((tUnit) => {
+        return managedUnits.some((mu) => mu.toLowerCase().trim() === tUnit.toLowerCase().trim());
+      })) ||
+      (reqUnit && managedUnits.some((mu) => mu.toLowerCase().trim() === reqUnit))
+    )
+  );
+
   const canActOnManagerApproval = Boolean(
     isDirectToHeadUnit
-      ? (user?.role === 'admin' || (user?.role !== 'manager' && (isCustomServiceHeadUnit || (isMultiUnitJob && isRequestUnitHead))))
+      ? (user?.role === 'admin' || isCustomServiceHeadUnit)
       : (
           user?.role === 'admin' ||
-          (user?.role === 'manager' && !isInterUnitJob) ||
-          user?.is_acting_manager ||
-          ((isInterUnitJob || isMultiUnitJob) && isTargetUnitHead)
+          isDepartmentManagerForJob ||
+          (isInterUnitJob && isTargetUnitHead)
         )
   );
 
@@ -1121,7 +1136,12 @@ export const JobRequestDetail: React.FC = () => {
                 const matchingHead = (data?.targetUnitHeads || []).find(
                   (h: any) => h.unit?.toLowerCase().trim() === uName.toLowerCase().trim()
                 ) || (targetUnitHead?.unit?.toLowerCase().trim() === uName.toLowerCase().trim() ? targetUnitHead : null);
-                const headDisplayName = matchingHead?.name || uMeta?.head_name || 'Head';
+                const matchingMgr = ((data as any)?.targetManagers || []).find(
+                  (m: any) => m.unit?.toLowerCase().trim() === uName.toLowerCase().trim()
+                );
+                const approverDisplayName = (!isDirectToHeadUnit && !isInterUnitJob && matchingMgr?.name)
+                  ? matchingMgr.name
+                  : (matchingHead?.name || uMeta?.head_name || 'Head');
                 const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
 
                 return (
@@ -1135,7 +1155,7 @@ export const JobRequestDetail: React.FC = () => {
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${isAccepted ? 'bg-emerald-500' : 'bg-teal-300 animate-pulse'}`} />
                     <span>{uName}</span>
-                    <span className="opacity-75 font-semibold text-[10px]">({headDisplayName})</span>
+                    <span className="opacity-75 font-semibold text-[10px]">({approverDisplayName})</span>
                     <span className="text-[9px] font-black uppercase opacity-90 pl-0.5">
                       {isAccepted ? '✓ READY' : 'APPROVAL'}
                     </span>
