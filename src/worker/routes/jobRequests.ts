@@ -501,7 +501,7 @@ jobRequestsRouter.get('/', async (c) => {
       } else {
         // Regular staff default scoping for standard job lists
         query += ` AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0 
-                   AND (j.status != 'manager_approval' OR j.ticket_no LIKE 'IU%' OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = 1 OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = true)`;
+                   AND (j.status != 'manager_approval' OR j.ticket_no LIKE 'IU%' OR j.ticket_no LIKE 'MU%' OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = 1 OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = true OR JSON_EXTRACT(j.additional_data, '$.is_multi_unit') = 1 OR JSON_EXTRACT(j.additional_data, '$.is_multi_unit') = true)`;
         params.push(String(user.id));
       }
     }
