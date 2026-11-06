@@ -447,11 +447,16 @@ export const JobRequestDetail: React.FC = () => {
     }
     setActionLoading(true);
     try {
-      await fetch(`/api/job-requests/${id}/update-timeline`, {
+      const res = await fetch(`/api/job-requests/${id}/update-timeline`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ start_date: startDate, deadline, reason: timelineReason }),
       });
+      const resData = await res.json();
+      if (!res.ok) {
+        alert(resData.error || 'Failed to update timeline.');
+        return;
+      }
       setShowEditTimelineModal(false);
       setTimelineReason('');
       fetchDetail();
@@ -954,6 +959,42 @@ export const JobRequestDetail: React.FC = () => {
     }
     return false;
   };
+
+  // Strictly origin manager or admin can update timeline (Pilihan A)
+  const canEditTimeline = useMemo(() => {
+    if (user?.role === 'admin' || user?.role === 'director') return true;
+    if (user?.role !== 'manager' && !user?.is_acting_manager) return false;
+
+    const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
+    const originDeptId = request?.origin_department_id || (!isInterUnitJob ? request?.department_id : null);
+
+    if (originDeptId && userDeptId && String(originDeptId) === String(userDeptId)) {
+      return true;
+    }
+
+    // Inter-Unit job matching by requester unit
+    if (isInterUnitJob && requesterUnit) {
+      if (managedUnits.some((u) => u.toLowerCase().trim() === requesterUnit)) {
+        return true;
+      }
+      if (user?.unit && user.unit.toLowerCase().trim() === requesterUnit) {
+        return true;
+      }
+      return false;
+    }
+
+    // Standard non-interunit job: match request's department or unit
+    if (!isInterUnitJob) {
+      if (request?.department_id && userDeptId && String(request.department_id) === String(userDeptId)) {
+        return true;
+      }
+      if (request?.unit && managedUnits.some((u) => u.toLowerCase().trim() === request.unit.toLowerCase().trim())) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [user, request, isInterUnitJob, requesterUnit, managedUnits]);
 
   // Helper for unit badge styling
   const getUnitBadgeStyle = (name: string) => {
@@ -3056,9 +3097,9 @@ export const JobRequestDetail: React.FC = () => {
                 <span>PROJECT TIMELINE</span>
               </div>
 
-              {(user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) &&
+              {canEditTimeline &&
                 request.status !== 'completed' &&
-                request.status !== 'rejected' && (
+                request.status !== 'rejected' ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -3070,7 +3111,11 @@ export const JobRequestDetail: React.FC = () => {
                   >
                     <Edit2 className="w-3 h-3" /> EDIT TIMELINE
                   </button>
-                )}
+                ) : isInterUnitJob && (user?.role === 'manager' || user?.is_acting_manager) ? (
+                  <span className="text-[10px] text-slate-400 font-semibold italic bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/60">
+                    Managed by {request.origin_department_name || request.additional_data?.requester_unit || 'Origin Unit'} Manager
+                  </span>
+                ) : null}
             </div>
 
             <div className="space-y-4">

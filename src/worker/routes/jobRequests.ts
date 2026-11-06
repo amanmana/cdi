@@ -332,7 +332,22 @@ async function findJobRequest(db: D1Database, param: string) {
     SELECT j.*,
            COALESCE(j.department_id, un.department_id, d.id) as department_id,
            COALESCE(un.name, j.unit) as unit,
-           d.name as department_name
+           d.name as department_name,
+           (
+             SELECT un_req.department_id 
+             FROM units un_req 
+             WHERE un_req.id = JSON_EXTRACT(j.additional_data, '$.requester_unit_id') 
+                OR LOWER(TRIM(un_req.name)) = LOWER(TRIM(JSON_EXTRACT(j.additional_data, '$.requester_unit')))
+             LIMIT 1
+           ) as origin_department_id,
+           (
+             SELECT d_req.name 
+             FROM departments d_req 
+             JOIN units un_req ON un_req.department_id = d_req.id 
+             WHERE un_req.id = JSON_EXTRACT(j.additional_data, '$.requester_unit_id') 
+                OR LOWER(TRIM(un_req.name)) = LOWER(TRIM(JSON_EXTRACT(j.additional_data, '$.requester_unit')))
+             LIMIT 1
+           ) as origin_department_name
     FROM job_requests j
     LEFT JOIN units un ON (j.unit_id = un.id OR j.unit = un.name)
     LEFT JOIN departments d ON (j.department_id = d.id OR un.department_id = d.id)
@@ -2679,6 +2694,38 @@ jobRequestsRouter.post('/:id/update-timeline', async (c) => {
 
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
+
+  // Parse additional_data to inspect inter-unit requester origin
+  let addData: any = {};
+  if (request.additional_data) {
+    try {
+      addData = typeof request.additional_data === 'string' ? JSON.parse(request.additional_data) : request.additional_data;
+    } catch {}
+  }
+
+  const isInterUnitJob = Boolean(addData.is_inter_unit || addData.requester_unit);
+  const originDeptId = request.origin_department_id || (!isInterUnitJob ? request.department_id : null);
+  const userDeptId = (user as any).managed_department_id || user.department_id || (user as any).acting_manager_department_id;
+  const userManagedUnits: string[] = (user as any).managed_units || [];
+
+  const isOriginManager = (user.role === 'manager' || user.is_acting_manager) && (
+    (originDeptId && userDeptId && String(originDeptId) === String(userDeptId)) ||
+    (isInterUnitJob && addData.requester_unit && (
+      userManagedUnits.some((u: string) => u.toLowerCase().trim() === addData.requester_unit.toLowerCase().trim()) ||
+      (user.unit && user.unit.toLowerCase().trim() === addData.requester_unit.toLowerCase().trim())
+    )) ||
+    (!isInterUnitJob && (
+      (request.department_id && userDeptId && String(request.department_id) === String(userDeptId)) ||
+      (request.unit && userManagedUnits.some((u: string) => u.toLowerCase().trim() === request.unit.toLowerCase().trim()))
+    ))
+  );
+
+  const canEditTimeline = user.role === 'admin' || user.role === 'director' || isOriginManager;
+  if (!canEditTimeline) {
+    return c.json({ 
+      error: 'Forbidden: Tarikh akhir (timeline) projek ini hanya boleh diubah oleh Pengurus Jabatan Pemohon (Origin Manager) atau Pentadbir Sistem.' 
+    }, 403);
+  }
 
   await db.prepare(`
     UPDATE job_requests SET start_date = ?, deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
