@@ -926,6 +926,17 @@ export const JobRequestDetail: React.FC = () => {
     (selectedStaff && selectedStaff.map(Number).includes(Number(user?.id)))
   );
 
+  const getAstRequesterBadge = (ast: any) => {
+    if (!ast) return 'Staff';
+    if (ast.requester_role === 'manager' || ast.requester_name?.toLowerCase().includes('faizal') || ast.requester_unit?.toLowerCase().trim() === 'manager') {
+      return 'Manager';
+    }
+    if (ast.requester_role === 'admin' || ast.requester_unit?.toLowerCase().trim() === 'admin') {
+      return 'Admin';
+    }
+    return ast.requester_unit || 'Staff';
+  };
+
   const canUserRespondToAst = (ast: any) => {
     // Managers and Directors must NOT review or assign staff for cross-unit assistance (strictly between Unit Heads, with Admin override if needed)
     if (user?.role === 'manager' || user?.is_acting_manager || user?.role === 'director') {
@@ -1013,7 +1024,9 @@ export const JobRequestDetail: React.FC = () => {
       : [];
     astList.forEach((ast: any) => {
       if (ast.target_unit) addUnit(ast.target_unit);
-      if (ast.requester_unit) addUnit(ast.requester_unit);
+      if (ast.requester_unit && !['staff', 'manager', 'admin', 'origin unit'].includes(ast.requester_unit.toLowerCase().trim())) {
+        addUnit(ast.requester_unit);
+      }
     });
 
     return {
@@ -1501,7 +1514,7 @@ export const JobRequestDetail: React.FC = () => {
                                   Assistance Needed: {ast.target_unit} Unit
                                 </span>
                                 <span className="text-[11px] text-slate-500 font-medium">
-                                  Requested by <strong className="text-slate-800">{ast.requester_name}</strong> ({ast.requester_unit})
+                                  Requested by <strong className="text-slate-800">{ast.requester_name}</strong> ({getAstRequesterBadge(ast)})
                                 </span>
                               </div>
                               <span className="text-[10px] text-slate-400 font-semibold">
@@ -2215,7 +2228,7 @@ export const JobRequestDetail: React.FC = () => {
                             </span>
                           </div>
                           <p className="text-[11px] text-indigo-800 font-medium leading-relaxed">
-                            {myPendingAst.requester_name} ({myPendingAst.requester_unit}) requested support from <strong>{myPendingAst.target_unit}</strong>.
+                            {myPendingAst.requester_name} ({getAstRequesterBadge(myPendingAst)}) requested support from <strong>{myPendingAst.target_unit}</strong>.
                             {myPendingAst.suggested_staff_name && (
                               <span className="block mt-1 font-semibold text-indigo-900">
                                 Suggested: {myPendingAst.suggested_staff_name}
@@ -4491,7 +4504,7 @@ export const JobRequestDetail: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 font-semibold">Requester:</span>
                 <span className="font-extrabold text-slate-900">
-                  {showRespondAssistanceModal.requester_name} ({showRespondAssistanceModal.requester_unit})
+                  {showRespondAssistanceModal.requester_name} ({getAstRequesterBadge(showRespondAssistanceModal)})
                 </span>
               </div>
               <div className="flex items-start justify-between gap-2">

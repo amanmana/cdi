@@ -2399,11 +2399,19 @@ jobRequestsRouter.post('/:id/request-assistance', async (c) => {
     addData.assistance_requests = [];
   }
 
+  const userRoleOrUnit = user.unit || (
+    user.role === 'manager' ? 'Manager' :
+    user.role === 'admin' ? 'Admin' :
+    user.role === 'head' ? 'Head Unit' :
+    'Staff'
+  );
+
   const newAssistanceReq = {
     id: 'ast_' + Date.now(),
     requester_id: user.id,
     requester_name: user.name,
-    requester_unit: user.unit || 'Staff',
+    requester_unit: userRoleOrUnit,
+    requester_role: user.role,
     target_unit: targetUnitRow.name,
     target_unit_id: targetUnitRow.id,
     head_id: targetUnitRow.head_id,
@@ -2425,7 +2433,7 @@ jobRequestsRouter.post('/:id/request-assistance', async (c) => {
     `UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
   ).bind(JSON.stringify(addData), request.id).run();
 
-  const commentText = `${user.name} (${user.unit || 'Staff'}) requested assistance from Unit "${targetUnitRow.name}"${suggestedStaffName ? ` (Suggested staff: ${suggestedStaffName})` : ''} — Task: "${task_description.trim()}"`;
+  const commentText = `${user.name} (${userRoleOrUnit}) requested assistance from Unit "${targetUnitRow.name}"${suggestedStaffName ? ` (Suggested staff: ${suggestedStaffName})` : ''} — Task: "${task_description.trim()}"`;
 
   await db.prepare(`
     INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment, created_at)
@@ -2958,9 +2966,10 @@ jobRequestsRouter.post('/:id/handoff', async (c) => {
 
     // Record workflow log
     const logAction = isRevision ? 'COLLAB_REVISION_REQUEST' : 'COLLAB_HANDOFF';
+    const senderRoleOrUnit = user.unit || (user.role === 'manager' ? 'Manager' : user.role === 'admin' ? 'Admin' : 'Staff');
     const actionLabel = isRevision
-      ? `${user.name} (${user.unit || 'Staff'}) requested revisions/review from ${targetUser.name} (${targetUser.unit || 'Collaborator'})`
-      : `${user.name} (${user.unit || 'Staff'}) handed over work to ${targetUser.name} (${targetUser.unit || 'Collaborator'})`;
+      ? `${user.name} (${senderRoleOrUnit}) requested revisions/review from ${targetUser.name} (${targetUser.unit || 'Collaborator'})`
+      : `${user.name} (${senderRoleOrUnit}) handed over work to ${targetUser.name} (${targetUser.unit || 'Collaborator'})`;
 
     const fullComment = note && note.trim()
       ? `${actionLabel} — Note: "${note.trim()}"${draft_url ? ` | Draft/Reference: ${draft_url.trim()}` : ''}`
