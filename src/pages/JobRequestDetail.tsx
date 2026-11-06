@@ -1475,27 +1475,6 @@ export const JobRequestDetail: React.FC = () => {
                         </span>
                       </div>
                     </div>
-
-                    {/* Participating Units Mini-Badges inside card header */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {participatingUnits.map((u) => {
-                        const count = unitStaffCounts[u] || 0;
-                        return (
-                          <span
-                            key={u}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-slate-50 text-slate-700 border border-slate-200"
-                          >
-                            <Building2 className="w-3 h-3 text-slate-400" />
-                            <span>{u}</span>
-                            {count > 0 && (
-                              <span className="text-[9px] px-1 rounded bg-slate-200/80 font-extrabold text-slate-700">
-                                {count}
-                              </span>
-                            )}
-                          </span>
-                        );
-                      })}
-                    </div>
                   </div>
 
                   {/* List of Pending Assistance Requests */}
