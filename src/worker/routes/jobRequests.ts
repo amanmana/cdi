@@ -3143,29 +3143,50 @@ jobRequestsRouter.post('/:id/mark-done', async (c) => {
     }
   }
 
+  let additionalDataObj: any = null;
+  if (request.additional_data) {
+    try {
+      additionalDataObj = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
+    } catch (e) {}
+  }
+
+  // Check if Multi-Unit job: all units must be approved and all units must have assigned staff
+  const isMultiUnit = Boolean(
+    request.ticket_no?.startsWith('MU') ||
+    request.request_type === 'multi_unit' ||
+    (additionalDataObj && (additionalDataObj.is_multi_unit === 1 || additionalDataObj.is_multi_unit === true))
+  );
+
+  let multiUnitAllApprovedAndAssigned = true;
+  if (isMultiUnit && additionalDataObj?.unit_assignments) {
+    const units = Object.values(additionalDataObj.unit_assignments) as any[];
+    const allApproved = units.every((u: any) => u?.manager_approved === true || u?.routing_target === 'head_unit' || u?.routing_target === 'staff' || u?.status === 'accepted');
+    const allAssigned = units.every((u: any) => Array.isArray(u?.assigned_staff_ids) && u.assigned_staff_ids.length > 0);
+    if (!allApproved || !allAssigned) {
+      multiUnitAllApprovedAndAssigned = false;
+    }
+  }
+
   // For Inter-Unit jobs still in manager_approval, never mark the whole job completed —
   // the target unit staff haven't been assigned or worked yet.
   const isInterUnitManagerApproval = Boolean(
     request.status === 'manager_approval' &&
     (request.ticket_no?.startsWith('IU') ||
      request.request_type === 'inter_unit' ||
-     (request.additional_data && (typeof request.additional_data === 'object' ? request.additional_data.is_inter_unit : String(request.additional_data).includes('is_inter_unit'))))
+     (additionalDataObj && (additionalDataObj.is_inter_unit === 1 || additionalDataObj.is_inter_unit === true)))
   );
 
-  if (allDone && !isInterUnitManagerApproval) {
-    let additionalDataObj: any = null;
-    if (request.additional_data) {
-      try {
-        additionalDataObj = typeof request.additional_data === 'object' ? request.additional_data : JSON.parse(request.additional_data);
-        if (additionalDataObj.handoff) {
-          additionalDataObj.handoff.current_holder_id = null;
-          additionalDataObj.handoff.last_action = 'COMPLETED';
-          additionalDataObj.handoff.last_updated_at = new Date().toISOString();
-        }
-      } catch (e) {}
-    }
+  const isMultiUnitPendingOtherUnits = Boolean(
+    isMultiUnit && (!multiUnitAllApprovedAndAssigned || request.status === 'manager_approval')
+  );
 
+  if (allDone && !isInterUnitManagerApproval && !isMultiUnitPendingOtherUnits) {
     if (additionalDataObj) {
+      if (additionalDataObj.handoff) {
+        additionalDataObj.handoff.current_holder_id = null;
+        additionalDataObj.handoff.last_action = 'COMPLETED';
+        additionalDataObj.handoff.last_updated_at = new Date().toISOString();
+      }
       await db.prepare(`
         UPDATE job_requests SET status = 'completed', current_step_name = 'Completed', additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
       `).bind(JSON.stringify(additionalDataObj), request.id).run();

@@ -929,7 +929,7 @@ export const JobRequestsList: React.FC = () => {
                   const totalTasks = req.total_staff || 0;
                   const completedTasks = req.completed_staff || 0;
                   const percent = req.status === 'completed' ? 100 : totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-                  const isUnopenedAssignedToMe = user?.role === 'staff' && req.status === 'staff_processing' && req.assigned_staff_ids?.split(',').map((id: string) => Number(id.trim())).includes(Number(user?.id)) && !openedJobIds.includes(req.id);
+                  const isUnopenedAssignedToMe = user?.role === 'staff' && (req.status === 'staff_processing' || req.status === 'manager_approval') && req.assigned_staff_ids?.split(',').map((id: string) => Number(id.trim())).includes(Number(user?.id)) && !openedJobIds.includes(req.id);
 
                   return (
                     <tr key={req.id} className={`transition-colors border-b border-slate-100 ${isUnopenedAssignedToMe ? 'bg-purple-50/50 hover:bg-purple-50/80 border-l-4 border-l-purple-600' : 'hover:bg-slate-50/80'}`}>

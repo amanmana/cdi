@@ -1002,10 +1002,25 @@ export const JobRequestDetail: React.FC = () => {
     )
   );
 
+  // Check if this Unit Head has ALREADY assigned staff to their unit
+  const hasMyUnitCompletedAssignment = Boolean(
+    isUnitHeadActor &&
+    myMatchingUnits.length > 0 &&
+    myMatchingUnits.every(([_, uMeta]: [string, any]) => {
+      const staffList = Array.isArray(uMeta?.assigned_staff_ids)
+        ? uMeta.assigned_staff_ids
+        : (typeof uMeta?.assigned_staff_ids === 'string' && uMeta.assigned_staff_ids.trim()
+            ? uMeta.assigned_staff_ids.split(',').map((id: string) => Number(id.trim()))
+            : []);
+      return (uMeta?.status === 'accepted' || staffList.length > 0);
+    })
+  );
+
   // Can this Unit Head assign staff?
   const canUnitHeadAct = Boolean(
     isUnitHeadActor &&
     !isUnitHeadWaitingManager &&
+    !hasMyUnitCompletedAssignment &&
     (
       (isInterUnitJob && isTargetUnitHead) ||
       isDirectToHeadUnit ||
@@ -1098,6 +1113,28 @@ export const JobRequestDetail: React.FC = () => {
     (request?.assigned_staff_ids && request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).includes(Number(user?.id))) ||
     (data?.staffDetails && data.staffDetails.some((s: any) => Number(s.id) === Number(user?.id))) ||
     (selectedStaff && selectedStaff.map(Number).includes(Number(user?.id)))
+  );
+
+  // Check if current user is an assigned staff in unit_assignments whose unit is approved/accepted
+  const myAssignedMultiUnit = Object.entries(request?.additional_data?.unit_assignments || {}).find(([_, uMeta]: [string, any]) => {
+    const ids = Array.isArray(uMeta?.assigned_staff_ids)
+      ? uMeta.assigned_staff_ids.map(Number)
+      : (typeof uMeta?.assigned_staff_ids === 'string'
+          ? uMeta.assigned_staff_ids.split(',').map((id: string) => Number(id.trim()))
+          : []);
+    return ids.includes(Number(user?.id));
+  });
+
+  const isAssignedStaffInActiveMultiUnit = Boolean(
+    isMultiUnitJob &&
+    (isAssignedStaff || myAssignedMultiUnit) &&
+    (
+      !myAssignedMultiUnit ||
+      myAssignedMultiUnit[1]?.manager_approved === true ||
+      myAssignedMultiUnit[1]?.routing_target === 'head_unit' ||
+      myAssignedMultiUnit[1]?.routing_target === 'staff' ||
+      myAssignedMultiUnit[1]?.status === 'accepted'
+    )
   );
 
   const getAstRequesterBadge = (ast: any) => {
@@ -2387,7 +2424,7 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
             {!(request.status === 'staff_processing' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) &&
-             !(request.status === 'manager_approval' && !canActOnManagerApproval) && (
+             !(request.status === 'manager_approval' && !canActOnManagerApproval && !isAssignedStaffInActiveMultiUnit) && (
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-slate-100"></div>
                 <span className="flex-shrink mx-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
@@ -2398,9 +2435,11 @@ export const JobRequestDetail: React.FC = () => {
             )}
 
             {/* Notice for requests awaiting Review/Approval when user does not have direct action responsibility */}
-            {request.status === 'manager_approval' && !canActOnManagerApproval && (
+            {request.status === 'manager_approval' && !canActOnManagerApproval && !hasMyUnitCompletedAssignment && (
               <div className={`p-4 rounded-2xl text-center space-y-1.5 my-2 border ${
-                hasMyDeptApproved
+                isAssignedStaffInActiveMultiUnit
+                  ? 'bg-blue-50/90 border-blue-200/90'
+                  : hasMyDeptApproved
                   ? 'bg-emerald-50/70 border-emerald-200/80'
                   : isUnitHeadWaitingManager
                   ? 'bg-amber-50/80 border-amber-200/90'
@@ -2408,7 +2447,20 @@ export const JobRequestDetail: React.FC = () => {
                   ? 'bg-teal-50/70 border-teal-200/80'
                   : 'bg-slate-50 border-slate-200/80'
               }`}>
-                {hasMyDeptApproved ? (
+                {isAssignedStaffInActiveMultiUnit ? (
+                  <>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200/80">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      Your Work Is Active ({myAssignedMultiUnit ? myAssignedMultiUnit[0] : 'Assigned Unit'})
+                    </div>
+                    <div className="text-xs font-bold text-slate-800">
+                      Approved & Assigned by Head of Unit
+                    </div>
+                    <div className="text-[11px] text-blue-700 font-medium leading-relaxed">
+                      Your unit's work portion is active. You can begin drafting and finalize your part whenever ready, even while secondary manager approval for other units is pending.
+                    </div>
+                  </>
+                ) : hasMyDeptApproved ? (
                   <>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200/80">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -2513,7 +2565,7 @@ export const JobRequestDetail: React.FC = () => {
               )}
 
             {/* Action Buttons & Oversight based on Role & Status */}
-            {(canAct || user?.role === 'director' || user?.is_unit_head || hasUnitNeedingManagerApproval) && (
+            {(canAct || user?.role === 'director' || user?.is_unit_head || hasUnitNeedingManagerApproval || isAssignedStaffInActiveMultiUnit || hasMyUnitCompletedAssignment) && (
               <div className="space-y-2">
                 {(request.status === 'manager_approval' || hasUnitNeedingManagerApproval) && canActOnManagerApproval && (
                   <>
@@ -2534,7 +2586,44 @@ export const JobRequestDetail: React.FC = () => {
                   </>
                 )}
 
-                {request.status === 'staff_processing' && (
+                {/* Unit Head assigned team status card & manage button */}
+                {isUnitHeadActor && hasMyUnitCompletedAssignment && (request.status === 'manager_approval' || request.status === 'staff_processing') && (
+                  <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 space-y-2.5 shadow-xs mb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        <span className="text-xs font-black text-emerald-900 uppercase tracking-wider">
+                          {myUnitName ? `${myUnitName.toUpperCase()} TEAM ASSIGNED` : 'TEAM ASSIGNED'}
+                        </span>
+                      </div>
+                      <span className="badge badge-sm bg-emerald-100 text-emerald-800 font-bold border-emerald-200">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 font-medium leading-relaxed">
+                      Staff team for {myUnitName || 'your unit'} has been assigned and is ready to work.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (request.assigned_staff_ids) {
+                          setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
+                        }
+                        if (myUnitName) {
+                          setStaffUnitFilter(myUnitName);
+                        } else if (user?.unit) {
+                          setStaffUnitFilter(user.unit);
+                        }
+                        setShowManageTeamModal(true);
+                      }}
+                      className="btn w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl h-10 uppercase tracking-wider gap-2 flex items-center justify-center transition-all shadow-xs"
+                    >
+                      <Users className="w-4 h-4 text-emerald-600" /> MANAGE {myUnitName ? myUnitName.toUpperCase() : 'UNIT'} TEAM
+                    </button>
+                  </div>
+                )}
+
+                {(request.status === 'staff_processing' || isAssignedStaffInActiveMultiUnit) && (
                   <>
                     {/* Pending Cross-Unit Assistance Review Action */}
                     {(() => {
