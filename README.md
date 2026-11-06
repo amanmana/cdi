@@ -1,55 +1,51 @@
-# MiniFramework MVC
+# CDI (Creative Digital Innovation) - Project Management Platform
 
-A lightweight PHP 8.1+ MVC micro-framework with Laravel-style routing, middleware, session auth, CSRF, and a flexible approval workflow module.
+A high-performance creative job request and collaborative workflow management system built on **Cloudflare Workers, D1 Database, R2 Storage, and React (Vite + Tailwind CSS + DaisyUI)**.
 
-## Features
-- **Routing**: Laravel-style `Route::get('/path', 'Controller@method')`.
-- **MVC**: Clear separation of concerns.
-- **Middleware**: Pipeline support for Auth, Role, and CSRF.
-- **Workflow Engine**: Generic approval system with steps and history.
-- **UI/UX**: Beautifully crafted with Tailwind CSS & DaisyUI (CDN).
-- **Security**: CSRF protection, salted password hashing, and output escaping.
+---
 
-## Installation
+## 📖 Specifications & Workflow Directives
+- **Workflow & Lifecycle Specification**: [`docs/WORKFLOW_SPECIFICATION.md`](docs/WORKFLOW_SPECIFICATION.md) — The single source of truth for all job request lifecycles, permission matrices, multi-unit execution rules, and regression test cases.
+- **Agent Rules & Development Guidelines**: [`GEMINI.md`](GEMINI.md) — Directives for AI coding pair programming to maintain architectural invariants.
 
-1. **Install Dependencies**
-   ```bash
-   composer install
-   ```
+---
 
-2. **Database Setup**
-   - Create a database named `framework_mini`.
-   - Import `database/schema.sql`.
-   - Import `database/seed.sql`.
+## 🛠️ Tech Stack
+- **Frontend**: React 18, Vite, Tailwind CSS, DaisyUI, Lucide React icons
+- **Backend / API**: Cloudflare Workers (TypeScript) with Hono framework
+- **Database**: Cloudflare D1 (SQLite-compatible serverless database)
+- **Object Storage**: Cloudflare R2
+- **Deployment**: Cloudflare Workers Assets + Functions
 
-3. **Configuration**
-   - Copy `.env.example` to `.env`.
-   - Update `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`.
+---
 
-4. **Run the Application**
-   ```bash
-   php -S localhost:8000 -t public
-   ```
+## 🚀 Development & Deployment
 
-## Demo Credentials
+### Local Development
+```bash
+# Install dependencies
+npm install
 
-- **Admin Account**: `admin@example.com` / `password123`
-- **Manager Account**: `manager@example.com` / `password123`
-- **Staff Account**: `staff@example.com` / `password123`
+# Build frontend
+npm run build
 
-## Workflow Example
-1. **Public**: Visit `/` or `/job-requests/create` to submit a request.
-2. **Manager**: Login as manager, go to Job Requests, and **Approve/Reject** the submitted request.
-3. **Staff**: Login as staff, go to Job Requests, and **Complete** the approved request.
+# Run local preview with wrangler
+npx wrangler dev
+```
 
-## Project Structure
-- `app/Core`: Core framework classes (Router, Request, Response, etc.)
-- `app/Controllers`: Application logic.
-- `app/Models`: Database interacts.
-- `app/Views`: HTML templates with layout support.
-- `routes/web.php`: Route definitions.
-- `public/index.php`: Entry point.
-- `storage`: Log files and temporary data.
+### Production Deployment
+```bash
+# Build production bundle
+npm run build
 
-## License
-MIT License.
+# Deploy to Cloudflare Workers
+npx wrangler deploy
+```
+
+---
+
+## 🔐 Core Workflow Modules
+- `src/worker/routes/jobRequests.ts`: Core backend API routing, approval transitions, team assignments, and task completion.
+- `src/pages/JobRequestDetail.tsx`: Ticket detail views, dynamic approval/action buttons based on role and unit status.
+- `src/pages/JobRequestsList.tsx`: Role-scoped dashboards and filterable job request tables.
+- `src/pages/UnitWorkspacePage.tsx`: Unit workspace whiteboard and agile collaboration tools.
