@@ -78,6 +78,14 @@ export const JobRequestDetail: React.FC = () => {
   const [showEditTimelineModal, setShowEditTimelineModal] = useState(false);
   const [timelineReason, setTimelineReason] = useState('');
 
+  // Unit Deliverable Milestone Modal State
+  const [showUnitMilestoneModal, setShowUnitMilestoneModal] = useState(false);
+  const [milestoneUnitName, setMilestoneUnitName] = useState('');
+  const [milestoneStartDate, setMilestoneStartDate] = useState('');
+  const [milestoneDeadline, setMilestoneDeadline] = useState('');
+  const [milestoneNote, setMilestoneNote] = useState('');
+  const [milestoneSaving, setMilestoneSaving] = useState(false);
+
   // Status Change Modal State (Pending / Cancel)
   const [showStatusModal, setShowStatusModal] = useState<'on_hold' | 'cancelled' | null>(null);
   const [statusReason, setStatusReason] = useState('');
@@ -469,6 +477,54 @@ export const JobRequestDetail: React.FC = () => {
       fetchDetail();
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleOpenUnitMilestoneModal = (uName: string, curStart?: string, curDead?: string, curNote?: string) => {
+    setMilestoneUnitName(uName);
+    setMilestoneStartDate(curStart || request?.start_date || new Date().toISOString().split('T')[0]);
+    setMilestoneDeadline(curDead || request?.deadline || '');
+    setMilestoneNote(curNote || '');
+    setShowUnitMilestoneModal(true);
+  };
+
+  const handleSaveUnitMilestone = async () => {
+    if (!milestoneDeadline) {
+      alert('Please enter a milestone target deadline.');
+      return;
+    }
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (milestoneDeadline < todayStr) {
+      alert('Milestone deadline cannot be earlier than today.');
+      return;
+    }
+    if (milestoneStartDate && milestoneDeadline && milestoneDeadline < milestoneStartDate) {
+      alert('Milestone deadline cannot be earlier than start date.');
+      return;
+    }
+    setMilestoneSaving(true);
+    try {
+      const res = await fetch(`/api/job-requests/${id}/unit-timeline`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          unit_name: milestoneUnitName,
+          start_date: milestoneStartDate,
+          deadline: milestoneDeadline,
+          milestone_note: milestoneNote,
+        }),
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setShowUnitMilestoneModal(false);
+        fetchDetail();
+      } else {
+        alert(resData.error || 'Failed to update milestone timeline.');
+      }
+    } catch (err: any) {
+      alert('Error updating milestone timeline: ' + err.message);
+    } finally {
+      setMilestoneSaving(false);
     }
   };
 
@@ -2108,6 +2164,79 @@ export const JobRequestDetail: React.FC = () => {
                             <span>Assigned Specialist: {uMeta.assigned_staff_names.join(', ')}</span>
                           </div>
                         )}
+
+                        {/* Unit Milestone Target Timeline */}
+                        {(() => {
+                          const unitName = srv.target_unit_name || srv.name;
+                          const unitDeadline = uMeta?.deadline || srv.deadline;
+                          const unitStartDate = uMeta?.start_date || srv.start_date;
+                          const unitMilestoneNote = uMeta?.milestone_note;
+
+                          const canEditThisUnitMilestone = Boolean(
+                            user?.role === 'admin' ||
+                            user?.role === 'director' ||
+                            (isManagerActor && (
+                              (userDeptId && Number(uMeta?.department_id) === Number(userDeptId)) ||
+                              managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
+                            )) ||
+                            (user?.is_unit_head && (
+                              (userUnit && userUnit === unitName.toLowerCase().trim()) ||
+                              managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
+                            ))
+                          );
+
+                          return (
+                            <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/70 p-3 rounded-xl border border-slate-200/60">
+                              <div className="flex items-start sm:items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 text-indigo-600 mt-0.5 sm:mt-0">
+                                  <Calendar className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                      Unit Milestone Target:
+                                    </span>
+                                    {unitDeadline && unitDeadline !== request.deadline ? (
+                                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700">
+                                        Internal Target
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-bold text-slate-400">
+                                        (Matches Master)
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs font-black text-slate-900 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                    <span className={unitDeadline && unitDeadline <= (request.deadline || '') ? 'text-indigo-900' : 'text-slate-800'}>
+                                      {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
+                                    </span>
+                                    {unitStartDate && (
+                                      <span className="text-[10px] font-medium text-slate-400">
+                                        • Starts: {formatDate(unitStartDate)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {unitMilestoneNote && (
+                                    <p className="text-[10px] font-medium text-indigo-900/80 italic mt-0.5">
+                                      "{unitMilestoneNote}"
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {canEditThisUnitMilestone && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenUnitMilestoneModal(unitName, unitStartDate, unitDeadline, unitMilestoneNote)}
+                                  className="btn btn-ghost btn-xs text-indigo-600 hover:bg-indigo-100/70 font-black text-[10px] uppercase gap-1 px-2.5 py-1 h-7 rounded-lg border border-indigo-200/80 shadow-2xs shrink-0 self-end sm:self-center"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>{unitDeadline ? 'Edit Milestone' : 'Set Milestone'}</span>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -4331,6 +4460,105 @@ export const JobRequestDetail: React.FC = () => {
                 className="btn bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-12 shadow-lg shadow-blue-500/25"
               >
                 {actionLoading ? <span className="loading loading-spinner"></span> : 'SAVE TIMELINE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* UNIT DELIVERABLE MILESTONE MODAL */}
+      {showUnitMilestoneModal && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6 md:p-8 space-y-6 relative overflow-hidden">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 mb-2">
+                <Layers className="w-3.5 h-3.5" />
+                <span>Unit Deliverable Milestone</span>
+              </div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                Set Timeline for {milestoneUnitName}
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
+                Set internal start and target completion dates for this unit's deliverables.
+                {request?.deadline && (
+                  <span className="block mt-1 text-slate-700 font-bold">
+                    Master Project Deadline: {formatDate(request.deadline)}
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
+                    Unit Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={milestoneStartDate}
+                    onChange={(e) => setMilestoneStartDate(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl h-11 px-3 text-xs font-semibold focus:border-indigo-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-extrabold text-slate-800 text-xs mb-1.5">
+                    Target Deadline <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={milestoneDeadline}
+                    min={milestoneStartDate || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setMilestoneDeadline(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl h-11 px-3 text-xs font-semibold focus:border-indigo-600 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {milestoneStartDate && milestoneDeadline && milestoneDeadline < milestoneStartDate && (
+                <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>Target deadline cannot be earlier than start date.</span>
+                </div>
+              )}
+
+              {request?.deadline && milestoneDeadline && milestoneDeadline > request.deadline && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs font-bold text-amber-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>Note: This target deadline is later than the Master Client Deadline ({formatDate(request.deadline)}).</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-extrabold text-slate-800">
+                  Milestone Deliverable Goal / Note (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Finalize visual creative draft for Social Media handoff..."
+                  value={milestoneNote}
+                  onChange={(e) => setMilestoneNote(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-300 bg-white p-3 text-xs font-medium text-slate-800 focus:border-indigo-600 focus:outline-none resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowUnitMilestoneModal(false)}
+                className="text-xs font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider px-4 py-2.5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveUnitMilestone}
+                disabled={milestoneSaving || !milestoneDeadline || Boolean(milestoneStartDate && milestoneDeadline && milestoneDeadline < milestoneStartDate)}
+                className="btn bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 border-none text-white font-extrabold text-xs rounded-2xl px-6 h-11 uppercase tracking-wider shadow-lg shadow-indigo-600/25"
+              >
+                {milestoneSaving ? <span className="loading loading-spinner"></span> : 'Save Milestone'}
               </button>
             </div>
           </div>

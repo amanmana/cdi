@@ -2942,6 +2942,72 @@ jobRequestsRouter.post('/:id/update-timeline', async (c) => {
   return c.json({ success: true, message: 'Timeline updated.' });
 });
 
+// POST /api/job-requests/:id/unit-timeline - Update milestone timeline for a specific unit
+jobRequestsRouter.post('/:id/unit-timeline', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const idParam = c.req.param('id');
+  const { unit_name, start_date, deadline, milestone_note } = await c.req.json();
+
+  if (!unit_name) {
+    return c.json({ error: 'Unit name is required.' }, 400);
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (deadline && String(deadline).trim() < todayStr) {
+    return c.json({ error: 'Milestone deadline cannot be earlier than today.' }, 400);
+  }
+  if (start_date && deadline && String(deadline).trim() < String(start_date).trim()) {
+    return c.json({ error: 'Milestone deadline cannot be earlier than start date.' }, 400);
+  }
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) return c.json({ error: 'Job request not found' }, 404);
+
+  let addData: any = {};
+  if (request.additional_data) {
+    try {
+      addData = typeof request.additional_data === 'string' ? JSON.parse(request.additional_data) : request.additional_data;
+    } catch {}
+  }
+
+  if (!addData.unit_assignments) {
+    addData.unit_assignments = {};
+  }
+
+  // Update in unit_assignments
+  if (!addData.unit_assignments[unit_name]) {
+    addData.unit_assignments[unit_name] = {};
+  }
+  addData.unit_assignments[unit_name].start_date = start_date || null;
+  addData.unit_assignments[unit_name].deadline = deadline || null;
+  if (milestone_note !== undefined) {
+    addData.unit_assignments[unit_name].milestone_note = String(milestone_note).trim();
+  }
+
+  // Also sync in selected_services if matching
+  if (Array.isArray(addData.selected_services)) {
+    for (const s of addData.selected_services) {
+      if ((s.target_unit_name || s.name) === unit_name) {
+        s.start_date = start_date || null;
+        s.deadline = deadline || null;
+      }
+    }
+  }
+
+  await db.prepare('UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .bind(JSON.stringify(addData), request.id)
+    .run();
+
+  const logComment = `Updated deliverable milestone for [${unit_name}]: Target ${deadline || 'N/A'}${milestone_note ? ` ("${String(milestone_note).trim()}")` : ''}`;
+  await db.prepare(`
+    INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment)
+    VALUES (?, 'UPDATE_TIMELINE', ?, ?, ?)
+  `).bind(request.id, user.id, user.name, logComment).run();
+
+  return c.json({ success: true, message: 'Unit deliverable milestone updated' });
+});
+
 // POST /api/job-requests/:id/report - Staff submit note/report
 jobRequestsRouter.post('/:id/report', async (c) => {
   const db = c.env.DB;
