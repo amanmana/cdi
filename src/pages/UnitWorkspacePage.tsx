@@ -202,9 +202,9 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [stageOrders, setStageOrders] = useState<Record<string, number[]>>({});
 
-  // Full View State for Kanban
+  // Full View State for Kanban (Default: scrollable layout)
   const [isKanbanFullscreen, setIsKanbanFullscreen] = useState<boolean>(false);
-  const [kanbanFitMode, setKanbanFitMode] = useState<'fit' | 'scroll'>('fit');
+  const [kanbanFitMode, setKanbanFitMode] = useState<'fit' | 'scroll'>('scroll');
 
   // Prevent background scrolling & handle Escape key in Full View
   useEffect(() => {
