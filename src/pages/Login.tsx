@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, AlertCircle, Eye, EyeOff, Lock, X, KeyRound, Mail, CheckCircle2, ExternalLink, Search, Users, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { DISABLE_TURNSTILE } from '../config/features';
 
 interface DemoUser {
   id: number;
@@ -31,7 +32,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState(DISABLE_TURNSTILE ? 'demo_turnstile_pass_token' : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -68,7 +69,7 @@ export const Login: React.FC = () => {
   // Forgot password modal state
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotTurnstile, setForgotTurnstile] = useState('');
+  const [forgotTurnstile, setForgotTurnstile] = useState(DISABLE_TURNSTILE ? 'demo_turnstile_pass_token' : '');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState<any>(null);
   const [forgotError, setForgotError] = useState('');
@@ -80,7 +81,7 @@ export const Login: React.FC = () => {
       return;
     }
 
-    if (!turnstileToken) {
+    if (!DISABLE_TURNSTILE && !turnstileToken) {
       setError('Sila lengkapkan pengesahan keselamatan (Turnstile) terlebih dahulu.');
       return;
     }
@@ -229,7 +230,7 @@ export const Login: React.FC = () => {
       return;
     }
 
-    if (!forgotTurnstile) {
+    if (!DISABLE_TURNSTILE && !forgotTurnstile) {
       setForgotError('Please complete the security verification (Turnstile).');
       return;
     }
@@ -351,22 +352,24 @@ export const Login: React.FC = () => {
             </div>
 
             {/* Turnstile Security Protection */}
-            <div className="pt-2 flex justify-center">
-              <Turnstile 
-                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
-                onSuccess={(tok) => {
-                  setTurnstileToken(tok);
-                  setError('');
-                }}
-                onError={() => {
-                  setTurnstileToken('demo_turnstile_pass_token');
-                  setError('');
-                }}
-                onExpire={() => {
-                  setTurnstileToken('');
-                }}
-              />
-            </div>
+            {!DISABLE_TURNSTILE && (
+              <div className="pt-2 flex justify-center">
+                <Turnstile 
+                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
+                  onSuccess={(tok) => {
+                    setTurnstileToken(tok);
+                    setError('');
+                  }}
+                  onError={() => {
+                    setTurnstileToken('demo_turnstile_pass_token');
+                    setError('');
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken('');
+                  }}
+                />
+              </div>
+            )}
 
             <button
               type="submit"
@@ -626,22 +629,24 @@ export const Login: React.FC = () => {
                   />
                 </div>
 
-                <div className="pt-1 flex justify-center">
-                  <Turnstile 
-                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
-                    onSuccess={(tok) => {
-                      setForgotTurnstile(tok);
-                      setForgotError('');
-                    }}
-                    onError={() => {
-                      setForgotTurnstile('demo_turnstile_pass_token');
-                      setForgotError('');
-                    }}
-                    onExpire={() => {
-                      setForgotTurnstile('');
-                    }}
-                  />
-                </div>
+                {!DISABLE_TURNSTILE && (
+                  <div className="pt-1 flex justify-center">
+                    <Turnstile 
+                      siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
+                      onSuccess={(tok) => {
+                        setForgotTurnstile(tok);
+                        setForgotError('');
+                      }}
+                      onError={() => {
+                        setForgotTurnstile('demo_turnstile_pass_token');
+                        setForgotError('');
+                      }}
+                      onExpire={() => {
+                        setForgotTurnstile('');
+                      }}
+                    />
+                  </div>
+                )}
 
                 <button
                   type="submit"

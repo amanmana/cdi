@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { DISABLE_TURNSTILE } from '../config/features';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ export const RegisterPage: React.FC = () => {
   const [company, setCompany] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState(DISABLE_TURNSTILE ? 'demo_turnstile_pass_token' : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,7 +24,7 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
-    if (!turnstileToken) {
+    if (!DISABLE_TURNSTILE && !turnstileToken) {
       setError('Sila lengkapkan pengesahan keselamatan (Turnstile) terlebih dahulu.');
       return;
     }
@@ -147,22 +148,24 @@ export const RegisterPage: React.FC = () => {
           </div>
 
           {/* Turnstile Security Verification */}
-          <div className="pt-2 flex justify-center">
-            <Turnstile 
-              siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
-              onSuccess={(tok) => {
-                setTurnstileToken(tok);
-                setError('');
-              }}
-              onError={() => {
-                setTurnstileToken('demo_turnstile_pass_token');
-                setError('');
-              }}
-              onExpire={() => {
-                setTurnstileToken('');
-              }}
-            />
-          </div>
+          {!DISABLE_TURNSTILE && (
+            <div className="pt-2 flex justify-center">
+              <Turnstile 
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
+                onSuccess={(tok) => {
+                  setTurnstileToken(tok);
+                  setError('');
+                }}
+                onError={() => {
+                  setTurnstileToken('demo_turnstile_pass_token');
+                  setError('');
+                }}
+                onExpire={() => {
+                  setTurnstileToken('');
+                }}
+              />
+            </div>
+          )}
 
           {/* Register Button */}
           <div className="pt-2">

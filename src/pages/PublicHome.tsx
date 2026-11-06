@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Check, CheckCircle2, Calendar, AlertTriangle, Sparkles, User, Mail, FileText, Layers, Send, Camera, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { DISABLE_TURNSTILE } from '../config/features';
 import { Footer } from '../components/Footer';
 
 interface Unit {
@@ -91,7 +92,7 @@ export const PublicHome: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState<string>('');
+  const [turnstileToken, setTurnstileToken] = useState<string>(DISABLE_TURNSTILE ? 'demo_turnstile_pass_token' : '');
 
   useEffect(() => {
     // Only auto-fill if the logged-in user is a client.
@@ -304,7 +305,7 @@ export const PublicHome: React.FC = () => {
       return;
     }
 
-    if (!turnstileToken) {
+    if (!DISABLE_TURNSTILE && !turnstileToken) {
       setError('Please complete the security verification (Turnstile) before submitting.');
       return;
     }
@@ -1178,22 +1179,24 @@ export const PublicHome: React.FC = () => {
                 )}
 
               {/* Turnstile verification */}
-              <div className="pt-2 flex justify-center">
-                <Turnstile 
-                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
-                  onSuccess={(tok) => {
-                    setTurnstileToken(tok);
-                    setError(null);
-                  }}
-                  onError={() => {
-                    setTurnstileToken('demo_turnstile_pass_token');
-                    setError(null);
-                  }}
-                  onExpire={() => {
-                    setTurnstileToken('');
-                  }}
-                />
-              </div>
+              {!DISABLE_TURNSTILE && (
+                <div className="pt-2 flex justify-center">
+                  <Turnstile 
+                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8gBivlSDINW9Ne'} 
+                    onSuccess={(tok) => {
+                      setTurnstileToken(tok);
+                      setError(null);
+                    }}
+                    onError={() => {
+                      setTurnstileToken('demo_turnstile_pass_token');
+                      setError(null);
+                    }}
+                    onExpire={() => {
+                      setTurnstileToken('');
+                    }}
+                  />
+                </div>
+              )}
 
               {/* Sleek Gradient Submit Button */}
               <button

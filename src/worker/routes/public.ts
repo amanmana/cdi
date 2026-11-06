@@ -147,13 +147,13 @@ publicApi.post('/job-requests', async (c) => {
       is_multi_unit,
     } = await c.req.json();
 
-    if (!client_name || !client_email || !title || (!unit && !service_id && !service_name && (!Array.isArray(selected_services) || selected_services.length === 0)) || !deadline || !turnstileToken) {
-      return c.json({ error: 'Please complete all required fields: full name, email, job title, target deadline, target unit/service, and security verification.' }, 400);
+    if (!client_name || !client_email || !title || (!unit && !service_id && !service_name && (!Array.isArray(selected_services) || selected_services.length === 0)) || !deadline) {
+      return c.json({ error: 'Please complete all required fields: full name, email, job title, target deadline, and target unit/service.' }, 400);
     }
 
     // Verify Turnstile
     const turnstileSecret = c.env.TURNSTILE_SECRET_KEY;
-    if (turnstileSecret && turnstileToken !== 'demo_turnstile_pass_token') {
+    if (turnstileSecret && turnstileToken && turnstileToken !== 'demo_turnstile_pass_token') {
       const formData = new FormData();
       formData.append('secret', turnstileSecret);
       formData.append('response', turnstileToken);
