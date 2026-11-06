@@ -50,27 +50,30 @@ export class WorkflowEngine {
       // Check unit assignments for Unit Head eligibility
       if (isUnitHeadForRequest) {
         if (addDataObj?.unit_assignments) {
-          let currentUnitMeta: any = null;
+          const matchingUnits: any[] = [];
           for (const [uName, uMeta] of Object.entries(addDataObj.unit_assignments as any)) {
             if (
               userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
               (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim())
             ) {
-              currentUnitMeta = uMeta;
-              break;
+              matchingUnits.push(uMeta);
             }
           }
-          if (currentUnitMeta) {
-            // If unit is direct to head unit, or manager already approved, or awaiting head assignment
-            if (
-              currentUnitMeta.routing_target === 'head_unit' ||
-              currentUnitMeta.manager_approved === true ||
-              currentUnitMeta.status === 'awaiting_head_assignment'
-            ) {
-              return true;
+
+          if (matchingUnits.length > 0) {
+            // If ANY unit under this Unit Head requires manager approval and hasn't been approved yet:
+            const stillWaitingManager = matchingUnits.some(
+              (uMeta: any) => (uMeta.routing_target || 'manager') === 'manager' && !uMeta.manager_approved
+            );
+            if (stillWaitingManager) {
+              return false;
             }
-            // Otherwise, unit is still waiting for manager approval!
-            return false;
+
+            // All matching units are either head_unit or already manager_approved
+            const anyReady = matchingUnits.some(
+              (uMeta: any) => uMeta.routing_target === 'head_unit' || uMeta.manager_approved === true || uMeta.status === 'awaiting_head_assignment'
+            );
+            return anyReady;
           }
         }
 

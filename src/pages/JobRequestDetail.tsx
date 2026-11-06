@@ -922,20 +922,26 @@ export const JobRequestDetail: React.FC = () => {
     user?.is_unit_head && user?.role !== 'manager'
   );
 
-  // Check unit entry matching current Unit Head
-  const myUnitEntry = Object.entries(request?.additional_data?.unit_assignments || {}).find(([uName]) => {
+  // Check ALL unit entries matching current Unit Head
+  const myMatchingUnits = Object.entries(request?.additional_data?.unit_assignments || {}).filter(([uName]) => {
     return managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
            (userUnit && userUnit === uName.toLowerCase().trim());
   });
+  const myUnitEntry = myMatchingUnits.length > 0 ? myMatchingUnits[0] : null;
   const myUnitMeta: any = myUnitEntry ? myUnitEntry[1] : null;
   const myUnitName = myUnitEntry ? myUnitEntry[0] : (user?.unit || '');
 
   // Is Unit Head waiting for Manager approval?
+  // If ANY unit belonging to this Unit Head still needs Manager approval:
   const isUnitHeadWaitingManager = Boolean(
     isUnitHeadActor &&
-    myUnitMeta &&
-    myUnitMeta.routing_target === 'manager' &&
-    !myUnitMeta.manager_approved
+    (
+      myMatchingUnits.some(([_, uMeta]: [string, any]) => {
+        const isMgrRoute = (uMeta?.routing_target || 'manager') === 'manager';
+        return isMgrRoute && !uMeta?.manager_approved;
+      }) ||
+      (!request?.additional_data?.unit_assignments && !isDirectToHeadUnit && (request?.additional_data?.routing_target || 'manager') === 'manager')
+    )
   );
 
   // Can this Unit Head assign staff?
@@ -945,7 +951,9 @@ export const JobRequestDetail: React.FC = () => {
     (
       (isInterUnitJob && isTargetUnitHead) ||
       isDirectToHeadUnit ||
-      (myUnitMeta && (myUnitMeta.routing_target === 'head_unit' || myUnitMeta.manager_approved === true || myUnitMeta.status === 'awaiting_head_assignment'))
+      myMatchingUnits.some(([_, uMeta]: [string, any]) => {
+        return uMeta?.routing_target === 'head_unit' || uMeta?.manager_approved === true || uMeta?.status === 'awaiting_head_assignment';
+      })
     )
   );
 
