@@ -982,6 +982,41 @@ export const JobRequestDetail: React.FC = () => {
     isManagerActor ? canManagerAct : canUnitHeadAct
   );
 
+  // Check if current manager has already approved their department's units
+  const myApprovedUnits = Object.entries(request?.additional_data?.unit_assignments || {}).filter(([uName, uMeta]: [string, any]) => {
+    const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+      (userDeptId && Number(uMeta?.department_id) === Number(userDeptId));
+    return belongsToMyDept && uMeta?.manager_approved === true;
+  });
+
+  const hasMyDeptApproved = Boolean(
+    isManagerActor && (
+      (myApprovedUnits.length > 0 && !hasUnitNeedingManagerApproval) ||
+      (request?.additional_data?.manager_approved === true && !hasUnitNeedingManagerApproval)
+    )
+  );
+
+  const otherUnitsNeedingManager = Object.entries(request?.additional_data?.unit_assignments || {}).filter(([uName, uMeta]: [string, any]) => {
+    const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+      (userDeptId && Number(uMeta?.department_id) === Number(userDeptId));
+    const isManagerRoute = (uMeta?.routing_target || 'manager') === 'manager';
+    return !belongsToMyDept && isManagerRoute && !uMeta?.manager_approved;
+  });
+
+  const approvedHeadNames = myApprovedUnits.map(([uName]) => {
+    const matchingHead = (data?.targetUnitHeads || []).find(
+      (h: any) => h.unit?.toLowerCase().trim() === uName.toLowerCase().trim()
+    ) || (targetUnitHead?.unit?.toLowerCase().trim() === uName.toLowerCase().trim() ? targetUnitHead : null);
+    return matchingHead?.name ? `${matchingHead.name} (${uName})` : uName;
+  });
+
+  const otherPendingManagers = otherUnitsNeedingManager.map(([uName]) => {
+    const matchingMgr = ((data as any)?.targetManagers || []).find(
+      (m: any) => m.unit?.toLowerCase().trim() === uName.toLowerCase().trim()
+    );
+    return matchingMgr?.name ? `${matchingMgr.name} (${uName})` : uName;
+  });
+
   const targetHeadDisplayName =
     targetUnitHead?.name ||
     request?.additional_data?.target_unit_head_name ||
@@ -2221,13 +2256,33 @@ export const JobRequestDetail: React.FC = () => {
             {/* Notice for requests awaiting Review/Approval when user does not have direct action responsibility */}
             {request.status === 'manager_approval' && !canActOnManagerApproval && (
               <div className={`p-4 rounded-2xl text-center space-y-1.5 my-2 border ${
-                isUnitHeadWaitingManager
+                hasMyDeptApproved
+                  ? 'bg-emerald-50/70 border-emerald-200/80'
+                  : isUnitHeadWaitingManager
                   ? 'bg-amber-50/80 border-amber-200/90'
                   : isDirectToHeadUnit
                   ? 'bg-teal-50/70 border-teal-200/80'
                   : 'bg-slate-50 border-slate-200/80'
               }`}>
-                {isUnitHeadWaitingManager ? (
+                {hasMyDeptApproved ? (
+                  <>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200/80">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Approved by You (Manager)
+                    </div>
+                    <div className="text-xs font-bold text-slate-800">
+                      Handed Over to Head of Unit {approvedHeadNames.length > 0 ? `(${approvedHeadNames.join(', ')})` : ''}
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                      You have approved this request. It has been handed over to the Head of Unit to assign staff team members.
+                      {otherPendingManagers.length > 0 && (
+                        <div className="mt-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5">
+                          ⏳ Waiting for secondary manager approval from: {otherPendingManagers.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : isUnitHeadWaitingManager ? (
                   <>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200/80">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
