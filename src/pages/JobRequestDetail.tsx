@@ -1232,21 +1232,34 @@ export const JobRequestDetail: React.FC = () => {
                   ? matchingMgr.name
                   : (matchingHead?.name || uMeta?.head_name || 'Head');
                 const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
+                const isManagerApproved = Boolean(uMeta?.manager_approved || uMeta?.routing_target === 'head_unit' || uMeta?.routing_target === 'staff');
+
+                const pillClass = isAccepted
+                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                  : isManagerApproved
+                  ? 'bg-emerald-500 text-white border-emerald-400 shadow-sm'
+                  : 'bg-amber-500 text-white border-amber-400 shadow-sm';
+
+                const dotClass = (isAccepted || isManagerApproved)
+                  ? 'bg-emerald-200'
+                  : 'bg-amber-200 animate-pulse';
+
+                const statusLabel = isAccepted
+                  ? '✓ READY'
+                  : isManagerApproved
+                  ? '✓ APPROVED'
+                  : 'APPROVAL';
 
                 return (
                   <span
                     key={uName}
-                    className={`inline-flex items-center gap-1.5 font-black uppercase text-[11px] px-3 py-1 rounded-xl tracking-wider shadow-2xs border transition-all whitespace-nowrap ${
-                      isAccepted
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                        : 'bg-teal-700 text-white border-teal-600'
-                    }`}
+                    className={`inline-flex items-center gap-1.5 font-black uppercase text-[11px] px-3 py-1 rounded-xl tracking-wider shadow-2xs border transition-all whitespace-nowrap ${pillClass}`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${isAccepted ? 'bg-emerald-500' : 'bg-teal-300 animate-pulse'}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
                     <span>{uName}</span>
-                    <span className="opacity-75 font-semibold text-[10px]">({approverDisplayName})</span>
-                    <span className="text-[9px] font-black uppercase opacity-90 pl-0.5">
-                      {isAccepted ? '✓ READY' : 'APPROVAL'}
+                    <span className="opacity-80 font-semibold text-[10px]">({approverDisplayName})</span>
+                    <span className="text-[9px] font-black uppercase opacity-95 pl-0.5">
+                      {statusLabel}
                     </span>
                   </span>
                 );
