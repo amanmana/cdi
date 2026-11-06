@@ -804,13 +804,16 @@ admin.delete('/custom-services/:id', async (c) => {
 admin.get('/users', async (c) => {
   const db = c.env.DB;
   const { results } = await db.prepare(`
-    SELECT u.id, u.name, u.email, u.avatar_url, u.role, u.unit, u.unit_id,
+    SELECT u.id, u.name, u.email, u.avatar_url, u.role, 
+           COALESCE(un.name, u.unit) as unit, 
+           u.unit_id,
            COALESCE(u.department_id, d.id, dept.id) as department_id,
            u.is_unit_head, u.created_at,
            COALESCE(d.name, dept.name) as department_name,
            (SELECT GROUP_CONCAT(name, ', ') FROM units WHERE head_id = u.id) as head_of_units,
            (SELECT COUNT(*) FROM job_requests j WHERE j.client_email = u.email OR LOWER(TRIM(j.client_name)) = LOWER(TRIM(u.name))) as project_count
     FROM users u
+    LEFT JOIN units un ON u.unit_id = un.id
     LEFT JOIN departments d ON u.department_id = d.id
     LEFT JOIN departments dept ON dept.manager_id = u.id
     ORDER BY u.id ASC
