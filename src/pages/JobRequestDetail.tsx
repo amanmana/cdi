@@ -1323,9 +1323,12 @@ export const JobRequestDetail: React.FC = () => {
                 const matchingMgr = ((data as any)?.targetManagers || []).find(
                   (m: any) => m.unit?.toLowerCase().trim() === uName.toLowerCase().trim()
                 );
-                const approverDisplayName = (!isDirectToHeadUnit && !isInterUnitJob && matchingMgr?.name)
+                const isUnitDirectToHead = uMeta?.routing_target === 'head_unit' || uMeta?.routing_target === 'staff';
+                const approverDisplayName = isUnitDirectToHead
+                  ? (uMeta?.head_name || matchingHead?.name || 'Head Unit')
+                  : (!isDirectToHeadUnit && !isInterUnitJob && matchingMgr?.name)
                   ? matchingMgr.name
-                  : (matchingHead?.name || uMeta?.head_name || 'Head');
+                  : (uMeta?.head_name || matchingHead?.name || 'Head');
                 const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
                 const isManagerApproved = Boolean(uMeta?.manager_approved || uMeta?.routing_target === 'head_unit' || uMeta?.routing_target === 'staff');
 

@@ -596,6 +596,39 @@ export const JobRequestsList: React.FC = () => {
         return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">UNIT HEAD REVIEW</span>;
       }
 
+      // Check if viewing user is a Staff assigned in an already-active unit (e.g. Zainal in Events Mangements)
+      if (user && req?.additional_data?.unit_assignments) {
+        const myAssignedUnit = Object.entries(req.additional_data.unit_assignments).find(([_, uMeta]: [string, any]) => {
+          const staffIds = Array.isArray(uMeta?.assigned_staff_ids)
+            ? uMeta.assigned_staff_ids.map(Number)
+            : (typeof uMeta?.assigned_staff_ids === 'string'
+                ? uMeta.assigned_staff_ids.split(',').map((id: string) => Number(id.trim()))
+                : []);
+          return staffIds.includes(Number(user.id));
+        });
+
+        if (myAssignedUnit) {
+          const isMyUnitActive = myAssignedUnit[1]?.status === 'accepted' || myAssignedUnit[1]?.manager_approved === true || myAssignedUnit[1]?.routing_target === 'head_unit';
+          if (isMyUnitActive) {
+            return <span className="inline-flex items-center justify-center whitespace-nowrap bg-purple-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">STAFF PROCESSING</span>;
+          }
+        }
+      }
+
+      // Check if viewing user is a Head of Unit whose unit has already been assigned (e.g. Lau)
+      if (user?.is_unit_head && req?.additional_data?.unit_assignments) {
+        const myUnits = Object.entries(req.additional_data.unit_assignments).filter(([uName, _]: [string, any]) => {
+          return (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+            ((user as any).managed_units && (user as any).managed_units.some((mu: string) => mu.toLowerCase().trim() === uName.toLowerCase().trim()));
+        });
+        const myUnitsAssigned = myUnits.length > 0 && myUnits.every(([_, uMeta]: [string, any]) => {
+          return uMeta.status === 'accepted' || (Array.isArray(uMeta.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
+        });
+        if (myUnitsAssigned) {
+          return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">TEAM ASSIGNED</span>;
+        }
+      }
+
       // Check if viewing user is a Manager whose department units have already been approved
       if (req?.additional_data?.unit_assignments && user) {
         const userDeptId = (user as any).managed_department_id || user.department_id;
@@ -605,9 +638,19 @@ export const JobRequestsList: React.FC = () => {
             (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim());
           return belongsToMyDept;
         });
-        const myUnitsApproved = myUnits.length > 0 && myUnits.every(([_, uMeta]: [string, any]) => uMeta.manager_approved === true);
+        const myUnitsApproved = myUnits.length > 0 && myUnits.every(([_, uMeta]: [string, any]) => uMeta.manager_approved === true || uMeta.status === 'accepted');
         if (myUnitsApproved) {
           return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">UNIT HEAD REVIEW</span>;
+        }
+      }
+
+      // Check for Multi-Unit with partial approvals
+      if (req?.additional_data?.unit_assignments) {
+        const units = Object.values(req.additional_data.unit_assignments) as any[];
+        const hasSomeApproved = units.some((u: any) => u.status === 'accepted' || u.manager_approved === true || u.routing_target === 'head_unit');
+        const hasPendingManager = units.some((u: any) => (u.routing_target || 'manager') === 'manager' && !u.manager_approved && u.status !== 'accepted');
+        if (hasSomeApproved && hasPendingManager) {
+          return <span className="inline-flex items-center justify-center whitespace-nowrap bg-amber-500 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">PARTIAL APPROVAL</span>;
         }
       }
 
