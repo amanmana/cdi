@@ -868,6 +868,7 @@ export const JobRequestDetail: React.FC = () => {
 
   const managedUnits: string[] = (user as any)?.managed_units || [];
   const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
+  const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
   const reqUnit = request?.unit?.toLowerCase().trim();
   const reqUnitId = request?.unit_id ? Number(request.unit_id) : null;
   const userUnit = user?.unit?.toLowerCase().trim();
