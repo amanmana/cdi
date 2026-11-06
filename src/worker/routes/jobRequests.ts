@@ -504,6 +504,18 @@ jobRequestsRouter.get('/', async (c) => {
                    AND (j.status != 'manager_approval' OR j.ticket_no LIKE 'IU%' OR j.ticket_no LIKE 'MU%' OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = 1 OR JSON_EXTRACT(j.additional_data, '$.is_inter_unit') = true OR JSON_EXTRACT(j.additional_data, '$.is_multi_unit') = 1 OR JSON_EXTRACT(j.additional_data, '$.is_multi_unit') = true)`;
         params.push(String(user.id));
       }
+
+      // Universal guard for regular staff (non-unit heads):
+      // Never show requests that are still in manager_approval / unit head review
+      // UNLESS the regular staff is already explicitly assigned in assigned_staff_ids
+      query += ` AND (
+        j.status != 'manager_approval'
+        OR (
+          j.assigned_staff_ids IS NOT NULL 
+          AND INSTR(',' || j.assigned_staff_ids || ',', ',' || ? || ',') > 0
+        )
+      )`;
+      params.push(String(user.id));
     }
   } else if (user && user.role === 'client') {
     query += ` AND j.client_email = ?`;
@@ -1731,6 +1743,17 @@ jobRequestsRouter.get('/:id', async (c) => {
   }
 
   const realId = request.id;
+
+  // Regular staff access check: if request is in manager_approval / unit head review,
+  // regular staff cannot view it unless they are explicitly assigned (e.g. origin staff)
+  if (user && user.role === 'staff' && !user.is_unit_head) {
+    const isAssigned = request.assigned_staff_ids && 
+      request.assigned_staff_ids.split(',').map((id: string) => Number(id.trim())).includes(Number(user.id));
+    
+    if (request.status === 'manager_approval' && !isAssigned) {
+      return c.json({ error: 'Access denied. This request is currently under review and staff has not been assigned yet.' }, 403);
+    }
+  }
 
   // Get assigned staff details
   let staffDetails: any[] = [];
