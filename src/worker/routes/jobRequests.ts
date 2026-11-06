@@ -1605,22 +1605,29 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
     const targetUnitNames = targetUnitRows.map(u => u.name);
     const targetUnitIds = targetUnitRows.map(u => u.id);
 
-    // Lookup origin staff if selected (e.g. Jana selected by Azni)
+    // Lookup origin staff if selected (e.g. Jana selected by Azni, or Safari selected by Hazmi)
     let originStaffName = '';
+    let originStaffUnit = '';
+    let originStaffUnitId: number | null = null;
     let initialAssignedStaffIds: string | null = null;
     if (origin_staff_id) {
       const originStaffRow = await db
-        .prepare('SELECT id, name, unit FROM users WHERE id = ?')
+        .prepare('SELECT id, name, unit, unit_id FROM users WHERE id = ?')
         .bind(Number(origin_staff_id))
-        .first<{ id: number; name: string; unit: string }>();
+        .first<{ id: number; name: string; unit: string; unit_id: number }>();
       if (originStaffRow) {
         originStaffName = originStaffRow.name;
+        originStaffUnit = originStaffRow.unit || '';
+        originStaffUnitId = originStaffRow.unit_id || null;
         initialAssignedStaffIds = String(originStaffRow.id);
       }
     }
 
     const numbers = Math.floor(100000 + Math.random() * 900000).toString();
     const ticketNo = 'IU' + numbers;
+
+    const requesterUnitName = user.unit || originStaffUnit || (user.role === 'manager' ? (user.department_name || 'Design Department') : 'Origin Unit');
+    const requesterUnitIdVal = user.unit_id || originStaffUnitId || null;
 
     const additionalData = JSON.stringify({
       is_inter_unit: true,
@@ -1630,16 +1637,19 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
       unit_assignments: unitAssignments,
       requester_id: user.id,
       requester_name: user.name,
-      requester_unit: user.unit,
-      requester_unit_id: user.unit_id,
+      requester_role: user.role,
+      requester_unit: requesterUnitName,
+      requester_unit_id: requesterUnitIdVal,
       origin_staff_id: origin_staff_id ? Number(origin_staff_id) : null,
       origin_staff_name: originStaffName || null,
+      origin_staff_unit: originStaffUnit || null,
       priority: priority || 'normal',
       parent_job_id: parent_job_id || null,
       parent_ticket_no: parent_ticket_no || null,
     });
 
-    const clientName = `${user.name} (${user.unit || 'Unit Head'})`;
+    const clientRoleDisplay = user.role === 'manager' ? 'Manager' : user.role === 'admin' ? 'Admin' : 'Unit Head';
+    const clientName = `${user.name} (${user.unit || clientRoleDisplay})`;
 
     const res = await db
       .prepare(

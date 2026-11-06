@@ -1869,10 +1869,19 @@ export const JobRequestsList: React.FC = () => {
                   {unitsList
                     .filter((u: any) => {
                       const managedUnits: string[] = (user as any)?.managed_units || [];
-                      if (managedUnits.length > 0) {
-                        return !managedUnits.some((mu: string) => mu.toLowerCase().trim() === u.name?.toLowerCase().trim());
+                      const userDeptId = (user as any)?.managed_department_id || user?.department_id;
+
+                      // Exclude units in the user's own department or managed units
+                      if (managedUnits.length > 0 && managedUnits.some((mu: string) => mu.toLowerCase().trim() === u.name?.toLowerCase().trim())) {
+                        return false;
                       }
-                      return !user?.unit || u.name?.toLowerCase().trim() !== user.unit.toLowerCase().trim();
+                      if ((user?.role === 'manager' || user?.is_acting_manager) && userDeptId && u.department_id && String(u.department_id) === String(userDeptId)) {
+                        return false;
+                      }
+                      if (user?.unit && u.name?.toLowerCase().trim() === user.unit.toLowerCase().trim()) {
+                        return false;
+                      }
+                      return true;
                     })
                     .map((u: any) => {
                       const isSelected = interUnitTargetUnits.includes(u.name);
@@ -1942,10 +1951,12 @@ export const JobRequestsList: React.FC = () => {
                 </p>
               </div>
 
-              {/* Origin Unit Staff Selection (Staff under requester's unit, e.g. Azuin under Pat) */}
+              {/* Origin Unit Staff Selection (Staff under requester's unit/department) */}
               <div>
                 <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                  <span>Assigned Staff from Your Unit ({user?.managed_units && user.managed_units.length > 1 ? user.managed_units.join(', ') : (user?.unit || 'Your Unit')})</span>
+                  <span>
+                    Assigned Staff from Your {user?.department_name ? `Department (${user.department_name})` : 'Unit'}
+                  </span>
                   <span className="text-[10px] text-slate-400 font-semibold lowercase">colleague handling this side</span>
                 </label>
                 <select
@@ -1957,20 +1968,36 @@ export const JobRequestsList: React.FC = () => {
                   {staffMembers
                     .filter((m: any) => {
                       const managedUnits: string[] = (user as any)?.managed_units || [];
+                      const userDeptId = (user as any)?.managed_department_id || user?.department_id;
+
+                      // 1. For Manager or Acting Manager: must be within manager's department or managed units
+                      if (user?.role === 'manager' || user?.is_acting_manager) {
+                        if (userDeptId && m.department_id && String(m.department_id) === String(userDeptId)) {
+                          return true;
+                        }
+                        if (managedUnits.length > 0 && m.unit) {
+                          return managedUnits.some((mu: string) => mu.toLowerCase().trim() === m.unit.toLowerCase().trim());
+                        }
+                        return false;
+                      }
+
+                      // 2. For Unit Head with multiple managed units
                       if (managedUnits.length > 0) {
                         return m.unit && managedUnits.some((mu: string) => mu.toLowerCase().trim() === m.unit.toLowerCase().trim());
                       }
-                      if (!user?.unit) return true;
+
+                      // 3. For regular unit staff
+                      if (!user?.unit) return false;
                       return m.unit?.toLowerCase().trim() === user.unit.toLowerCase().trim();
                     })
                     .map((m: any) => (
                       <option key={m.id} value={m.id}>
-                        {m.name} {Boolean(m.is_unit_head) ? '(Unit Head)' : ''}
+                        {m.name} ({m.unit || 'Staff'}) {Boolean(m.is_unit_head) ? '★ (Unit Head)' : ''}
                       </option>
                     ))}
                 </select>
                 <p className="text-[10px] text-slate-400 font-medium mt-1">
-                  Choose the staff member from your unit (e.g. Writer/Designer) who will collaborate on this task with the target unit.
+                  Choose the staff member from your department / unit who will collaborate on this task with the target unit.
                 </p>
               </div>
 

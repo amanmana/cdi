@@ -88,7 +88,7 @@ auth.post('/login', async (c) => {
     .bind(user.id, today, today)
     .first<any>();
 
-  // Fetch all units where user is designated as Unit Head
+  // Fetch all units where user is designated as Unit Head OR Department Manager / Acting Manager
   let managedUnits: string[] = [];
   let managedUnitIds: number[] = [];
   try {
@@ -100,6 +100,22 @@ auth.post('/login', async (c) => {
       managedUnits = headUnits.results.map((u: any) => u.name);
       managedUnitIds = headUnits.results.map((u: any) => u.id);
     }
+
+    // Include all units under manager's department
+    const deptId = user.managed_department_id || user.department_id || (delegation ? delegation.manager_department_id : null);
+    if ((user.role === 'manager' || delegation) && deptId) {
+      const deptUnits = await c.env.DB
+        .prepare('SELECT id, name FROM units WHERE department_id = ?')
+        .bind(deptId)
+        .all<any>();
+      if (deptUnits && deptUnits.results) {
+        for (const du of deptUnits.results) {
+          if (!managedUnits.includes(du.name)) managedUnits.push(du.name);
+          if (!managedUnitIds.includes(du.id)) managedUnitIds.push(du.id);
+        }
+      }
+    }
+
     if (user.is_unit_head && user.unit && !managedUnits.includes(user.unit)) {
       managedUnits.push(user.unit);
     }
@@ -264,7 +280,7 @@ auth.get('/me', async (c) => {
     .bind(user.id, today, today)
     .first<any>();
 
-  // Fetch all units where user is designated as Unit Head
+  // Fetch all units where user is designated as Unit Head OR Department Manager / Acting Manager
   let managedUnits: string[] = [];
   let managedUnitIds: number[] = [];
   try {
@@ -276,6 +292,22 @@ auth.get('/me', async (c) => {
       managedUnits = headUnits.results.map((u: any) => u.name);
       managedUnitIds = headUnits.results.map((u: any) => u.id);
     }
+
+    // Include all units under manager's department
+    const deptId = user.managed_department_id || user.department_id || (delegation ? delegation.manager_department_id : null);
+    if ((user.role === 'manager' || delegation) && deptId) {
+      const deptUnits = await c.env.DB
+        .prepare('SELECT id, name FROM units WHERE department_id = ?')
+        .bind(deptId)
+        .all<any>();
+      if (deptUnits && deptUnits.results) {
+        for (const du of deptUnits.results) {
+          if (!managedUnits.includes(du.name)) managedUnits.push(du.name);
+          if (!managedUnitIds.includes(du.id)) managedUnitIds.push(du.id);
+        }
+      }
+    }
+
     if (user.is_unit_head && user.unit && !managedUnits.includes(user.unit)) {
       managedUnits.push(user.unit);
     }
