@@ -1851,7 +1851,11 @@ export const JobRequestDetail: React.FC = () => {
                       // Hide raw database IDs
                       if (lower.endsWith('_id') || lower === 'id' || lower.endsWith('_ids')) return false;
                       // Hide internal routing/type flags
-                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target'].includes(lower)) return false;
+                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target', 'assistance_requests'].includes(lower)) return false;
+                      // Hide internal Unit Kanban operational workflow states (unit-level tracking)
+                      if (lower.includes('kanban')) return false;
+                      // Hide duplicate service display label if service_name exists
+                      if (lower === 'service_display_label' && request.additional_data?.service_name) return false;
                       return true;
                     })
                     .map(([k, v]) => {
