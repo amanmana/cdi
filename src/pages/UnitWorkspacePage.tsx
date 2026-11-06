@@ -60,13 +60,24 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const initialUnit = searchParams.get('unit') || userUnitName;
   const [currentUnit, setCurrentUnit] = useState<string>(initialUnit);
 
+  // Enabled Kanban Units (Configured dynamically by Admin in Settings)
+  const [enabledKanbanUnits, setEnabledKanbanUnits] = useState<string[]>(['Social Media']);
+
   // Active Tab Policy:
-  // - Currently, ONLY Social Media requested a Kanban board workflow. All other units have Kanban hidden.
-  // - Even for Social Media, Managers and Directors do not see Kanban (leadership operates at Calendar, Metrics, and Weekly Reports level).
-  // - Head Unit (Azni) & Staff of Social Media (and Admin) have access to the Kanban board.
-  const isSocialMediaUnit = currentUnit.toLowerCase().trim() === 'social media' || currentUnit.toLowerCase().includes('social');
+  // - Dynamic: Any unit ticked/enabled by Admin in Settings gets KANBAN Board enabled as Tab #1!
+  // - Managers and Directors do not operate Kanban (leadership operates at Calendar, Metrics, and Weekly Reports level, unless Admin).
+  // - Head Unit & Staff of enabled units (and Admin) have full access to their unit's Kanban whiteboard.
+  const isUnitConfiguredForKanban = useMemo(() => {
+    if (!currentUnit) return false;
+    const cLower = currentUnit.toLowerCase().trim();
+    if (cLower === 'social media' || cLower.includes('social') || cLower.includes('socmed')) {
+      return true;
+    }
+    return enabledKanbanUnits.some((u) => u && u.toLowerCase().trim() === cLower);
+  }, [currentUnit, enabledKanbanUnits]);
+
   const isLeadership = user?.role === 'manager' || user?.role === 'director' || Boolean((user as any)?.is_acting_manager);
-  const isKanbanEnabled = Boolean(isSocialMediaUnit && (!isLeadership || user?.role === 'admin'));
+  const isKanbanEnabled = Boolean(isUnitConfiguredForKanban && (!isLeadership || user?.role === 'admin'));
 
   // Active Tab: 'kanban' | 'calendar' | 'analytics' | 'reports'
   const tabParam = searchParams.get('tab');
@@ -75,6 +86,17 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     if (tabParam === 'kanban') return isKanbanEnabled ? 'kanban' : 'calendar';
     return isKanbanEnabled ? defaultTab : 'calendar';
   });
+
+  // Automatically sync active tab when unit or Kanban configuration changes
+  useEffect(() => {
+    if (!tabParam) {
+      if (isKanbanEnabled) {
+        setActiveTab('kanban');
+      } else if (activeTab === 'kanban') {
+        setActiveTab('calendar');
+      }
+    }
+  }, [isKanbanEnabled, tabParam]);
 
   // Data State
   const [loading, setLoading] = useState<boolean>(true);
@@ -184,10 +206,15 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
   const isCurrentUnitSocMed = isSocMedUnitName(currentUnit);
   const isUserSocMed = isSocMedUnitName(user?.unit);
 
-  // Moving cards: Admin, Head of Current Unit, or Staff of SocMed
+  // Moving cards: Admin, Head of Current Unit, or Staff of any enabled Kanban unit
   const canMoveCards = Boolean(
     canManageColumns ||
-    (isCurrentUnitSocMed && (isUserSocMed || user?.role === 'staff' || user?.role === 'admin'))
+    (isUnitConfiguredForKanban && (
+      isUserSocMed ||
+      (user?.unit && user.unit.toLowerCase().trim() === currentUnit.toLowerCase().trim()) ||
+      user?.role === 'staff' ||
+      user?.role === 'admin'
+    ))
   );
 
   // Modals
@@ -351,6 +378,19 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
     setLoading(true);
 
     try {
+      // Fetch dynamic Kanban enabled units configured by Admin
+      try {
+        const kUnitsRes = await fetch('/api/job-requests/kanban-enabled-units', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const kUnitsData = await kUnitsRes.json().catch(() => ({}));
+        if (Array.isArray(kUnitsData.enabled_units) && kUnitsData.enabled_units.length > 0) {
+          setEnabledKanbanUnits(kUnitsData.enabled_units);
+        }
+      } catch (err) {
+        console.error('Error fetching kanban enabled units:', err);
+      }
+
       // Fetch Kanban Columns & Stage Orders
       const colRes = await fetch(`/api/job-requests/kanban-columns/${encodeURIComponent(currentUnit)}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -1408,13 +1448,13 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                 </div>
                 <div>
                   <h2 className="text-base font-black text-slate-800 tracking-tight flex items-center gap-2">
-                    <span>Social Media Kanban Board</span>
+                    <span>{currentUnit} Kanban Board</span>
                     <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-wider border border-indigo-200">
                       ⛶ Full View Whiteboard
                     </span>
                   </h2>
                   <p className="text-xs text-slate-500 font-medium">
-                    Paparan penuh interaktif • Tekan <kbd className="px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[10px] font-mono font-bold">Esc</kbd> atau klik 'Exit Full View' untuk kembali
+                    Paparan penuh interaktif ({currentUnit}) • Tekan <kbd className="px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[10px] font-mono font-bold">Esc</kbd> atau klik 'Exit Full View' untuk kembali
                   </p>
                 </div>
               </div>

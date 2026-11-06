@@ -789,6 +789,56 @@ jobRequestsRouter.post('/presets/add', async (c) => {
 // UNIT WORKSPACE KANBAN BOARD & COLUMNS APIS
 // ==========================================
 
+// Helper to read enabled kanban units from system_settings
+const getEnabledKanbanUnits = async (db: D1Database): Promise<string[]> => {
+  try {
+    const row = await db.prepare("SELECT value FROM system_settings WHERE key = 'kanban_enabled_units'").first<{ value: string }>();
+    if (row && row.value) {
+      const parsed = JSON.parse(row.value);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return ['Social Media'];
+};
+
+const isKanbanUnitName = (u?: string | null, enabledList: string[] = ['Social Media']) => {
+  if (!u) return false;
+  const s = u.toLowerCase().trim();
+  if (s === 'social media' || s === 'socmed' || s.includes('social') || s.includes('socmed')) {
+    return true;
+  }
+  return enabledList.some((item) => item && item.toLowerCase().trim() === s);
+};
+
+// GET /api/job-requests/kanban-enabled-units - Get list of units that have Kanban enabled (Accessible by all logged-in users)
+jobRequestsRouter.get('/kanban-enabled-units', async (c) => {
+  const db = c.env.DB;
+  const enabledUnits = await getEnabledKanbanUnits(db);
+  return c.json({ success: true, enabled_units: enabledUnits });
+});
+
+// PUT /api/job-requests/kanban-enabled-units - Update enabled Kanban units (Admin & Director only)
+jobRequestsRouter.put('/kanban-enabled-units', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  if (user?.role !== 'admin' && user?.role !== 'director') {
+    return c.json({ error: 'Permission denied: Only Admin or Director can configure Kanban unit settings.' }, 403);
+  }
+
+  const { enabled_units } = await c.req.json().catch(() => ({}));
+  if (!Array.isArray(enabled_units)) {
+    return c.json({ error: 'enabled_units must be an array of unit names.' }, 400);
+  }
+
+  // Ensure Social Media is always preserved if not explicitly excluded
+  const cleanList = Array.from(new Set(enabled_units.filter(Boolean)));
+  await db.prepare("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('kanban_enabled_units', ?)")
+    .bind(JSON.stringify(cleanList))
+    .run();
+
+  return c.json({ success: true, enabled_units: cleanList });
+});
+
 // GET /api/job-requests/kanban-columns/:unitName - Get customized Kanban columns for a unit
 jobRequestsRouter.get('/kanban-columns/:unitName', async (c) => {
   const db = c.env.DB;
@@ -836,13 +886,10 @@ jobRequestsRouter.put('/kanban-order/:unitName', async (c) => {
   const unitName = c.req.param('unitName');
   const { stage_orders, job_id, stage_id, stage_label } = await c.req.json();
 
-  const isSocMedUnitName = (u?: string | null) => {
-    if (!u) return false;
-    const s = u.toLowerCase().trim();
-    return s === 'social media' || s === 'socmed' || s.includes('social') || s.includes('socmed');
-  };
-  const isSocMedStaff = isSocMedUnitName(user?.unit) || (user?.role === 'staff' && isSocMedUnitName(unitName));
-  const isSuperAdmin = user?.role === 'admin';
+  const enabledUnits = await getEnabledKanbanUnits(db);
+  const isEnabledUnit = isKanbanUnitName(unitName, enabledUnits);
+  const isUserStaffOfEnabledUnit = isKanbanUnitName(user?.unit, enabledUnits) || (user?.role === 'staff' && isEnabledUnit);
+  const isSuperAdmin = user?.role === 'admin' || user?.role === 'director';
   const isHeadOfThisUnit = Boolean(
     user?.is_unit_head && (
       (user?.unit && user.unit.toLowerCase().trim() === unitName.toLowerCase().trim()) ||
@@ -850,7 +897,7 @@ jobRequestsRouter.put('/kanban-order/:unitName', async (c) => {
     )
   );
 
-  if (!isSuperAdmin && !isHeadOfThisUnit && !isSocMedStaff) {
+  if (!isSuperAdmin && !isHeadOfThisUnit && !isUserStaffOfEnabledUnit) {
     return c.json({ error: 'Permission denied: Cannot reorder whiteboard cards.' }, 403);
   }
 
@@ -929,8 +976,8 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
     return c.json({ error: 'Job request not found.' }, 404);
   }
 
-  // Permission: Admin, Head Unit of this job's unit, or SocMed staff
-  const isSuperAdmin = user?.role === 'admin';
+  // Permission: Admin, Head Unit of this job's unit, or Staff of enabled unit
+  const isSuperAdmin = user?.role === 'admin' || user?.role === 'director';
   const reqUnit = req.unit || '';
   const isHeadOfThisUnit = Boolean(
     user?.is_unit_head && (
@@ -940,26 +987,21 @@ jobRequestsRouter.put('/:id/kanban-stage', async (c) => {
     )
   );
 
-  const isSocMedUnitName = (u?: string | null) => {
-    if (!u) return false;
-    const s = u.toLowerCase().trim();
-    return s === 'social media' || s === 'socmed' || s.includes('social') || s.includes('socmed');
-  };
-
-  const isSocMedJob = isSocMedUnitName(reqUnit) || 
-    (req.target_units && isSocMedUnitName(req.target_units)) ||
+  const enabledUnits = await getEnabledKanbanUnits(db);
+  const isKanbanJob = isKanbanUnitName(reqUnit, enabledUnits) || 
+    (req.target_units && isKanbanUnitName(req.target_units, enabledUnits)) ||
     (req.additional_data && (
       req.additional_data.includes('SocMed') || 
       req.additional_data.includes('Social Media') ||
       req.additional_data.toLowerCase().includes('social')
     ));
 
-  const isSocMedStaff = isSocMedUnitName(user?.unit) || (user?.role === 'staff' && isSocMedJob);
+  const isKanbanStaff = isKanbanUnitName(user?.unit, enabledUnits) || (user?.role === 'staff' && isKanbanJob);
 
-  const canMoveCard = Boolean(isSuperAdmin || isHeadOfThisUnit || (isSocMedJob && isSocMedStaff));
+  const canMoveCard = Boolean(isSuperAdmin || isHeadOfThisUnit || (isKanbanJob && isKanbanStaff));
 
   if (!canMoveCard) {
-    return c.json({ error: 'Permission denied: Only the Head Unit or SocMed staff has permission to move workflow cards.' }, 403);
+    return c.json({ error: 'Permission denied: Only the Head Unit or unit staff has permission to move workflow cards.' }, 403);
   }
 
   let addData: any = {};

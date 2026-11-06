@@ -36,6 +36,10 @@ export const SettingsPage: React.FC = () => {
   const [deadlineAlertMessage, setDeadlineAlertMessage] = useState(
     'Notice: The selected target completion deadline is on short notice (within {days} days). Urgent requests are subject to approval and team schedule availability.'
   );
+
+  // Unit Kanban Whiteboard feature toggles (Self-service Admin control)
+  const [allUnits, setAllUnits] = useState<any[]>([]);
+  const [enabledKanbanUnits, setEnabledKanbanUnits] = useState<string[]>(['Social Media']);
   
   // Database maintenance state
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -62,7 +66,24 @@ export const SettingsPage: React.FC = () => {
         if (data.deadline_alert_message) {
           setDeadlineAlertMessage(data.deadline_alert_message);
         }
+        if (data.kanban_enabled_units) {
+          try {
+            const parsed = JSON.parse(data.kanban_enabled_units);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setEnabledKanbanUnits(parsed);
+            }
+          } catch {}
+        }
       });
+
+    // Fetch all active units
+    fetch('/api/units', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setAllUnits(data);
+        else if (data && Array.isArray(data.units)) setAllUnits(data.units);
+      })
+      .catch(() => {});
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,6 +99,7 @@ export const SettingsPage: React.FC = () => {
         deadline_alert_enabled: deadlineAlertEnabled ? 'true' : 'false',
         deadline_min_days: String(deadlineMinDays),
         deadline_alert_message: deadlineAlertMessage,
+        kanban_enabled_units: JSON.stringify(enabledKanbanUnits),
       }),
     });
     setSaved(true);
@@ -379,6 +401,92 @@ export const SettingsPage: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Unit Kanban Whiteboard Feature Toggles (Self-Service Admin Control) */}
+          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                  <FolderKanban className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
+                    <span>Unit Kanban Whiteboards</span>
+                    <span className="badge bg-indigo-600 text-white font-black text-[10px] uppercase px-2.5 py-1 rounded-lg border-none shadow-sm">
+                      Self-Service Admin Control
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Tandakan (tick) unit yang dibenarkan menggunakan papan KANBAN Whiteboard. KANBAN akan automatik tersedia sebagai <strong>Tab #1</strong> apabila staf & Head Unit unit tersebut membuka Workspace mereka.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const validUnitNames = allUnits.filter((u) => u.name && u.name !== 'Administrator').map((u) => u.name);
+                    setEnabledKanbanUnits(validUnitNames);
+                  }}
+                  className="btn btn-xs rounded-lg bg-white hover:bg-slate-100 text-indigo-700 border border-slate-200 font-bold"
+                >
+                  Pilih Semua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEnabledKanbanUnits(['Social Media'])}
+                  className="btn btn-xs rounded-lg bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 font-bold"
+                >
+                  Reset (SocMed Sahaja)
+                </button>
+              </div>
+            </div>
+
+            {/* Units Checkbox Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+              {allUnits
+                .filter((u) => u.name && u.name !== 'Administrator')
+                .map((u) => {
+                  const isChecked = enabledKanbanUnits.some(
+                    (name) => name && name.toLowerCase().trim() === u.name.toLowerCase().trim()
+                  );
+                  return (
+                    <label
+                      key={u.id}
+                      className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
+                        isChecked
+                          ? 'bg-indigo-50/90 border-indigo-300 ring-1 ring-indigo-400 text-indigo-950 font-bold shadow-xs'
+                          : 'bg-white border-slate-200 hover:bg-slate-100/80 text-slate-700 font-medium'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEnabledKanbanUnits((prev) => [...prev, u.name]);
+                          } else {
+                            setEnabledKanbanUnits((prev) =>
+                              prev.filter((name) => name.toLowerCase().trim() !== u.name.toLowerCase().trim())
+                            );
+                          }
+                        }}
+                        className="checkbox checkbox-sm checkbox-primary rounded-md"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs truncate block">{u.name}</span>
+                        {isChecked && (
+                          <span className="text-[10px] text-indigo-600 font-extrabold block">
+                            ● KANBAN Tab 1 Aktif
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+            </div>
           </div>
 
           <button
