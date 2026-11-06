@@ -91,6 +91,11 @@ Setiap tiket bergerak mengikut fasa-fasa status berikut:
     4. Masih ada staf yang telah ditetapkan yang belum menyelesaikan bahagian masing-masing.
   * Tiket hanya bertukar status kepada `completed` secara global apabila **SEMUA unit telah diluluskan, SEMUA ketua unit telah assign staf, dan SEMUA staf telah menekan selesai**.
 
+### Peraturan 4.4: Haluan Terus Ke Ketua Unit (*Per-Unit Direct to Head Routing*)
+* Dalam tiket Multi-Unit, setiap unit boleh mempunyai `routing_target` berasingan:
+  * Jika sesuatu unit disetkan sebagai `routing_target: 'head_unit'`, unit tersebut **melangkau terus kelulusan Pengurus Jabatan** dan diserahkan terus kepada Head of Unit (cth: Lau bagi unit Events Management).
+  * **INVARIANT KRITIKAL**: Pada lencana perincian tiket (*unit badges*), nama pelulus bagi unit direct to head **MESTI** memaparkan nama Ketua Unit (cth: `Laurence` / `Lau`), dan **DILARANG** memaparkan nama Pengurus Jabatan (cth: `Faizal`).
+
 ---
 
 ## 5. Peraturan Emas Inter-Unit Collaboration (`#IU...`)
@@ -110,6 +115,12 @@ Setiap tiket bergerak mengikut fasa-fasa status berikut:
    * Ini memastikan staf seperti Jana, Leen, dan Haziq tidak terganggu atau keliru dengan tiket yang belum diputuskan oleh ketua unit mereka (seperti Azni).
 2. **Badge 'NEW' Pada Senarai Kerja**:
    * Tiket yang baru di-assign kepada staf (dan belum dibuka) akan memaparkan badge ungu **`NEW`** sama ada status tiket adalah `staff_processing` mahupun `manager_approval` (dalam Multi-Unit).
+3. **Lencana Dinamik Multi-Unit Mengikut Peranan Pengguna (*Role-Contextual Status Badges*)**:
+   * Untuk tiket Multi-Unit yang masih dalam status global `manager_approval`:
+     * **Staf yang telah di-assign & unitnya aktif (cth: Zainal):** Melihat lencana ungu **`STAFF PROCESSING`**, bukan `MANAGER APPROVAL`.
+     * **Head of Unit yang telah selesai assign staf (cth: Lau):** Melihat lencana hijau/teal **`TEAM ASSIGNED`**, bukan `MANAGER APPROVAL`.
+     * **Pengurus yang jabatannya sudah lulus:** Melihat lencana **`UNIT HEAD REVIEW`**.
+     * **Admin / Pandangan Umum (status bercampur):** Melihat lencana amber **`PARTIAL APPROVAL`** jika ada unit yang sudah lulus dan ada unit yang masih menunggu kelulusan pengurus kedua.
 
 ---
 
