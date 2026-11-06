@@ -178,7 +178,7 @@ export const PublicHome: React.FC = () => {
             target_unit_id: u.id,
             department_name: u.department_name || '',
             form_schema: u.form_schema || [],
-            routing_target: 'manager',
+            routing_target: u.routing_target || 'manager',
           });
         }
       } else if (k.startsWith('service_')) {

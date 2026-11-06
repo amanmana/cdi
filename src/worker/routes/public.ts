@@ -227,12 +227,12 @@ publicApi.post('/job-requests', async (c) => {
         if (!primaryUnitId && uId) primaryUnitId = Number(uId);
         if (!primaryDeptId && uRow?.department_id) primaryDeptId = Number(uRow.department_id);
 
-        const rTarget = uRow?.routing_target || s.routing_target || 'manager';
+        const rTarget = s.routing_target || uRow?.routing_target || 'manager';
         if (rTarget === 'manager') hasManager = true;
         if (rTarget === 'head_unit') hasHeadUnit = true;
 
-        const staffId = uRow?.suggested_staff_id || s.suggested_staff_id;
-        const staffName = uRow?.suggested_staff_name || s.suggested_staff_name;
+        const staffId = s.suggested_staff_id || uRow?.suggested_staff_id;
+        const staffName = s.suggested_staff_name || uRow?.suggested_staff_name;
 
         const isDirectStaff = rTarget === 'staff' && staffId;
         if (isDirectStaff && !initialStaffIdsList.includes(Number(staffId))) {
@@ -243,17 +243,24 @@ publicApi.post('/job-requests', async (c) => {
           });
         }
 
+        const existingAssignment = unitAssignmentsMap[uName];
+        const effectiveRouting = (existingAssignment?.routing_target === 'manager' || rTarget === 'manager')
+          ? 'manager'
+          : (existingAssignment?.routing_target === 'head_unit' || rTarget === 'head_unit')
+          ? 'head_unit'
+          : rTarget;
+
         unitAssignmentsMap[uName] = {
-          status: isDirectStaff ? 'accepted' : (rTarget === 'head_unit' ? 'awaiting_head_assignment' : 'pending_manager_approval'),
-          assigned_staff_ids: isDirectStaff ? [Number(staffId)] : [],
-          assigned_staff_names: isDirectStaff && staffName ? [staffName] : [],
-          service_name: s.display_label || s.name || uName,
-          routing_target: rTarget,
-          suggested_staff_id: staffId || null,
-          suggested_staff_name: staffName || null,
+          status: isDirectStaff ? 'accepted' : (effectiveRouting === 'head_unit' ? 'awaiting_head_assignment' : 'pending_manager_approval'),
+          assigned_staff_ids: isDirectStaff ? [Number(staffId)] : (existingAssignment?.assigned_staff_ids || []),
+          assigned_staff_names: isDirectStaff && staffName ? [staffName] : (existingAssignment?.assigned_staff_names || []),
+          service_name: existingAssignment ? `${existingAssignment.service_name}, ${s.display_label || s.name || uName}` : (s.display_label || s.name || uName),
+          routing_target: effectiveRouting,
+          suggested_staff_id: staffId || existingAssignment?.suggested_staff_id || null,
+          suggested_staff_name: staffName || existingAssignment?.suggested_staff_name || null,
           department_id: uRow?.department_id || null,
-          scope: s.scope || '',
-          custom_fields: s.fields || {},
+          scope: existingAssignment ? `${existingAssignment.scope}\n\n[${s.display_label || s.name}]: ${s.scope || ''}` : (s.scope || ''),
+          custom_fields: { ...(existingAssignment?.custom_fields || {}), ...(s.fields || {}) },
         };
       }
 
