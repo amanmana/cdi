@@ -2131,169 +2131,180 @@ export const JobRequestDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Multi-Unit Deliverables & Specifications Breakdown */}
-            {(request.additional_data?.selected_services || (request.additional_data?.is_multi_unit && request.additional_data?.unit_assignments)) && (
-              <div className="bg-indigo-50/40 p-6 rounded-2xl border border-indigo-100/80 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-black text-indigo-800 uppercase tracking-wider">
-                    <Layers className="w-4 h-4 text-indigo-600" />
-                    <span>Unit Deliverables & Specifications ({Array.isArray(request.additional_data?.selected_services) ? request.additional_data.selected_services.length : Object.keys(request.additional_data?.unit_assignments || {}).length} Units Selected)</span>
+            {/* Multi-Unit / Single-Unit Deliverables & Specifications Breakdown */}
+            {(() => {
+              const servicesList = (Array.isArray(request.additional_data?.selected_services) && request.additional_data.selected_services.length > 0)
+                ? request.additional_data.selected_services
+                : Object.entries(request.additional_data?.unit_assignments || {}).map(([uName, uMeta]: [string, any]) => ({
+                    name: uName,
+                    display_label: uMeta?.service_name || uName,
+                    target_unit_name: uName,
+                    scope: uMeta?.scope || '',
+                    fields: uMeta?.custom_fields || {},
+                  }));
+
+              if (servicesList.length === 0 && !request.additional_data?.selected_services && !request.additional_data?.unit_assignments) {
+                return null;
+              }
+
+              const isSingleUnit = servicesList.length === 1;
+
+              return (
+                <div className="bg-indigo-50/40 p-6 rounded-2xl border border-indigo-100/80 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-black text-indigo-800 uppercase tracking-wider">
+                      <Layers className="w-4 h-4 text-indigo-600" />
+                      <span>
+                        Unit Deliverables & Specifications ({servicesList.length} {servicesList.length === 1 ? 'Unit' : 'Units'} Selected)
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">
+                      {isSingleUnit ? 'Single-Unit Request' : 'Multi-Unit Request'}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">
-                    Multi-Unit Request
-                  </span>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(Array.isArray(request.additional_data?.selected_services)
-                    ? request.additional_data.selected_services
-                    : Object.entries(request.additional_data?.unit_assignments || {}).map(([uName, uMeta]: [string, any]) => ({
-                        name: uName,
-                        display_label: uMeta?.service_name || uName,
-                        target_unit_name: uName,
-                        scope: uMeta?.scope || '',
-                        fields: uMeta?.custom_fields || {},
-                      }))
-                  ).map((srv: any, idx: number) => {
-                    const uMeta = request.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name];
-                    const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
-                    return (
-                      <div key={idx} className="bg-white rounded-xl p-4 border border-indigo-100/70 shadow-sm space-y-3">
-                        <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-slate-900 text-sm">{srv.display_label || srv.name}</span>
-                              {srv.department_tag && (
-                                <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                                  {srv.department_tag}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[11px] font-semibold text-slate-400 block mt-0.5">
-                              Unit: {srv.target_unit_name || srv.name}
-                            </span>
-                          </div>
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider shrink-0 ${
-                            isAccepted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {isAccepted ? '✓ In Progress' : 'Pending Assignment'}
-                          </span>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                            Deliverable Scope & Brief
-                          </span>
-                          <p className="text-xs font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed whitespace-pre-wrap">
-                            {srv.scope || 'No specific deliverable brief specified.'}
-                          </p>
-                        </div>
-
-                        {srv.fields && Object.keys(srv.fields).length > 0 && (
-                          <div className="space-y-1.5 pt-1">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                              Unit Specifications
-                            </span>
-                            <div className="grid grid-cols-2 gap-2">
-                              {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => (
-                                <div key={fk} className="bg-slate-50/80 p-2 rounded-lg border border-slate-100">
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase block truncate">
-                                    {fk.replace(/_/g, ' ')}
+                  <div className={`grid gap-4 ${isSingleUnit ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                    {servicesList.map((srv: any, idx: number) => {
+                      const uMeta = request.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name];
+                      const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
+                      return (
+                        <div key={idx} className="bg-white rounded-xl p-5 border border-indigo-100/70 shadow-sm space-y-3.5">
+                          <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-slate-900 text-sm">{srv.display_label || srv.name}</span>
+                                {srv.department_tag && (
+                                  <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                                    {srv.department_tag}
                                   </span>
-                                  <span className="text-xs font-bold text-slate-800 block truncate">
-                                    {String(fv)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {uMeta?.assigned_staff_names && uMeta.assigned_staff_names.length > 0 && (
-                          <div className="pt-1 flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50/50 px-2.5 py-1.5 rounded-lg">
-                            <User className="w-3.5 h-3.5" />
-                            <span>Assigned Specialist: {uMeta.assigned_staff_names.join(', ')}</span>
-                          </div>
-                        )}
-
-                        {/* Unit Milestone Target Timeline */}
-                        {(() => {
-                          const unitName = srv.target_unit_name || srv.name;
-                          const unitDeadline = uMeta?.deadline || srv.deadline;
-                          const unitStartDate = uMeta?.start_date || srv.start_date;
-                          const unitMilestoneNote = uMeta?.milestone_note;
-
-                          const canEditThisUnitMilestone = Boolean(
-                            user?.role === 'admin' ||
-                            user?.role === 'director' ||
-                            (isManagerActor && (
-                              (userDeptId && Number(uMeta?.department_id) === Number(userDeptId)) ||
-                              managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
-                            )) ||
-                            (user?.is_unit_head && (
-                              (userUnit && userUnit === unitName.toLowerCase().trim()) ||
-                              managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
-                            ))
-                          );
-
-                          return (
-                            <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/70 p-3 rounded-xl border border-slate-200/60">
-                              <div className="flex items-start sm:items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 text-indigo-600 mt-0.5 sm:mt-0">
-                                  <Calendar className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                      Unit Milestone Target:
-                                    </span>
-                                    {unitDeadline && unitDeadline !== request.deadline ? (
-                                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700">
-                                        Internal Target
-                                      </span>
-                                    ) : (
-                                      <span className="text-[9px] font-bold text-slate-400">
-                                        (Matches Master)
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs font-black text-slate-900 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                    <span className={unitDeadline && unitDeadline <= (request.deadline || '') ? 'text-indigo-900' : 'text-slate-800'}>
-                                      {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
-                                    </span>
-                                    {unitStartDate && (
-                                      <span className="text-[10px] font-medium text-slate-400">
-                                        • Starts: {formatDate(unitStartDate)}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {unitMilestoneNote && (
-                                    <p className="text-[10px] font-medium text-indigo-900/80 italic mt-0.5">
-                                      "{unitMilestoneNote}"
-                                    </p>
-                                  )}
-                                </div>
+                                )}
                               </div>
-
-                              {canEditThisUnitMilestone && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenUnitMilestoneModal(unitName, unitStartDate, unitDeadline, unitMilestoneNote)}
-                                  className="btn btn-ghost btn-xs text-indigo-600 hover:bg-indigo-100/70 font-black text-[10px] uppercase gap-1 px-2.5 py-1 h-7 rounded-lg border border-indigo-200/80 shadow-2xs shrink-0 self-end sm:self-center"
-                                >
-                                  <Edit3 className="w-3 h-3" />
-                                  <span>{unitDeadline ? 'Edit Milestone' : 'Set Milestone'}</span>
-                                </button>
-                              )}
+                              <span className="text-[11px] font-semibold text-slate-400 block mt-0.5">
+                                Unit: {srv.target_unit_name || srv.name}
+                              </span>
                             </div>
-                          );
-                        })()}
-                      </div>
-                    );
-                  })}
+                            <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider shrink-0 ${
+                              isAccepted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {isAccepted ? '✓ In Progress' : 'Pending Assignment'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                              Deliverable Scope & Brief
+                            </span>
+                            <p className="text-xs font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
+                              {srv.scope || 'No specific deliverable brief specified.'}
+                            </p>
+                          </div>
+
+                          {srv.fields && Object.keys(srv.fields).length > 0 && (
+                            <div className="space-y-1.5 pt-1">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Unit Specifications
+                              </span>
+                              <div className={`grid gap-2 ${isSingleUnit ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2'}`}>
+                                {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => (
+                                  <div key={fk} className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 min-w-0">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase block truncate" title={fk.replace(/_/g, ' ')}>
+                                      {fk.replace(/_/g, ' ')}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-800 block truncate mt-0.5" title={String(fv)}>
+                                      {String(fv)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {uMeta?.assigned_staff_names && uMeta.assigned_staff_names.length > 0 && (
+                            <div className="pt-1 flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50/50 px-3 py-2 rounded-xl">
+                              <User className="w-3.5 h-3.5" />
+                              <span>Assigned Specialist: {uMeta.assigned_staff_names.join(', ')}</span>
+                            </div>
+                          )}
+
+                          {/* Unit Milestone Target Timeline */}
+                          {(() => {
+                            const unitName = srv.target_unit_name || srv.name;
+                            const unitDeadline = uMeta?.deadline || srv.deadline;
+                            const unitStartDate = uMeta?.start_date || srv.start_date;
+                            const unitMilestoneNote = uMeta?.milestone_note;
+
+                            const canEditThisUnitMilestone = Boolean(
+                              user?.role === 'admin' ||
+                              user?.role === 'director' ||
+                              (isManagerActor && (
+                                (userDeptId && Number(uMeta?.department_id) === Number(userDeptId)) ||
+                                managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
+                              )) ||
+                              (user?.is_unit_head && (
+                                (userUnit && userUnit === unitName.toLowerCase().trim()) ||
+                                managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
+                              ))
+                            );
+
+                            return (
+                              <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/70 p-3 rounded-xl border border-slate-200/60">
+                                <div className="flex items-start sm:items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 text-indigo-600 mt-0.5 sm:mt-0">
+                                    <Calendar className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                        Unit Milestone Target:
+                                      </span>
+                                      {unitDeadline && unitDeadline !== request.deadline ? (
+                                        <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700">
+                                          Internal Target
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9px] font-bold text-slate-400">
+                                          (Matches Master)
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs font-black text-slate-900 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                      <span className={unitDeadline && unitDeadline <= (request.deadline || '') ? 'text-indigo-900' : 'text-slate-800'}>
+                                        {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
+                                      </span>
+                                      {unitStartDate && (
+                                        <span className="text-[10px] font-medium text-slate-400">
+                                          • Starts: {formatDate(unitStartDate)}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {unitMilestoneNote && (
+                                      <p className="text-[10px] font-medium text-indigo-900/80 italic mt-0.5">
+                                        "{unitMilestoneNote}"
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {canEditThisUnitMilestone && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenUnitMilestoneModal(unitName, unitStartDate, unitDeadline, unitMilestoneNote)}
+                                    className="btn btn-ghost btn-xs text-indigo-600 hover:bg-indigo-100/70 font-black text-[10px] uppercase gap-1 px-2.5 py-1 h-7 rounded-lg border border-indigo-200/80 shadow-2xs shrink-0 self-end sm:self-center"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                    <span>{unitDeadline ? 'Edit Milestone' : 'Set Milestone'}</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Comment from Manager Card */}
