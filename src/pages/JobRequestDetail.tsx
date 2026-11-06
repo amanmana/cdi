@@ -949,21 +949,24 @@ export const JobRequestDetail: React.FC = () => {
     )
   );
 
+  // Check if any unit under manager's department needs manager approval
+  const hasUnitNeedingManagerApproval = Boolean(
+    request?.additional_data?.unit_assignments
+      ? Object.entries(request.additional_data.unit_assignments).some(([uName, uMeta]: [string, any]) => {
+          const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim());
+          const isManagerRoute = (uMeta?.routing_target || 'manager') === 'manager';
+          return belongsToMyDept && isManagerRoute && !uMeta?.manager_approved;
+        })
+      : !isDirectToHeadUnit && (request?.additional_data?.routing_target || 'manager') === 'manager'
+  );
+
   // Can Manager approve?
   const canManagerAct = Boolean(
     isManagerActor &&
     (
       user?.role === 'admin' ||
       user?.role === 'director' ||
-      (
-        isDepartmentManagerForJob &&
-        (!request?.additional_data?.unit_assignments ||
-         Object.entries(request.additional_data.unit_assignments).some(([uName, uMeta]: [string, any]) => {
-           const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim());
-           return belongsToMyDept && !uMeta?.manager_approved;
-         })
-        )
-      )
+      (isDepartmentManagerForJob && hasUnitNeedingManagerApproval)
     )
   );
 

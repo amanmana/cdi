@@ -1926,6 +1926,14 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
   // Manager approves feasibility, dates, instructions. Does NOT pick staff.
   // -------------------------------------------------------------
   if (isManagerActor || isAdminActor) {
+    if (!isAdminActor && isManagerActor) {
+      const unitsNeedingApproval = Object.values(additionalDataObj.unit_assignments || {}).filter((uMeta: any) => {
+        return (uMeta.routing_target || 'manager') === 'manager' && !uMeta.manager_approved;
+      });
+      if (unitsNeedingApproval.length === 0 && (additionalDataObj.routing_target === 'head_unit' || request.current_step_name === 'Unit Head Review')) {
+        return c.json({ error: 'Permohonan ini telah diserahkan terus kepada Ketua Unit (Bypass Manager). Semakan Pengurus tidak diperlukan.' }, 400);
+      }
+    }
     if (start_date || deadline) {
       await db.prepare(
         'UPDATE job_requests SET start_date = COALESCE(?, start_date), deadline = COALESCE(?, deadline), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
