@@ -1264,8 +1264,8 @@ export const JobRequestDetail: React.FC = () => {
           </span>
         );
       }
-      if (isDirectToHeadUnit) {
-        const headName = targetUnitHead?.name || request.additional_data?.target_unit_head_name;
+      if (isDirectToHeadUnit || request?.current_step_name?.includes('Unit Head') || request?.current_step_name?.includes('Head Unit') || hasMyDeptApproved) {
+        const headName = approvedHeadNames.length > 0 ? approvedHeadNames[0] : (targetHeadDisplayName || request.additional_data?.target_unit_head_name);
         return (
           <span className="bg-teal-600 text-white font-black uppercase text-xs px-4 py-2 rounded-xl tracking-wider shadow-sm flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-teal-300 animate-pulse" />

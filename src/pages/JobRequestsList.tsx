@@ -581,7 +581,7 @@ export const JobRequestsList: React.FC = () => {
     return false;
   };
 
-  const renderStatusBadge = (status: string, stepName?: string, isInterUnit?: boolean) => {
+  const renderStatusBadge = (status: string, stepName?: string, isInterUnit?: boolean, req?: any) => {
     if (status === 'completed') {
       return <span className="inline-flex items-center justify-center whitespace-nowrap bg-emerald-500 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">COMPLETED</span>;
     }
@@ -592,9 +592,25 @@ export const JobRequestsList: React.FC = () => {
       if (isInterUnit) {
         return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">HEAD UNIT APPROVAL</span>;
       }
-      if (stepName === 'Unit Head Review') {
+      if (stepName?.includes('Unit Head') || stepName?.includes('Head Unit')) {
         return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">UNIT HEAD REVIEW</span>;
       }
+
+      // Check if viewing user is a Manager whose department units have already been approved
+      if (req?.additional_data?.unit_assignments && user) {
+        const userDeptId = (user as any).managed_department_id || user.department_id;
+        const myUnits = Object.entries(req.additional_data.unit_assignments).filter(([uName, uMeta]: [string, any]) => {
+          const belongsToMyDept = (userDeptId && Number(uMeta?.department_id) === Number(userDeptId)) ||
+            (user.acting_manager_unit && user.acting_manager_unit.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+            (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim());
+          return belongsToMyDept;
+        });
+        const myUnitsApproved = myUnits.length > 0 && myUnits.every(([_, uMeta]: [string, any]) => uMeta.manager_approved === true);
+        if (myUnitsApproved) {
+          return <span className="inline-flex items-center justify-center whitespace-nowrap bg-teal-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">UNIT HEAD REVIEW</span>;
+        }
+      }
+
       return <span className="inline-flex items-center justify-center whitespace-nowrap bg-blue-600 text-white font-extrabold uppercase rounded-full px-4 py-1.5 text-[10px] tracking-wider shadow-sm">MANAGER APPROVAL</span>;
     }
     if (status === 'on_hold') {
@@ -1078,7 +1094,7 @@ export const JobRequestsList: React.FC = () => {
                         })()}
                       </td>
                       <td className="py-4 px-4 align-top">
-                        {renderStatusBadge(req.status, req.current_step_name, isInterUnitJob(req))}
+                        {renderStatusBadge(req.status, req.current_step_name, isInterUnitJob(req), req)}
                       </td>
                       {user?.role !== 'client' && (
                         <td className="py-4 px-4 align-top text-xs font-semibold text-slate-700">
