@@ -16,6 +16,7 @@ import {
   Plus,
   Trash2,
   Edit2,
+  Edit3,
   CheckSquare,
   Copy,
   AlertCircle,
