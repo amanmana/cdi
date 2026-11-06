@@ -909,6 +909,7 @@ export const JobRequestDetail: React.FC = () => {
       return dateStr;
     }
   };
+  const formatDate = formatDateDisplay;
 
   const isInterUnitJob = Boolean(
     request?.ticket_no?.startsWith('IU') ||
