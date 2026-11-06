@@ -49,6 +49,12 @@ Full detailed specification can be found in [`docs/WORKFLOW_SPECIFICATION.md`](d
   - Unit Heads who have assigned their team (e.g. Lau) must see `TEAM ASSIGNED` (teal).
   - General / Admin / Manager views with mixed unit statuses must see `PARTIAL APPROVAL` (amber) if some units are ready and others are pending secondary manager approval.
 
+### Rule 7: Multi-Unit Master Status Controls & Completion Safeguards
+- In Multi-Unit jobs, Department Managers must **NEVER** have a master `MARK PROJECT COMPLETED` button. Master completion is achieved automatically when all assigned unit staff finalize their parts.
+- Manual force completion of an entire Multi-Unit project is strictly restricted to **Admin / Director** (`FORCE COMPLETE (ADMIN OVERRIDE)`), which requires a mandatory justification comment and displays a warning dialog showing pending tasks and staff.
+- Backend endpoints `POST /api/job-requests/:id/complete` and `POST /api/job-requests/:id/change-status` enforce strict role authorization (returning 403 if a department manager attempts to force-complete a multi-unit project).
+- Admin and Director can reopen completed projects via `REOPEN PROJECT` (Reversible State Machine), returning the project status to `staff_processing` with audit logging.
+
 ---
 
 ## 3. Pre-Commit / Pre-Deploy Checklist
@@ -58,4 +64,5 @@ Whenever modifying any workflow code in `src/worker/routes/jobRequests.ts`, `src
 3. Check that assigned staff can finalize their work independently in parallel.
 4. Check that units with `routing_target: 'head_unit'` attribute their approval to the Unit Head, not the Manager.
 5. Check that dashboard status badges reflect the viewing user's active role context.
-6. Run `npm run build` and ensure 0 TypeScript errors before committing and deploying.
+6. Check that Multi-Unit master completion is restricted to Admin/Director and Department Managers cannot prematurely complete multi-unit projects.
+7. Run `npm run build` and ensure 0 TypeScript errors before committing and deploying.

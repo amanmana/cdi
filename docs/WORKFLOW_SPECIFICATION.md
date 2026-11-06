@@ -124,7 +124,24 @@ Setiap tiket bergerak mengikut fasa-fasa status berikut:
 
 ---
 
-## 7. Senarai Semak Ujian Regresi (*Regression Checklist*)
+## 7. Kawalan Status Induk Multi-Unit & Keselamatan Penutupan Projek
+
+1. **Penutupan Automatik Kolaboratif**:
+   * Dalam tiket Multi-Unit (`#MU...`), penutupan projek berlaku secara automatik apabila semua staf yang ditugaskan merentasi setiap unit telah menekan *Finalize / Mark My Part as Done*.
+   * Pengurus Jabatan (Department Manager) **TIDAK DIBENARKAN** mempunyai butang induk `MARK PROJECT COMPLETED`.
+2. **Had Kuasa Penutupan Paksa (Force Complete strictly for Admin / Director)**:
+   * Butang `FORCE COMPLETE (ADMIN OVERRIDE)` hanya terpapar dan boleh diakses oleh peranan **Admin** dan **Director**.
+   * Jika staf atau tugasan masih belum selesai, Admin akan dihalang dengan modal amaran penutupan paksa yang memperincikan status tugasan yang masih aktif dan memerlukan catatan alasan wajib.
+   * Backend (`/api/job-requests/:id/complete` dan `/api/job-requests/:id/change-status`) menyekat sebarang cubaan Manager untuk force complete tiket multi-unit dengan status 403 Forbidden.
+3. **Mekanisme Buka Semula Projek (*Reversible State Machine - REOPEN PROJECT*)**:
+   * Jika projek telah diselesaikan atau dibatalkan secara tidak sengaja, **Admin** atau **Director** boleh membuka semula projek melalui butang `BUKA SEMULA PROJEK (REOPEN)`.
+   * Status dikembalikan kepada `staff_processing` dan dicatatkan dalam rekod audit *workflow_logs*.
+4. **Kawalan Status Pending (On Hold) & Cancel**:
+   * Pengurus Jabatan masih boleh menetapkan status `PENDING` atau `CANCEL`, namun modal pengesahan akan memaparkan amaran impak Multi-Unit bahawa tindakan tersebut akan menangguhkan atau membatalkan kerja bagi semua unit dan staf yang terlibat secara serentak.
+
+---
+
+## 8. Senarai Semak Ujian Regresi (*Regression Checklist*)
 
 Sebelum sebarang kod baru dideploy ke *production*, sahkan senarai semak berikut:
 
@@ -143,3 +160,9 @@ Sebelum sebarang kod baru dideploy ke *production*, sahkan senarai semak berikut
   * **Semak:** Status keseluruhan tiket **KEKAL AKTIF** dan tidak bertukar menjadi `Completed`.
 - [ ] **Ujian 4 (Privasi Dashboard Staf):**
   * Pastikan staf lain dari unit yang sama yang **tidak** di-assign tidak melihat tiket tersebut dalam dashboard peribadi mereka.
+- [ ] **Ujian 5 (Multi-Unit Master Status Controls):**
+  * Login sebagai Pengurus Jabatan (cth: Hazmi).
+  * Buka tiket Multi-Unit yang sedang berjalan.
+  * **Semak:** Butang `MARK PROJECT COMPLETED` **TIDAK MUNCUL** pada pandangan Manager. Pengurus hanya melihat `PROJECT STATUS CONTROLS` (Pending & Cancel).
+  * Login sebagai Admin: Butang `FORCE COMPLETE (ADMIN OVERRIDE)` muncul dengan modal amaran jika staf belum selesai.
+  * Jika tiket telah berstatus `Completed`, Admin melihat butang `REOPEN PROJECT` untuk membuka semula projek ke `staff_processing`.

@@ -2223,6 +2223,21 @@ jobRequestsRouter.post('/:id/complete', async (c) => {
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Job request not found' }, 404);
 
+  // Check if Multi-Unit
+  const addData = typeof request.additional_data === 'string'
+    ? JSON.parse(request.additional_data || '{}')
+    : (request.additional_data || {});
+  const isMultiUnit = request.ticket_no?.startsWith('MU') ||
+    addData?.is_multi_unit ||
+    (Array.isArray(addData?.target_units) && addData.target_units.length > 1);
+
+  // Safeguard: In Multi-Unit jobs, only Admin and Director can manually force-complete the whole project
+  if (isMultiUnit && user.role !== 'admin' && user.role !== 'director') {
+    return c.json({
+      error: 'Hanya Pentadbir (Admin) atau Pengarah sahaja yang dibenarkan untuk memaksa (force complete) penutupan keseluruhan projek Multi-Unit. Bagi unit anda, staf perlu menandakan bahagian mereka sebagai selesai.'
+    }, 403);
+  }
+
   const newStatus = 'completed';
   const newStepName = 'Completed';
   const fromStep = request.current_step_name || 'Staff Processing';
@@ -2239,19 +2254,19 @@ jobRequestsRouter.post('/:id/complete', async (c) => {
   await db.prepare(
     `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
      VALUES (?, 'COMPLETE', ?, ?, ?, ?, ?)`
-  ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || 'Project completed').run();
+  ).bind(request.id, user.id, user.name, fromStep, newStepName, comment || (isMultiUnit ? 'Multi-Unit project force completed by Admin' : 'Project completed')).run();
 
   return c.json({ success: true, message: 'Project marked as completed.' });
 });
 
-// POST /api/job-requests/:id/change-status - Manager & Admin status change (Pending/On Hold, Cancelled, Resume, Complete)
+// POST /api/job-requests/:id/change-status - Manager & Admin status change (Pending/On Hold, Cancelled, Resume, Complete, Reopen)
 jobRequestsRouter.post('/:id/change-status', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const idParam = c.req.param('id');
   const { new_status, reason } = await c.req.json();
 
-  const isManagerOrAdmin = user.role === 'admin' || user.role === 'manager' || user.is_acting_manager;
+  const isManagerOrAdmin = user.role === 'admin' || user.role === 'manager' || user.is_acting_manager || user.role === 'director';
   if (!isManagerOrAdmin) {
     return c.json({ error: 'Only Admins and Managers are authorized to change the project status.' }, 403);
   }
@@ -2264,6 +2279,27 @@ jobRequestsRouter.post('/:id/change-status', async (c) => {
   const request = await findJobRequest(db, idParam);
   if (!request) return c.json({ error: 'Project request not found.' }, 404);
 
+  const addData = typeof request.additional_data === 'string'
+    ? JSON.parse(request.additional_data || '{}')
+    : (request.additional_data || {});
+  const isMultiUnit = request.ticket_no?.startsWith('MU') ||
+    addData?.is_multi_unit ||
+    (Array.isArray(addData?.target_units) && addData.target_units.length > 1);
+
+  // Safeguard: In Multi-Unit jobs, only Admin and Director can manually force-complete the whole project
+  if (new_status === 'completed' && isMultiUnit && user.role !== 'admin' && user.role !== 'director') {
+    return c.json({
+      error: 'Hanya Pentadbir (Admin) atau Pengarah sahaja yang dibenarkan untuk memaksa (force complete) penutupan keseluruhan projek Multi-Unit.'
+    }, 403);
+  }
+
+  // Safeguard: Reopening a completed project is strictly restricted to Admin and Director
+  if (request.status === 'completed' && new_status === 'staff_processing' && user.role !== 'admin' && user.role !== 'director') {
+    return c.json({
+      error: 'Hanya Pentadbir (Admin) atau Pengarah sahaja yang dibenarkan untuk membuka semula projek yang telah selesai.'
+    }, 403);
+  }
+
   let stepName = request.current_step_name || 'Staff Processing';
   if (new_status === 'on_hold') stepName = 'Pending / On Hold';
   if (new_status === 'cancelled') stepName = 'Cancelled';
@@ -2274,12 +2310,15 @@ jobRequestsRouter.post('/:id/change-status', async (c) => {
     'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
   ).bind(new_status, stepName, request.id).run();
 
-  const actionName = new_status === 'on_hold' ? 'STATUS_PENDING' : new_status === 'cancelled' ? 'STATUS_CANCELLED' : new_status === 'completed' ? 'COMPLETE' : 'STATUS_RESUMED';
+  let actionName = new_status === 'on_hold' ? 'STATUS_PENDING' : new_status === 'cancelled' ? 'STATUS_CANCELLED' : new_status === 'completed' ? 'COMPLETE' : 'STATUS_RESUMED';
+  if (request.status === 'completed' && new_status === 'staff_processing') {
+    actionName = 'PROJECT_REOPENED';
+  }
 
   await db.prepare(
     `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).bind(request.id, actionName, user.id, user.name, request.current_step_name || 'In Progress', stepName, reason || `Status changed to ${stepName}`).run();
+  ).bind(request.id, actionName, user.id, user.name, request.current_step_name || 'In Progress', stepName, reason || (actionName === 'PROJECT_REOPENED' ? 'Project reopened by Admin' : `Status changed to ${stepName}`)).run();
 
   const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
 

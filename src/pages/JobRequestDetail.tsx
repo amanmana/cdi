@@ -30,6 +30,7 @@ import {
   Camera,
   Layers,
   User,
+  RotateCcw,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
@@ -87,9 +88,11 @@ export const JobRequestDetail: React.FC = () => {
   const [milestoneNote, setMilestoneNote] = useState('');
   const [milestoneSaving, setMilestoneSaving] = useState(false);
 
-  // Status Change Modal State (Pending / Cancel)
-  const [showStatusModal, setShowStatusModal] = useState<'on_hold' | 'cancelled' | null>(null);
+  // Status Change Modal State (Pending / Cancel / Reopen)
+  const [showStatusModal, setShowStatusModal] = useState<'on_hold' | 'cancelled' | 'staff_processing' | null>(null);
   const [statusReason, setStatusReason] = useState('');
+  const [showForceCompleteModal, setShowForceCompleteModal] = useState(false);
+  const [forceCompleteComment, setForceCompleteComment] = useState('');
 
   // Cross-Unit Assistance Modal State
   const [unitsList, setUnitsList] = useState<any[]>([]);
@@ -416,19 +419,25 @@ export const JobRequestDetail: React.FC = () => {
     }
   };
 
-  const handleComplete = async () => {
+  const handleComplete = async (overrideComment?: string) => {
     setActionLoading(true);
     try {
       const res = await fetch(`/api/job-requests/${id}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ comment }),
+        body: JSON.stringify({ comment: overrideComment || comment }),
       });
       const resData = await res.json();
       if (resData.success) {
         setComment('');
+        setShowForceCompleteModal(false);
         fetchDetail();
+      } else {
+        alert(resData.error || 'Gagal menandakan projek sebagai selesai.');
       }
+    } catch (err: any) {
+      console.error(err);
+      alert('Ralat semasa mengemaskini status projek.');
     } finally {
       setActionLoading(false);
     }
@@ -2392,16 +2401,15 @@ export const JobRequestDetail: React.FC = () => {
 
         {/* RIGHT COLUMN (1 Column Wide) matching Reference Image 2 */}
         <div className="space-y-6">
-          {/* Workflow Actions Card (Hidden for Client, Director (unless inter-unit in-progress), Rejected requests, and when completed) */}
+          {/* Workflow Actions Card (Hidden for Client, Director (unless inter-unit or completed), Rejected requests, and regular staff when completed) */}
           {user?.role !== 'client' &&
-            (user?.role !== 'director' || (isInterUnitJob && request.status === 'staff_processing')) &&
+            (user?.role !== 'director' || (isInterUnitJob && request.status === 'staff_processing') || request.status === 'completed') &&
             request.status !== 'rejected' &&
             !(user?.role === 'staff' && !user?.is_unit_head && (
               (data?.staffDetails?.some((s: any) => Number(s.id) === Number(user?.id) && s.is_done) &&
                (!isInterUnitJob || Number(request.additional_data?.handoff?.current_holder_id) !== Number(user?.id))) ||
               request.status === 'completed'
-            )) &&
-            !((user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && request.status === 'completed') && (
+            )) && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
@@ -2427,7 +2435,8 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
             {!(request.status === 'staff_processing' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager)) &&
-             !(request.status === 'manager_approval' && !canActOnManagerApproval && !isAssignedStaffInActiveMultiUnit) && (
+             !(request.status === 'manager_approval' && !canActOnManagerApproval && !isAssignedStaffInActiveMultiUnit) &&
+             request.status !== 'completed' && (
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-slate-100"></div>
                 <span className="flex-shrink mx-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
@@ -3198,16 +3207,47 @@ export const JobRequestDetail: React.FC = () => {
                         (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager) && !hasUnitNeedingManagerApproval && (
                           <div className="space-y-2.5 mt-3 pt-3 border-t border-slate-100">
                             <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
-                              MANAGER STATUS CONTROLS
+                              {isMultiUnitJob
+                                ? (user?.role === 'admin' || user?.role === 'director' ? 'ADMIN MASTER CONTROLS' : 'PROJECT STATUS CONTROLS')
+                                : 'MANAGER STATUS CONTROLS'}
                             </div>
-                            <button
-                              type="button"
-                              onClick={handleComplete}
-                              disabled={actionLoading}
-                              className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-indigo-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
-                            >
-                              <ShieldCheck className="w-4 h-4" /> MARK PROJECT COMPLETED
-                            </button>
+
+                            {/* Informational Banner for Multi-Unit Collaborations */}
+                            {isMultiUnitJob && (
+                              <div className="flex items-start gap-2 p-3 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-[11px] text-indigo-900 leading-relaxed mb-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                                <span>
+                                  Projek Multi-Unit diselesaikan secara automatik setelah semua staf unit menyelesaikan tugasan masing-masing ({completedStaff}/{totalStaff} staf selesai).
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Single-Unit: Standard MARK PROJECT COMPLETED button */}
+                            {!isMultiUnitJob && (
+                              <button
+                                type="button"
+                                onClick={() => handleComplete()}
+                                disabled={actionLoading}
+                                className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-indigo-500/20 uppercase tracking-wider gap-2 flex items-center justify-center"
+                              >
+                                <ShieldCheck className="w-4 h-4" /> MARK PROJECT COMPLETED
+                              </button>
+                            )}
+
+                            {/* Multi-Unit: Strictly Admin / Director can Force Complete */}
+                            {isMultiUnitJob && (user?.role === 'admin' || user?.role === 'director') && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setForceCompleteComment('');
+                                  setShowForceCompleteModal(true);
+                                }}
+                                disabled={actionLoading}
+                                className="btn w-full bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-rose-600/20 uppercase tracking-wider gap-2 flex items-center justify-center"
+                              >
+                                <ShieldCheck className="w-4 h-4" /> FORCE COMPLETE (ADMIN OVERRIDE)
+                              </button>
+                            )}
 
                             <div className="grid grid-cols-2 gap-2">
                               <button
@@ -3285,15 +3325,67 @@ export const JobRequestDetail: React.FC = () => {
                         <ShieldCheck className="w-4 h-4" /> Resume Processing
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={handleComplete}
-                        disabled={actionLoading}
-                        className="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-500/20 gap-2 normal-case tracking-wide"
-                      >
-                        <CheckCircle2 className="w-4 h-4" /> Mark Completed
-                      </button>
+                      {(!isMultiUnitJob || user?.role === 'admin' || user?.role === 'director') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isMultiUnitJob) {
+                              setForceCompleteComment('');
+                              setShowForceCompleteModal(true);
+                            } else {
+                              handleComplete();
+                            }
+                          }}
+                          disabled={actionLoading}
+                          className="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-500/20 gap-2 normal-case tracking-wide"
+                        >
+                          <CheckCircle2 className="w-4 h-4" /> {isMultiUnitJob ? 'Force Complete (Admin Override)' : 'Mark Completed'}
+                        </button>
+                      )}
                     </div>
+                  </div>
+                )}
+
+                {/* Status controls when Project is Completed */}
+                {request.status === 'completed' && (user?.role === 'admin' || user?.role === 'manager' || user?.is_acting_manager || user?.role === 'director') && (
+                  <div className="p-6 rounded-3xl border border-emerald-200/80 bg-emerald-50/60 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                          Status: Completed
+                        </h4>
+                        <span className="text-[10px] font-bold text-emerald-600">
+                          Projek Selesai Sepenuhnya
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed bg-white/80 p-3.5 rounded-2xl border border-emerald-100">
+                      Projek ini telah ditandakan selesai. Semua tugasan dan laporan telah dimuktamadkan.
+                    </p>
+
+                    {/* Admin / Director Reopen Option */}
+                    {(user?.role === 'admin' || user?.role === 'director') && (
+                      <div className="pt-2 border-t border-emerald-200/70 space-y-2">
+                        <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">
+                          ADMIN OVERRIDE CONTROLS
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStatusReason('');
+                            setShowStatusModal('staff_processing');
+                          }}
+                          disabled={actionLoading}
+                          className="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-slate-900/20 gap-2 normal-case tracking-wide flex items-center justify-center"
+                        >
+                          <RotateCcw className="w-4 h-4 text-amber-400" /> Buka Semula Projek (Reopen)
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -4380,21 +4472,39 @@ export const JobRequestDetail: React.FC = () => {
         </div>
       )}
 
-      {/* CUSTOM LIGHTBOX MODAL FOR PENDING / CANCEL STATUS CHANGE */}
+      {/* CUSTOM LIGHTBOX MODAL FOR PENDING / CANCEL / REOPEN STATUS CHANGE */}
       {showStatusModal && (
         <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden my-auto">
             {/* Modal Header */}
-            <div className={`p-6 text-white flex items-center justify-between ${showStatusModal === 'on_hold' ? 'bg-amber-500' : 'bg-rose-600'}`}>
+            <div className={`p-6 text-white flex items-center justify-between ${
+              showStatusModal === 'on_hold'
+                ? 'bg-amber-500'
+                : showStatusModal === 'cancelled'
+                ? 'bg-rose-600'
+                : 'bg-slate-900'
+            }`}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center shrink-0">
-                  {showStatusModal === 'on_hold' ? <Clock className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                  {showStatusModal === 'on_hold' ? (
+                    <Clock className="w-5 h-5" />
+                  ) : showStatusModal === 'cancelled' ? (
+                    <XCircle className="w-5 h-5" />
+                  ) : (
+                    <RotateCcw className="w-5 h-5 text-amber-400" />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base tracking-tight">
-                    {showStatusModal === 'on_hold' ? 'Set Project to Pending / On Hold' : 'Cancel Project'}
+                    {showStatusModal === 'on_hold'
+                      ? 'Set Project to Pending / On Hold'
+                      : showStatusModal === 'cancelled'
+                      ? 'Cancel Project'
+                      : 'Buka Semula Projek (Reopen)'}
                   </h3>
-                  <p className="text-[11px] text-white/80 font-medium">Manager Workflow Verification</p>
+                  <p className="text-[11px] text-white/80 font-medium">
+                    {showStatusModal === 'staff_processing' ? 'Admin Override Workflow' : 'Manager Workflow Verification'}
+                  </p>
                 </div>
               </div>
               <button
@@ -4408,15 +4518,50 @@ export const JobRequestDetail: React.FC = () => {
 
             {/* Modal Body */}
             <div className="p-6 space-y-4">
+              {/* Multi-Unit Impact Warning */}
+              {isMultiUnitJob && (
+                <div className={`p-3.5 rounded-2xl flex items-start gap-2.5 text-xs ${
+                  showStatusModal === 'on_hold'
+                    ? 'bg-amber-50 border border-amber-200 text-amber-900'
+                    : showStatusModal === 'cancelled'
+                    ? 'bg-rose-50 border border-rose-200 text-rose-900'
+                    : 'bg-indigo-50 border border-indigo-200 text-indigo-900'
+                }`}>
+                  <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${
+                    showStatusModal === 'on_hold'
+                      ? 'text-amber-600'
+                      : showStatusModal === 'cancelled'
+                      ? 'text-rose-600'
+                      : 'text-indigo-600'
+                  }`} />
+                  <div>
+                    <span className="font-bold">Amaran Projek Multi-Unit:</span>
+                    <p className="text-[11px] mt-0.5 leading-relaxed">
+                      {showStatusModal === 'staff_processing'
+                        ? `Membuka semula projek ini akan mengembalikan status kepada Staff Processing bagi SEMUA unit (${multiTargetUnits.join(', ')}).`
+                        : `Projek ini melibatkan unit (${multiTargetUnits.join(', ')}). Tindakan ini akan menangguhkan/membatalkan kerja bagi SEMUA unit yang sedang bertugas.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
                 {showStatusModal === 'on_hold'
-                  ? 'Please state the reason for placing this project on Pending / On Hold status:'
-                  : 'Please state the reason for cancelling this project:'}
+                  ? 'Sila nyatakan sebab meletakkan projek ini dalam status Pending / On Hold:'
+                  : showStatusModal === 'cancelled'
+                  ? 'Sila nyatakan sebab membatalkan projek ini:'
+                  : 'Sila nyatakan sebab membuka semula projek ini (cth: arahan pindaan kerja klien / tersilap klik selesai):'}
               </p>
 
               <textarea
                 rows={3}
-                placeholder={showStatusModal === 'on_hold' ? 'Example: Waiting for additional feedback from client...' : 'Example: Cancelled per management / client request...'}
+                placeholder={
+                  showStatusModal === 'on_hold'
+                    ? 'Contoh: Menunggu maklum balas tambahan daripada klien...'
+                    : showStatusModal === 'cancelled'
+                    ? 'Contoh: Dibatalkan atas permintaan pelanggan...'
+                    : 'Contoh: Pindaan tambahan diperlukan oleh pihak pengurusan...'
+                }
                 value={statusReason}
                 onChange={(e) => setStatusReason(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all resize-none shadow-inner"
@@ -4428,13 +4573,17 @@ export const JobRequestDetail: React.FC = () => {
                   onClick={() => setShowStatusModal(null)}
                   className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
                 >
-                  Cancel
+                  Batal
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     const target = showStatusModal;
                     const reason = statusReason.trim();
+                    if (!reason && target === 'staff_processing') {
+                      alert('Sila nyatakan sebab membuka semula projek.');
+                      return;
+                    }
                     setActionLoading(true);
                     fetch(`/api/job-requests/${id}/change-status`, {
                       method: 'POST',
@@ -4456,15 +4605,125 @@ export const JobRequestDetail: React.FC = () => {
                   }}
                   disabled={actionLoading}
                   className={`btn text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md gap-2 ${
-                    showStatusModal === 'on_hold' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
+                    showStatusModal === 'on_hold'
+                      ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
+                      : showStatusModal === 'cancelled'
+                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
+                      : 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20'
                   }`}
                 >
                   {actionLoading ? (
                     <span className="loading loading-spinner loading-xs"></span>
                   ) : (
                     <>
-                      {showStatusModal === 'on_hold' ? <Clock className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                      <span>Confirm {showStatusModal === 'on_hold' ? 'Pending / On Hold' : 'Cancel Project'}</span>
+                      {showStatusModal === 'on_hold' ? (
+                        <Clock className="w-4 h-4" />
+                      ) : showStatusModal === 'cancelled' ? (
+                        <XCircle className="w-4 h-4" />
+                      ) : (
+                        <RotateCcw className="w-4 h-4" />
+                      )}
+                      <span>
+                        {showStatusModal === 'on_hold'
+                          ? 'Confirm Pending / On Hold'
+                          : showStatusModal === 'cancelled'
+                          ? 'Cancel Project'
+                          : 'Sahkan Buka Semula'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM LIGHTBOX MODAL FOR FORCE COMPLETE (ADMIN OVERRIDE) */}
+      {showForceCompleteModal && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden my-auto">
+            {/* Modal Header */}
+            <div className="p-6 text-white flex items-center justify-between bg-rose-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">
+                    Admin Override: Force Complete
+                  </h3>
+                  <p className="text-[11px] text-white/80 font-medium">Multi-Unit Master Control</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowForceCompleteModal(false)}
+                className="btn btn-sm btn-ghost btn-circle text-white/80 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              {/* Warning Banner */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-900 space-y-1">
+                  <div className="font-black text-amber-950 uppercase tracking-wide">
+                    Amaran Penutupan Paksa (Force Complete)
+                  </div>
+                  <p className="leading-relaxed">
+                    Tindakan ini akan memintas proses biasa dan menandakan keseluruhan projek serta SEMUA unit ({multiTargetUnits.join(', ')}) sebagai SELESAI serta-merta.
+                  </p>
+                  <div className="pt-1.5 flex items-center gap-3 font-bold text-[11px] text-amber-800">
+                    <span>Staf Selesai: {completedStaff} / {totalStaff}</span>
+                    <span>•</span>
+                    <span>Tugasan Selesai: {completedTasksCount} / {totalTasksCount}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Sebab / Catatan Admin Override (Wajib):
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Contoh: Arahan pihak pengurusan / telah disahkan selesai di luar sistem..."
+                  value={forceCompleteComment}
+                  onChange={(e) => setForceCompleteComment(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-rose-600 focus:outline-none transition-all resize-none shadow-inner"
+                ></textarea>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowForceCompleteModal(false)}
+                  className="btn btn-ghost btn-sm rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 px-4"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!forceCompleteComment.trim()) {
+                      alert('Sila masukkan sebab atau catatan admin override.');
+                      return;
+                    }
+                    handleComplete(forceCompleteComment.trim());
+                  }}
+                  disabled={actionLoading}
+                  className="btn bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-xs rounded-xl px-5 h-11 border-none shadow-md shadow-rose-700/20 gap-2"
+                >
+                  {actionLoading ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Sahkan Selesai (Force Complete)</span>
                     </>
                   )}
                 </button>
