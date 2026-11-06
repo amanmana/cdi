@@ -12,6 +12,19 @@ interface ChangelogEntry {
 
 const changelogsData: ChangelogEntry[] = [
   {
+    version: '1.16.0',
+    date: '2026-11-06',
+    items: [
+      'Feature: Interactive Kanban Whiteboard Suite — Deployed responsive drag-and-drop card physics with card tilt on active hold, animated dynamic drop gaps, vertical/column reordering with backend persistence, full view fullscreen modal, and dual Fit Screen / Scrollable viewport modes.',
+      'Admin: Self-Service Kanban Enablement & Tabbed Settings — Redesigned Admin Settings (/portal/settings) into 5 focused tabs (General Settings, Email Notifications, Deadline Notice, Unit Kanban Whiteboards, Database Maintenance) and added self-service checkboxes for Admins to enable Kanban Whiteboards for any unit on demand.',
+      'Security & Governance: Strict Origin Manager Timeline Ownership — Restricted project timeline modifications (Edit Timeline) strictly to the Origin Department Manager (e.g. Faizal for Social Media / Corporate Event requests) and System Admin, preventing collaborating managers from altering client deadlines without origin consent.',
+      'Workflow: Department-Scoped Inter-Unit & Direct Work Assignment — Updated Inter-Unit and Direct Work task creation modals so Department Managers (e.g. Hazmi) can assign any staff member across all units within their department with automatic unit attribution.',
+      'Data Integrity: Executive Role Badge & Assistance Creator Fixes — Corrected executive roles (Manager/Admin) across Cross-Unit Assistance requests and audit logs (#92), ensuring accurate organizational hierarchy throughout tickets.',
+      'UI/UX: Workspace Clutter Reduction — Removed redundant secondary unit pill rows in cross-unit collaboration cards and improved role badge displays for department managers across all assistance modals.',
+      'Stability: React Lifecycle & Hook Ordering Hardening — Resolved React Minified error #310 by eliminating conditional hook execution in job request detail views for bulletproof stability across all render states.',
+    ],
+  },
+  {
     version: '1.15.0',
     date: '2026-11-03',
     items: [
