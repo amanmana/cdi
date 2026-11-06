@@ -1622,55 +1622,67 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                       : 'bg-slate-100/90 border-slate-200/80 shadow-xs'
                   }`}
                 >
-                  {/* Column Header */}
-                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                      <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 truncate">
-                        {col.label}
-                      </h3>
-                      <span className="px-2 py-0.5 rounded-full bg-white text-slate-700 text-[10px] font-black border border-slate-200 shadow-2xs">
+                  {/* Column Header (2-Row Design for Clean Responsive Fit) */}
+                  <div className="pb-2.5 border-b border-slate-200/80 space-y-1.5">
+                    {/* Row 1: Title, Dot Indicator, and Job Count Badge */}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shrink-0" />
+                        <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 truncate" title={col.label}>
+                          {col.label}
+                        </h3>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-white text-slate-700 text-[10px] font-black border border-slate-200 shadow-2xs shrink-0">
                         {colJobs.length}
                       </span>
                     </div>
 
-                    {/* Column Edit / Move Controls for Head Unit */}
+                    {/* Row 2: Head Unit Column Controls (Left, Right, Edit, Delete) */}
                     {canManageColumns && (
-                      <div className="flex items-center gap-1">
-                        {index > 0 && (
+                      <div className="flex items-center justify-between pt-1 text-slate-400">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                          Controls
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleMoveColumn(index, 'left')}
+                              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white transition-colors"
+                              title="Move column left"
+                            >
+                              <ArrowLeft className="w-3 h-3" />
+                            </button>
+                          )}
+                          {index < kanbanColumns.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleMoveColumn(index, 'right')}
+                              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white transition-colors"
+                              title="Move column right"
+                            >
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleMoveColumn(index, 'left')}
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"
-                            title="Move column left"
+                            type="button"
+                            onClick={() => setEditingColumn(col)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white transition-colors"
+                            title="Rename column"
                           >
-                            <ArrowLeft className="w-3 h-3" />
+                            <Edit2 className="w-3 h-3" />
                           </button>
-                        )}
-                        {index < kanbanColumns.length - 1 && (
-                          <button
-                            onClick={() => handleMoveColumn(index, 'right')}
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"
-                            title="Move column right"
-                          >
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setEditingColumn(col)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white"
-                          title="Rename column"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        {kanbanColumns.length > 1 && (
-                          <button
-                            onClick={() => handleDeleteColumn(col.id)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white"
-                            title="Delete column"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
+                          {kanbanColumns.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteColumn(col.id)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white transition-colors"
+                              title="Delete column"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1840,7 +1852,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
                                 }`}
                               >
                                 {/* Card Header: Ticket No + Exact CDI Status Badge */}
-                                <div className="flex items-center justify-between gap-1.5">
+                                <div className="flex items-center justify-between gap-1.5 flex-wrap">
                                   <div className="flex items-center gap-1.5 text-slate-400">
                                     {canMoveCards && <GripVertical className="w-3.5 h-3.5 shrink-0 hover:text-slate-600" />}
                                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
@@ -1908,7 +1920,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
 
                                 {/* Quick Move Stage Dropdown (Head Unit / Admin only) or Read-Only Stage Badge */}
                                 {canMoveCards ? (
-                                  <div className="pt-1 flex items-center justify-between gap-2">
+                                  <div className="pt-1 flex items-center justify-between gap-2 flex-wrap">
                                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                                       Move to:
                                     </span>
