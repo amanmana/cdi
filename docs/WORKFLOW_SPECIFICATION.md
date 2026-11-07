@@ -166,3 +166,30 @@ Sebelum sebarang kod baru dideploy ke *production*, sahkan senarai semak berikut
   * **Semak:** Butang `MARK PROJECT COMPLETED` **TIDAK MUNCUL** pada pandangan Manager. Pengurus hanya melihat `PROJECT STATUS CONTROLS` (Pending & Cancel).
   * Login sebagai Admin: Butang `FORCE COMPLETE (ADMIN OVERRIDE)` muncul dengan modal amaran jika staf belum selesai.
   * Jika tiket telah berstatus `Completed`, Admin melihat butang `REOPEN PROJECT` untuk membuka semula projek ke `staff_processing`.
+- [ ] **Ujian 6 (Laluan Direct to Staff & Multi-Staff Selection):**
+  * Buat / Edit Custom Service dengan laluan `⚡ Direct to Staff` dan pilih lebih daripada 1 staf (cth: Akmal & Abe Srox).
+  * Hantar permohonan client menggunakan servis tersebut.
+  * **Semak:** Tiket melangkaui *Manager Approval* dan *Head Unit Assignment*, terus berstatus **Staff Processing**.
+  * **Semak:** Tiket muncul pada dashboard SEMUA staf yang dipilih (Akmal dan Abe Srox).
+  * **Semak Failsafe:** Jika tiada staf dipilih semasa konfigurasi, sistem secara automatik mengagihkan tiket kepada semua staf aktif unit dan tidak berundur ke *Manager Approval*.
+
+---
+
+## 9. Peraturan Laluan Terus Ke Staf (*Direct to Staff Workflow*)
+
+1. **Konfigurasi Pelbagai Staf (*Multi-Staff Selection*)**:
+   * Di antaramuka **Admin > Units Management > Custom Services**, medan pemilihan staf pakar menyokong kotak semak (*multi-select checkbox*) bagi membolehkan Admin memilih lebih daripada seorang staf (contoh: Akmal dan Abe Srox).
+   * Maklumat ID disimpan dalam bentuk senarai berkoma (cth: `'11,21'`) dan nama staf diformatkan (cth: `'Akmal, Abe srox'`).
+
+2. **Langkau Kelulusan Automatik (*Zero-Approval Bypass*)**:
+   * Apabila pelanggan menghantar permohonan bagi servis atau unit yang mempunyai `routing_target: 'staff'`:
+     * Status tiket permulaan **WAJIB** disetkan kepada `staff_processing` (Langkah: `Staff Processing`).
+     * Status tugasan unit disetkan kepada `accepted`.
+     * Tiket **TIDAK BOLEH** diletakkan dalam status `manager_approval` atau menunggu agihan ketua unit.
+     * Tugasan kerja individu (`job_tasks`) dijana secara automatik untuk setiap staf yang tersenarai.
+
+3. **Jaringan Keselamatan Automatik (*Auto-Assignment Failsafe*)**:
+   * Sekiranya servis ditetapkan dengan laluan `routing_target: 'staff'` tetapi Admin tidak menandakan mana-mana staf tertentu:
+     * Backend **DILARANG SAMA SEKALI** mengundur semula (*fallback*) ke status `manager_approval`.
+     * Sebaliknya, backend akan secara automatik menugaskan **SEMUA staf aktif** dalam unit tersebut dan memasukkan ID mereka ke dalam `assigned_staff_ids`, memastikan tiket kekal bergerak pantas terus ke tangan staf.
+

@@ -53,7 +53,11 @@ Full detailed specification can be found in [`docs/WORKFLOW_SPECIFICATION.md`](d
 - In Multi-Unit jobs, Department Managers must **NEVER** have a master `MARK PROJECT COMPLETED` button. Master completion is achieved automatically when all assigned unit staff finalize their parts.
 - Manual force completion of an entire Multi-Unit project is strictly restricted to **Admin / Director** (`FORCE COMPLETE (ADMIN OVERRIDE)`), which requires a mandatory justification comment and displays a warning dialog showing pending tasks and staff.
 - Backend endpoints `POST /api/job-requests/:id/complete` and `POST /api/job-requests/:id/change-status` enforce strict role authorization (returning 403 if a department manager attempts to force-complete a multi-unit project).
-- Admin and Director can reopen completed projects via `REOPEN PROJECT` (Reversible State Machine), returning the project status to `staff_processing` with audit logging.
+### Rule 8: Direct to Staff Entry Routing & Multi-Staff Assignment (`routing_target: 'staff'`)
+- When a Custom Service or Unit is configured with `routing_target: 'staff'`:
+  - **Multi-Staff Selection Support**: Admin can select multiple specialist staff (e.g. Akmal & Abe Srox) via checkboxes in `UnitsManagement.tsx`. The database stores comma-separated IDs (`'11,21'`) and names.
+  - **Direct Entry Invariant**: Client submission immediately bypasses Manager Review and Unit Head assignment. Initial status is `staff_processing`, step is `Staff Processing`, unit status is `accepted`, and individual tasks are created in `job_tasks`.
+  - **Auto-Assignment Failsafe**: If `routing_target: 'staff'` is active but no specific staff was checked, backend MUST NOT regress to `manager_approval`. It automatically assigns ALL active unit staff into `assigned_staff_ids` and sets status directly to `staff_processing`.
 
 ---
 
@@ -65,4 +69,5 @@ Whenever modifying any workflow code in `src/worker/routes/jobRequests.ts`, `src
 4. Check that units with `routing_target: 'head_unit'` attribute their approval to the Unit Head, not the Manager.
 5. Check that dashboard status badges reflect the viewing user's active role context.
 6. Check that Multi-Unit master completion is restricted to Admin/Director and Department Managers cannot prematurely complete multi-unit projects.
-7. Run `npm run build` and ensure 0 TypeScript errors before committing and deploying.
+7. Check that Custom Services with `routing_target: 'staff'` route directly to staff with `staff_processing` and multi-staff assignment.
+8. Run `npm run build` and ensure 0 TypeScript errors before committing and deploying.
