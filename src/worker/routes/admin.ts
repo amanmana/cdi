@@ -698,10 +698,21 @@ admin.post('/custom-services', async (c) => {
     return c.json({ error: 'Target unit not found.' }, 404);
   }
 
-  let staffName = null;
-  if (suggested_staff_id) {
-    const staffRow = await db.prepare('SELECT id, name FROM users WHERE id = ?').bind(suggested_staff_id).first<any>();
-    staffName = staffRow?.name || null;
+  let staffName: string | null = null;
+  let staffIdToSave: string | null = null;
+  const rawStaffInput = body.suggested_staff_ids !== undefined ? body.suggested_staff_ids : suggested_staff_id;
+  if (rawStaffInput) {
+    const idList: number[] = Array.isArray(rawStaffInput)
+      ? rawStaffInput.map(Number).filter(n => !isNaN(n) && n > 0)
+      : String(rawStaffInput).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
+    if (idList.length > 0) {
+      staffIdToSave = idList.join(',');
+      const placeholders = idList.map(() => '?').join(',');
+      const staffRows = await db.prepare(`SELECT id, name FROM users WHERE id IN (${placeholders})`).bind(...idList).all<any>();
+      if (staffRows?.results && staffRows.results.length > 0) {
+        staffName = staffRows.results.map((r: any) => r.name).join(', ');
+      }
+    }
   }
 
   const validRouting = ['manager', 'head_unit', 'staff'].includes(routing_target) ? routing_target : 'manager';
@@ -716,7 +727,7 @@ admin.post('/custom-services', async (c) => {
     deptId,
     unitRow.id,
     unitRow.name,
-    suggested_staff_id || null,
+    staffIdToSave,
     staffName,
     validRouting,
     is_active !== false ? 1 : 0,
@@ -757,12 +768,25 @@ admin.put('/custom-services/:id', async (c) => {
     }
   }
 
-  let suggestedStaffId = body.suggested_staff_id !== undefined ? body.suggested_staff_id : existing.suggested_staff_id;
+  let suggestedStaffId = existing.suggested_staff_id;
   let suggestedStaffName = existing.suggested_staff_name;
-  if (body.suggested_staff_id !== undefined) {
-    if (body.suggested_staff_id) {
-      const staffRow = await db.prepare('SELECT id, name FROM users WHERE id = ?').bind(body.suggested_staff_id).first<any>();
-      suggestedStaffName = staffRow?.name || null;
+  if (body.suggested_staff_id !== undefined || body.suggested_staff_ids !== undefined) {
+    const rawStaffInput = body.suggested_staff_ids !== undefined ? body.suggested_staff_ids : body.suggested_staff_id;
+    if (rawStaffInput) {
+      const idList: number[] = Array.isArray(rawStaffInput)
+        ? rawStaffInput.map(Number).filter(n => !isNaN(n) && n > 0)
+        : String(rawStaffInput).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
+      if (idList.length > 0) {
+        suggestedStaffId = idList.join(',');
+        const placeholders = idList.map(() => '?').join(',');
+        const staffRows = await db.prepare(`SELECT id, name FROM users WHERE id IN (${placeholders})`).bind(...idList).all<any>();
+        if (staffRows?.results && staffRows.results.length > 0) {
+          suggestedStaffName = staffRows.results.map((r: any) => r.name).join(', ');
+        }
+      } else {
+        suggestedStaffId = null;
+        suggestedStaffName = null;
+      }
     } else {
       suggestedStaffId = null;
       suggestedStaffName = null;

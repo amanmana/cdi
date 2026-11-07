@@ -231,16 +231,46 @@ publicApi.post('/job-requests', async (c) => {
         if (rTarget === 'manager') hasManager = true;
         if (rTarget === 'head_unit') hasHeadUnit = true;
 
-        const staffId = s.suggested_staff_id || uRow?.suggested_staff_id;
-        const staffName = s.suggested_staff_name || uRow?.suggested_staff_name;
+        const rawStaffId = s.suggested_staff_id || uRow?.suggested_staff_id;
+        let srvStaffIds: number[] = [];
+        let srvStaffNames: string[] = [];
 
-        const isDirectStaff = rTarget === 'staff' && staffId;
-        if (isDirectStaff && !initialStaffIdsList.includes(Number(staffId))) {
-          initialStaffIdsList.push(Number(staffId));
-          directStaffTasks.push({
-            staffId: Number(staffId),
-            title: s.scope || title,
-          });
+        if (rawStaffId) {
+          srvStaffIds = String(rawStaffId).split(',').map((x: string) => Number(x.trim())).filter((n: number) => !isNaN(n) && n > 0);
+        }
+
+        // Auto-assign unit staff if routing is direct to staff and no staff specifically chosen
+        if (rTarget === 'staff' && srvStaffIds.length === 0) {
+          const uStaff = await c.env.DB
+            .prepare("SELECT id, name FROM users WHERE (unit_id = ? OR LOWER(TRIM(unit)) = LOWER(TRIM(?))) AND role = 'staff' AND (is_unit_head IS NULL OR is_unit_head != 1)")
+            .bind(uId, uName)
+            .all<any>();
+          if (uStaff?.results && uStaff.results.length > 0) {
+            srvStaffIds = uStaff.results.map((u: any) => Number(u.id));
+            srvStaffNames = uStaff.results.map((u: any) => u.name);
+          }
+        } else if (srvStaffIds.length > 0) {
+          const placeholders = srvStaffIds.map(() => '?').join(',');
+          const sRows = await c.env.DB
+            .prepare(`SELECT id, name FROM users WHERE id IN (${placeholders})`)
+            .bind(...srvStaffIds)
+            .all<any>();
+          if (sRows?.results) {
+            srvStaffNames = sRows.results.map((u: any) => u.name);
+          }
+        }
+
+        const isDirectStaff = rTarget === 'staff' && srvStaffIds.length > 0;
+        if (isDirectStaff) {
+          for (const sid of srvStaffIds) {
+            if (!initialStaffIdsList.includes(sid)) {
+              initialStaffIdsList.push(sid);
+              directStaffTasks.push({
+                staffId: sid,
+                title: s.scope || title,
+              });
+            }
+          }
         }
 
         const existingAssignment = unitAssignmentsMap[uName];
@@ -251,13 +281,13 @@ publicApi.post('/job-requests', async (c) => {
           : rTarget;
 
         unitAssignmentsMap[uName] = {
-          status: isDirectStaff ? 'accepted' : (effectiveRouting === 'head_unit' ? 'awaiting_head_assignment' : 'pending_manager_approval'),
-          assigned_staff_ids: isDirectStaff ? [Number(staffId)] : (existingAssignment?.assigned_staff_ids || []),
-          assigned_staff_names: isDirectStaff && staffName ? [staffName] : (existingAssignment?.assigned_staff_names || []),
+          status: isDirectStaff ? 'accepted' : (effectiveRouting === 'head_unit' ? 'awaiting_head_assignment' : (effectiveRouting === 'staff' ? 'accepted' : 'pending_manager_approval')),
+          assigned_staff_ids: isDirectStaff ? srvStaffIds : (existingAssignment?.assigned_staff_ids || []),
+          assigned_staff_names: isDirectStaff ? srvStaffNames : (existingAssignment?.assigned_staff_names || []),
           service_name: existingAssignment ? `${existingAssignment.service_name}, ${s.display_label || s.name || uName}` : (s.display_label || s.name || uName),
           routing_target: effectiveRouting,
-          suggested_staff_id: staffId || existingAssignment?.suggested_staff_id || null,
-          suggested_staff_name: staffName || existingAssignment?.suggested_staff_name || null,
+          suggested_staff_id: srvStaffIds.join(',') || existingAssignment?.suggested_staff_id || null,
+          suggested_staff_name: srvStaffNames.join(', ') || existingAssignment?.suggested_staff_name || null,
           department_id: uRow?.department_id || null,
           scope: existingAssignment ? `${existingAssignment.scope}\n\n[${s.display_label || s.name}]: ${s.scope || ''}` : (s.scope || ''),
           custom_fields: { ...(existingAssignment?.custom_fields || {}), ...(s.fields || {}) },
@@ -299,17 +329,45 @@ publicApi.post('/job-requests', async (c) => {
       resolvedUnitName = unitRow?.name || targetUnitQuery;
 
       const routingTarget = customService ? (customService.routing_target || 'manager') : (unitRow?.routing_target || 'manager');
-      const staffId = customService ? customService.suggested_staff_id : unitRow?.suggested_staff_id;
-      const staffName = customService ? customService.suggested_staff_name : unitRow?.suggested_staff_name;
+      const rawStaffId = customService ? customService.suggested_staff_id : unitRow?.suggested_staff_id;
+      let targetStaffIds: number[] = [];
+      let targetStaffNames: string[] = [];
 
-      if (routingTarget === 'staff' && staffId) {
+      if (rawStaffId) {
+        targetStaffIds = String(rawStaffId).split(',').map((x: string) => Number(x.trim())).filter((n: number) => !isNaN(n) && n > 0);
+      }
+
+      if (routingTarget === 'staff' && targetStaffIds.length === 0) {
+        // Auto-assign all staff in this unit if direct to staff has no specific staff configured
+        const unitStaffRows = await c.env.DB
+          .prepare("SELECT id, name FROM users WHERE (unit_id = ? OR LOWER(TRIM(unit)) = LOWER(TRIM(?))) AND role = 'staff' AND (is_unit_head IS NULL OR is_unit_head != 1)")
+          .bind(primaryUnitId, resolvedUnitName)
+          .all<any>();
+        if (unitStaffRows?.results && unitStaffRows.results.length > 0) {
+          targetStaffIds = unitStaffRows.results.map((u: any) => Number(u.id));
+          targetStaffNames = unitStaffRows.results.map((u: any) => u.name);
+        }
+      } else if (targetStaffIds.length > 0) {
+        const placeholders = targetStaffIds.map(() => '?').join(',');
+        const staffRows = await c.env.DB
+          .prepare(`SELECT id, name FROM users WHERE id IN (${placeholders})`)
+          .bind(...targetStaffIds)
+          .all<any>();
+        if (staffRows?.results) {
+          targetStaffNames = staffRows.results.map((u: any) => u.name);
+        }
+      }
+
+      if (routingTarget === 'staff' && targetStaffIds.length > 0) {
         initialStatus = 'staff_processing';
         initialStepName = 'Staff Processing';
-        initialAssignedStaffIds = String(staffId);
-        directStaffTasks.push({
-          staffId: Number(staffId),
-          title: title,
-        });
+        initialAssignedStaffIds = targetStaffIds.join(',');
+        for (const sid of targetStaffIds) {
+          directStaffTasks.push({
+            staffId: sid,
+            title: title,
+          });
+        }
       } else if (routingTarget === 'head_unit') {
         initialStatus = 'manager_approval';
         initialStepName = 'Unit Head Review';
@@ -319,13 +377,13 @@ publicApi.post('/job-requests', async (c) => {
       }
 
       unitAssignmentsMap[resolvedUnitName] = {
-        status: (routingTarget === 'staff' && staffId) ? 'accepted' : (routingTarget === 'head_unit' ? 'awaiting_head_assignment' : 'pending_manager_approval'),
-        assigned_staff_ids: (routingTarget === 'staff' && staffId) ? [Number(staffId)] : [],
-        assigned_staff_names: (routingTarget === 'staff' && staffName) ? [staffName] : [],
+        status: (routingTarget === 'staff' && targetStaffIds.length > 0) ? 'accepted' : (routingTarget === 'head_unit' ? 'awaiting_head_assignment' : 'pending_manager_approval'),
+        assigned_staff_ids: (routingTarget === 'staff' && targetStaffIds.length > 0) ? targetStaffIds : [],
+        assigned_staff_names: (routingTarget === 'staff' && targetStaffNames.length > 0) ? targetStaffNames : [],
         service_name: customService ? (customService.display_label || customService.name) : (unitRow?.public_label || resolvedUnitName),
         routing_target: routingTarget,
-        suggested_staff_id: staffId || null,
-        suggested_staff_name: staffName || null,
+        suggested_staff_id: targetStaffIds.join(',') || null,
+        suggested_staff_name: targetStaffNames.join(', ') || null,
         department_id: primaryDeptId,
         scope: description || '',
         custom_fields: {},

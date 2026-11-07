@@ -35,7 +35,7 @@ export interface CustomService {
   department_id: number | null;
   target_unit_id: number;
   target_unit_name: string;
-  suggested_staff_id: number | null;
+  suggested_staff_id: number | string | null;
   suggested_staff_name: string | null;
   routing_target?: 'manager' | 'head_unit' | 'staff';
   is_active: boolean;
@@ -87,7 +87,7 @@ export const UnitsManagement: React.FC = () => {
     description: '',
     department_id: '',
     target_unit_id: '',
-    suggested_staff_id: '',
+    suggested_staff_ids: [] as number[],
     routing_target: 'manager' as 'manager' | 'head_unit' | 'staff',
     is_active: true,
   });
@@ -213,7 +213,7 @@ export const UnitsManagement: React.FC = () => {
       description: '',
       department_id: defaultUnit?.department_id ? String(defaultUnit.department_id) : '',
       target_unit_id: defaultUnit ? String(defaultUnit.id) : '',
-      suggested_staff_id: '',
+      suggested_staff_ids: [],
       routing_target: 'manager',
       is_active: true,
     });
@@ -222,13 +222,20 @@ export const UnitsManagement: React.FC = () => {
 
   const handleOpenEditCustomService = (service: CustomService) => {
     setEditingCustomService(service);
+    const parsedStaffIds: number[] = service.suggested_staff_id
+      ? String(service.suggested_staff_id)
+          .split(',')
+          .map((s) => Number(s.trim()))
+          .filter((n) => !isNaN(n) && n > 0)
+      : [];
+
     setCustomServiceForm({
       name: service.name,
       display_label: service.display_label || service.name,
       description: service.description || '',
       department_id: service.department_id ? String(service.department_id) : '',
       target_unit_id: String(service.target_unit_id),
-      suggested_staff_id: service.suggested_staff_id ? String(service.suggested_staff_id) : '',
+      suggested_staff_ids: parsedStaffIds,
       routing_target: service.routing_target || 'manager',
       is_active: service.is_active,
     });
@@ -246,7 +253,8 @@ export const UnitsManagement: React.FC = () => {
         description: customServiceForm.description.trim(),
         department_id: customServiceForm.department_id ? Number(customServiceForm.department_id) : undefined,
         target_unit_id: Number(customServiceForm.target_unit_id),
-        suggested_staff_id: customServiceForm.suggested_staff_id ? Number(customServiceForm.suggested_staff_id) : null,
+        suggested_staff_ids: customServiceForm.suggested_staff_ids,
+        suggested_staff_id: customServiceForm.suggested_staff_ids.join(',') || null,
         routing_target: customServiceForm.routing_target,
         is_active: customServiceForm.is_active,
       };
@@ -2475,7 +2483,7 @@ export const UnitsManagement: React.FC = () => {
                         ...customServiceForm,
                         target_unit_id: uId,
                         department_id: matchedUnit?.department_id ? String(matchedUnit.department_id) : customServiceForm.department_id,
-                        suggested_staff_id: '',
+                        suggested_staff_ids: [],
                       });
                     }}
                     className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-bold focus:bg-white"
@@ -2509,32 +2517,105 @@ export const UnitsManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Suggested Specialist Staff (Pilihan)</label>
-                <select
-                  value={customServiceForm.suggested_staff_id}
-                  onChange={(e) => setCustomServiceForm({ ...customServiceForm, suggested_staff_id: e.target.value })}
-                  className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-medium focus:bg-white"
-                >
-                  <option value="">None — Let Unit Head assign manually</option>
-                  {usersList
-                    .filter((u) => {
-                      if (!customServiceForm.target_unit_id) return true;
-                      const selectedUnitObj = units.find((unit) => String(unit.id) === customServiceForm.target_unit_id);
-                      if (!selectedUnitObj) return true;
-                      return (
-                        Number(u.unit_id) === Number(selectedUnitObj.id) ||
-                        (u.unit && u.unit.toLowerCase().trim() === selectedUnitObj.name.toLowerCase().trim())
-                      );
-                    })
-                    .map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} ({u.unit || 'Staff'}) — {u.email}
-                      </option>
-                    ))}
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1 font-medium">
-                  Contoh: <strong>Zainal</strong>. Head Unit (Laurence) akan melihat cadangan nama ini untuk penugasan pantas.
-                </p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700">
+                    Suggested Specialist Staff / Direct Assign Staff (Pilihan)
+                  </label>
+                  {customServiceForm.suggested_staff_ids.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomServiceForm({ ...customServiceForm, suggested_staff_ids: [] })}
+                      className="text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:underline"
+                    >
+                      Kosongkan Pilihan
+                    </button>
+                  )}
+                </div>
+
+                {(() => {
+                  const eligibleStaff = usersList.filter((u) => {
+                    if (!customServiceForm.target_unit_id) return false;
+                    const selectedUnitObj = units.find((unit) => String(unit.id) === customServiceForm.target_unit_id);
+                    if (!selectedUnitObj) return false;
+                    return (
+                      Number(u.unit_id) === Number(selectedUnitObj.id) ||
+                      (u.unit && u.unit.toLowerCase().trim() === selectedUnitObj.name.toLowerCase().trim())
+                    );
+                  });
+
+                  if (!customServiceForm.target_unit_id) {
+                    return (
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-400">
+                        Sila pilih <strong>Fulfillment Unit</strong> terlebih dahulu untuk melihat senarai staf.
+                      </div>
+                    );
+                  }
+
+                  if (eligibleStaff.length === 0) {
+                    return (
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500">
+                        Tiada staf didaftarkan di bawah unit ini.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                        {eligibleStaff.map((u) => {
+                          const isSelected = customServiceForm.suggested_staff_ids.includes(u.id);
+                          return (
+                            <label
+                              key={u.id}
+                              className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'bg-purple-50 border-purple-400 text-purple-950 font-semibold shadow-sm'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100/60'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  const nextIds = isSelected
+                                    ? customServiceForm.suggested_staff_ids.filter((id) => id !== u.id)
+                                    : [...customServiceForm.suggested_staff_ids, u.id];
+                                  setCustomServiceForm({ ...customServiceForm, suggested_staff_ids: nextIds });
+                                }}
+                                className="checkbox checkbox-xs checkbox-primary rounded"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate font-bold text-slate-800">{u.name}</div>
+                                <div className="text-[10px] text-slate-400 truncate">{u.email}</div>
+                              </div>
+                              {u.is_unit_head === 1 && (
+                                <span className="text-[9px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded font-black shrink-0">HEAD</span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+
+                      <div className="text-[11px] text-slate-500 font-medium">
+                        {customServiceForm.routing_target === 'staff' ? (
+                          customServiceForm.suggested_staff_ids.length > 0 ? (
+                            <span className="text-purple-700 font-semibold">
+                              ✓ {customServiceForm.suggested_staff_ids.length} staf dipilih. Permohonan akan terus ditugaskan kepada staf ini dengan status <strong>Staff Processing</strong>.
+                            </span>
+                          ) : (
+                            <span className="text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-lg block border border-amber-200/80">
+                              ⚡ <strong>Failsafe Aktif:</strong> Tiada staf khusus dipilih. Sistem akan menugaskan <strong>semua staf unit</strong> ({eligibleStaff.length} orang) secara automatik sekiranya laluan <em>Direct to Staff</em> dipilih.
+                            </span>
+                          )
+                        ) : (
+                          <span>
+                            Cadangan staf untuk rujukan pantas Ketua Unit semasa membuat agihan tugas.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>
