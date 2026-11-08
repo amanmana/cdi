@@ -2671,25 +2671,39 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     UPDATE job_requests SET assigned_staff_ids = ?, status = ?, current_step_name = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
   `).bind(assignedStr, newStatus, newStepName, additionalDataStr, request.id).run();
 
-  // Upsert task rows into job_tasks table for individual assigned staff
-  if (staff_tasks && typeof staff_tasks === 'object') {
-    for (const [sIdStr, taskText] of Object.entries(staff_tasks)) {
-      const sId = Number(sIdStr);
-      if (!isNaN(sId) && typeof taskText === 'string' && taskText.trim()) {
-        const existingTask = await db.prepare(
-          `SELECT id FROM job_tasks WHERE job_request_id = ? AND assigned_to_user_id = ? LIMIT 1`
-        ).bind(request.id, sId).first<{ id: number }>();
+  // Remove pending tasks for staff members who were unassigned from the team
+  const removedStaffIds = previousStaffIds.filter((pid: number) => !allAssignedIds.has(pid));
+  for (const rid of removedStaffIds) {
+    await db.prepare(
+      `DELETE FROM job_tasks WHERE job_request_id = ? AND assigned_to_user_id = ? AND status = 'pending'`
+    ).bind(request.id, rid).run();
+  }
 
-        if (existingTask) {
-          await db.prepare(
-            `UPDATE job_tasks SET title = ? WHERE id = ?`
-          ).bind(taskText.trim(), existingTask.id).run();
-        } else {
-          await db.prepare(
-            `INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status) VALUES (?, ?, ?, ?, 'pending')`
-          ).bind(request.id, taskText.trim(), sId, user.id).run();
+  // Ensure every assigned staff member has an individual task row in job_tasks
+  for (const aid of allAssignedIds) {
+    const existingTask = await db.prepare(
+      `SELECT id FROM job_tasks WHERE job_request_id = ? AND assigned_to_user_id = ? LIMIT 1`
+    ).bind(request.id, aid).first<{ id: number }>();
+
+    let taskTitle = staff_tasks?.[aid] ? String(staff_tasks[aid]).trim() : '';
+    if (!taskTitle && additionalDataObj?.unit_assignments) {
+      for (const [_, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+        if (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.includes(aid)) {
+          taskTitle = uMeta.service_name ? `${uMeta.service_name} task` : 'Assigned Unit Task';
+          break;
         }
       }
+    }
+    if (!taskTitle) taskTitle = 'Assigned Unit Task';
+
+    if (!existingTask) {
+      await db.prepare(
+        `INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status) VALUES (?, ?, ?, ?, 'pending')`
+      ).bind(request.id, taskTitle, aid, user.id).run();
+    } else if (staff_tasks?.[aid] && typeof staff_tasks[aid] === 'string' && staff_tasks[aid].trim()) {
+      await db.prepare(
+        `UPDATE job_tasks SET title = ? WHERE id = ?`
+      ).bind(staff_tasks[aid].trim(), existingTask.id).run();
     }
   }
 

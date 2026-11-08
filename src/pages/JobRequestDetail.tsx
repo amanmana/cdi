@@ -1968,13 +1968,13 @@ export const JobRequestDetail: React.FC = () => {
                             ? `ASSIGN ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`
                             : `MANAGE ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`}
                         </>
-                      ) : user?.role === 'staff' && !user?.is_acting_manager ? (
+                      ) : Boolean(user?.is_unit_head) || user?.role === 'manager' || user?.role === 'admin' ? (
                         <>
-                          <UserPlus className="w-3.5 h-3.5" /> INVITE TEAM
+                          <Users className="w-3.5 h-3.5" /> MANAGE TEAM
                         </>
                       ) : (
                         <>
-                          <Edit2 className="w-3.5 h-3.5" /> EDIT TEAM
+                          <UserPlus className="w-3.5 h-3.5" /> INVITE TEAM
                         </>
                       )}
                     </button>
@@ -4243,12 +4243,12 @@ export const JobRequestDetail: React.FC = () => {
               <h3 className="text-xl font-bold text-slate-800 tracking-tight">
                 {isInterUnitJob && isCollaboratingUnitHead
                   ? `Manage ${user?.unit || ''} Team Assignment`
-                  : (user?.role === 'staff' && !user?.is_acting_manager ? 'Invite Team Members' : 'Manage Team Assignment')}
+                  : (user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head ? 'Invite Team Members' : 'Manage Team Assignment')}
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-1">
                 {isInterUnitJob && isCollaboratingUnitHead
                   ? `Assign or update staff from ${user?.unit || 'your unit'} for this project.`
-                  : (user?.role === 'staff' && !user?.is_acting_manager
+                  : (user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head
                     ? 'Invite staff members and specify tasks for this project.'
                     : 'Add or remove staff assigned to this project and set tasks.')}
               </p>
@@ -4471,10 +4471,10 @@ export const JobRequestDetail: React.FC = () => {
               >
                 {actionLoading ? (
                   <span className="loading loading-spinner"></span>
-                ) : user?.role === 'staff' && !user?.is_acting_manager ? (
+                ) : user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head ? (
                   'Invite Team'
                 ) : (
-                  'Update Assignments'
+                  'Save Team Assignment'
                 )}
               </button>
             </div>
