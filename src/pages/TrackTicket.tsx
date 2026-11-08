@@ -250,8 +250,21 @@ export const TrackTicket: React.FC = () => {
                         fields: uMeta?.custom_fields || {},
                       }))
                   ).map((srv: any, idx: number) => {
-                    const uMeta = data.request.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name];
+                    const uAssignments = data.request.additional_data?.unit_assignments || {};
+                    const compoundKey = `${srv.target_unit_name || srv.name} — ${srv.display_label || srv.name}`;
+                    const uMeta = 
+                      uAssignments[compoundKey] ||
+                      uAssignments[srv.display_label || srv.name] ||
+                      uAssignments[srv.target_unit_name || srv.name] ||
+                      Object.entries(uAssignments).find(([k, v]: [string, any]) => 
+                        v?.service_name === (srv.display_label || srv.name) ||
+                        v?.service_key === srv.key ||
+                        k.includes(srv.display_label || srv.name)
+                      )?.[1];
+
+                    const isRejected = uMeta?.status === 'rejected';
                     const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
+
                     return (
                       <div key={idx} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-3">
                         <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
@@ -264,9 +277,13 @@ export const TrackTicket: React.FC = () => {
                             </span>
                           </div>
                           <span className={`badge border-none font-bold text-[10px] uppercase px-2.5 py-0.5 ${
-                            isAccepted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            isRejected
+                              ? 'bg-rose-100 text-rose-800'
+                              : isAccepted
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-amber-100 text-amber-800'
                           }`}>
-                            {isAccepted ? 'Assigned & In Progress' : 'Reviewing / Pending Staff'}
+                            {isRejected ? 'Scope Rejected' : isAccepted ? 'Assigned & In Progress' : 'Reviewing / Pending Staff'}
                           </span>
                         </div>
 
