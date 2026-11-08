@@ -1166,20 +1166,17 @@ export const JobRequestDetail: React.FC = () => {
   );
 
   // Identify staff already assigned to other active sub-services/tracks in this request
-  const staffAssignedToOtherTracks = useMemo(() => {
-    const map: Record<number, string> = {};
-    if (request?.additional_data?.unit_assignments) {
-      for (const [trackKey, trackMeta] of Object.entries(request.additional_data.unit_assignments as any)) {
-        if (trackKey === myUnitEntry?.[0]) continue;
-        if ((trackMeta?.status === 'accepted' || trackMeta?.routing_target === 'staff') && Array.isArray(trackMeta?.assigned_staff_ids)) {
-          trackMeta.assigned_staff_ids.forEach((sid: number) => {
-            map[sid] = trackMeta.service_name || trackKey;
-          });
-        }
+  const staffAssignedToOtherTracks: Record<number, string> = {};
+  if (request?.additional_data?.unit_assignments) {
+    for (const [trackKey, trackMeta] of Object.entries(request.additional_data.unit_assignments as any)) {
+      if (trackKey === myUnitEntry?.[0]) continue;
+      if ((trackMeta?.status === 'accepted' || trackMeta?.routing_target === 'staff') && Array.isArray(trackMeta?.assigned_staff_ids)) {
+        trackMeta.assigned_staff_ids.forEach((sid: number) => {
+          staffAssignedToOtherTracks[sid] = trackMeta.service_name || trackKey;
+        });
       }
     }
-    return map;
-  }, [request?.additional_data?.unit_assignments, myUnitEntry]);
+  }
 
   const getAstRequesterBadge = (ast: any) => {
     if (!ast) return 'Staff';
