@@ -342,36 +342,7 @@ export const JobRequestDetail: React.FC = () => {
     }
     setActionLoading(true);
     try {
-      // 1. Update assigned team if acting as Unit Head
-      if (isUnitHeadActor && selectedStaff.length > 0) {
-        let combinedStaff = [...selectedStaff];
-        if (request.additional_data?.origin_staff_id) {
-          const oId = Number(request.additional_data.origin_staff_id);
-          if (!combinedStaff.includes(oId)) {
-            combinedStaff.push(oId);
-          }
-        }
-        if (request.assigned_staff_ids) {
-          const existingIds = String(request.assigned_staff_ids)
-            .split(',')
-            .map((s: string) => Number(s.trim()))
-            .filter((n: number) => !isNaN(n));
-          existingIds.forEach((eid: number) => {
-            if (!combinedStaff.includes(eid)) combinedStaff.push(eid);
-          });
-        }
-
-        await fetch(`/api/job-requests/${id}/update-team`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            staff_ids: combinedStaff,
-            staff_tasks: staffTasks,
-          }),
-        });
-      }
-
-      // 2. Update timeline
+      // 1. Update timeline
       if (startDate || deadline) {
         await fetch(`/api/job-requests/${id}/update-timeline`, {
           method: 'POST',
@@ -380,7 +351,7 @@ export const JobRequestDetail: React.FC = () => {
         });
       }
 
-      // 3. Perform approval transition
+      // 2. Perform approval transition & staff team assignment
       const res = await fetch(`/api/job-requests/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -389,6 +360,7 @@ export const JobRequestDetail: React.FC = () => {
           start_date: startDate,
           deadline: deadline,
           staff_ids: isUnitHeadActor ? selectedStaff : undefined,
+          staff_tasks: isUnitHeadActor ? staffTasks : undefined,
         }),
       });
 

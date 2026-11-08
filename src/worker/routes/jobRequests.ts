@@ -2042,6 +2042,9 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
         }) || (user.unit && (user.unit.toLowerCase().trim() === targetUnit.toLowerCase().trim() || uName.toLowerCase().trim().startsWith(user.unit.toLowerCase().trim())));
 
         if (matchesUnit) {
+          // If this track was directly routed to staff (e.g. Web Development), it does not need Unit Head assignment
+          if ((uMeta as any).routing_target === 'staff') continue;
+
           if ((uMeta as any).status === 'awaiting_head_assignment' || (uMeta as any).status !== 'accepted') {
             currentUnitMeta = uMeta;
             break;
@@ -2069,16 +2072,27 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
             currentUnitMeta.assigned_staff_names = sRows.results.map((r: any) => r.name);
           }
 
+          if (staff_tasks && typeof staff_tasks === 'object') {
+            additionalDataObj.staff_tasks = {
+              ...(additionalDataObj.staff_tasks || {}),
+              ...staff_tasks,
+            };
+          }
+
           // Create individual tasks in job_tasks for any assigned staff who don't have one yet
           for (const sid of staff_ids) {
+            const taskTitle = staff_tasks?.[sid] || (currentUnitMeta.service_name ? `${currentUnitMeta.service_name} task` : 'Assigned Unit Task');
             const existingTask = await db.prepare(
               'SELECT id FROM job_tasks WHERE job_request_id = ? AND assigned_to_user_id = ?'
-            ).bind(request.id, sid).first();
+            ).bind(request.id, sid).first<{ id: number }>();
             if (!existingTask) {
-              const taskTitle = currentUnitMeta.service_name ? `${currentUnitMeta.service_name} task` : 'Assigned Unit Task';
               await db.prepare(
                 'INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status) VALUES (?, ?, ?, ?, "pending")'
               ).bind(request.id, taskTitle, sid, user.id).run();
+            } else if (staff_tasks?.[sid]) {
+              await db.prepare(
+                'UPDATE job_tasks SET title = ? WHERE id = ?'
+              ).bind(taskTitle, existingTask.id).run();
             }
           }
         }
@@ -2523,12 +2537,32 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
       }
 
       if (Array.isArray(staff_ids)) {
+        // Collect staff IDs already assigned to direct-to-staff tracks so they are not cross-assigned
+        const directStaffIds = new Set<number>();
+        for (const [otherKey, otherMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+          if (otherKey !== uName && (otherMeta as any)?.routing_target === 'staff' && Array.isArray((otherMeta as any)?.assigned_staff_ids)) {
+            (otherMeta as any).assigned_staff_ids.forEach((sid: number) => directStaffIds.add(sid));
+          }
+        }
+
         const matchingStaffForThisUnit = staff_ids.filter((sid: number) => {
+          if (directStaffIds.has(sid)) return false;
           const u = staffUnitMap[sid];
           return u && (u === baseUnit || u === uName.toLowerCase().trim());
         });
         if (isCurrentHeadUnit || matchingStaffForThisUnit.length > 0) {
           (uMeta as any).assigned_staff_ids = matchingStaffForThisUnit;
+          if (matchingStaffForThisUnit.length > 0) {
+            const placeholders = matchingStaffForThisUnit.map(() => '?').join(',');
+            const sRows = await db.prepare(
+              `SELECT id, name FROM users WHERE id IN (${placeholders})`
+            ).bind(...matchingStaffForThisUnit).all<any>();
+            if (sRows?.results) {
+              (uMeta as any).assigned_staff_names = sRows.results.map((r: any) => r.name);
+            }
+          } else {
+            (uMeta as any).assigned_staff_names = [];
+          }
         }
       }
     }
