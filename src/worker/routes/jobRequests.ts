@@ -3132,15 +3132,15 @@ jobRequestsRouter.post('/:id/update-timeline', async (c) => {
   return c.json({ success: true, message: 'Timeline updated.' });
 });
 
-// POST /api/job-requests/:id/unit-timeline - Update milestone timeline for a specific unit
+// POST /api/job-requests/:id/unit-timeline - Update milestone timeline for a specific unit/service track
 jobRequestsRouter.post('/:id/unit-timeline', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
   const idParam = c.req.param('id');
-  const { unit_name, start_date, deadline, milestone_note } = await c.req.json();
+  const { unit_name, service_label, start_date, deadline, milestone_note } = await c.req.json();
 
-  if (!unit_name) {
-    return c.json({ error: 'Unit name is required.' }, 400);
+  if (!unit_name && !service_label) {
+    return c.json({ error: 'Unit or service identifier is required.' }, 400);
   }
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -3165,22 +3165,48 @@ jobRequestsRouter.post('/:id/unit-timeline', async (c) => {
     addData.unit_assignments = {};
   }
 
-  // Update in unit_assignments
-  if (!addData.unit_assignments[unit_name]) {
-    addData.unit_assignments[unit_name] = {};
-  }
-  addData.unit_assignments[unit_name].start_date = start_date || null;
-  addData.unit_assignments[unit_name].deadline = deadline || null;
-  if (milestone_note !== undefined) {
-    addData.unit_assignments[unit_name].milestone_note = String(milestone_note).trim();
+  // 1. Determine targetKey in unit_assignments
+  let targetKey = unit_name;
+  if (!addData.unit_assignments[targetKey]) {
+    // Try finding by exact service_name or compound match
+    const foundEntry = Object.entries(addData.unit_assignments).find(([k, v]: [string, any]) => {
+      return k === unit_name ||
+        (service_label && v?.service_name === service_label) ||
+        v?.service_name === unit_name ||
+        (service_label && k.endsWith(`— ${service_label}`)) ||
+        k.endsWith(`— ${unit_name}`);
+    });
+    if (foundEntry) {
+      targetKey = foundEntry[0];
+    } else {
+      addData.unit_assignments[targetKey] = {};
+    }
   }
 
-  // Also sync in selected_services if matching
+  addData.unit_assignments[targetKey].start_date = start_date || null;
+  addData.unit_assignments[targetKey].deadline = deadline || null;
+  if (milestone_note !== undefined) {
+    addData.unit_assignments[targetKey].milestone_note = String(milestone_note).trim();
+  }
+
+  // 2. Also sync in selected_services for ONLY the matching service!
   if (Array.isArray(addData.selected_services)) {
     for (const s of addData.selected_services) {
-      if ((s.target_unit_name || s.name) === unit_name) {
+      const sLabel = s.display_label || s.name;
+      const sCompound = `${s.target_unit_name || s.name} — ${sLabel}`;
+      const isMatch = sCompound === targetKey ||
+        (service_label && sLabel === service_label) ||
+        (service_label && s.name === service_label) ||
+        s.name === targetKey ||
+        (s.target_unit_name || s.name) === targetKey;
+
+      if (isMatch) {
         s.start_date = start_date || null;
         s.deadline = deadline || null;
+        if (milestone_note !== undefined) {
+          s.milestone_note = String(milestone_note).trim();
+        }
+        break; // Stop after updating ONLY the matching service deliverable
       }
     }
   }
@@ -3189,7 +3215,8 @@ jobRequestsRouter.post('/:id/unit-timeline', async (c) => {
     .bind(JSON.stringify(addData), request.id)
     .run();
 
-  const logComment = `Updated deliverable milestone for [${unit_name}]: Target ${deadline || 'N/A'}${milestone_note ? ` ("${String(milestone_note).trim()}")` : ''}`;
+  const displayService = service_label || addData.unit_assignments[targetKey]?.service_name || targetKey;
+  const logComment = `Updated deliverable milestone for [${displayService}]: Target ${deadline || 'N/A'}${milestone_note ? ` ("${String(milestone_note).trim()}")` : ''}`;
   await db.prepare(`
     INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment)
     VALUES (?, 'UPDATE_TIMELINE', ?, ?, ?)

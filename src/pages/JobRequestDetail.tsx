@@ -83,6 +83,7 @@ export const JobRequestDetail: React.FC = () => {
   // Unit Deliverable Milestone Modal State
   const [showUnitMilestoneModal, setShowUnitMilestoneModal] = useState(false);
   const [milestoneUnitName, setMilestoneUnitName] = useState('');
+  const [milestoneServiceLabel, setMilestoneServiceLabel] = useState('');
   const [milestoneStartDate, setMilestoneStartDate] = useState('');
   const [milestoneDeadline, setMilestoneDeadline] = useState('');
   const [milestoneNote, setMilestoneNote] = useState('');
@@ -471,8 +472,15 @@ export const JobRequestDetail: React.FC = () => {
     }
   };
 
-  const handleOpenUnitMilestoneModal = (uName: string, curStart?: string, curDead?: string, curNote?: string) => {
+  const handleOpenUnitMilestoneModal = (
+    uName: string,
+    serviceLabel: string,
+    curStart?: string,
+    curDead?: string,
+    curNote?: string
+  ) => {
     setMilestoneUnitName(uName);
+    setMilestoneServiceLabel(serviceLabel);
     setMilestoneStartDate(curStart || request?.start_date || new Date().toISOString().split('T')[0]);
     setMilestoneDeadline(curDead || request?.deadline || '');
     setMilestoneNote(curNote || '');
@@ -500,6 +508,7 @@ export const JobRequestDetail: React.FC = () => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           unit_name: milestoneUnitName,
+          service_label: milestoneServiceLabel,
           start_date: milestoneStartDate,
           deadline: milestoneDeadline,
           milestone_note: milestoneNote,
@@ -2259,6 +2268,12 @@ export const JobRequestDetail: React.FC = () => {
 
                           {/* Unit Milestone Target Timeline */}
                           {(() => {
+                            const compoundKey = `${srv.target_unit_name || srv.name} — ${srv.display_label || srv.name}`;
+                            const targetUnitTrackKey = (request?.additional_data?.unit_assignments?.[compoundKey] ? compoundKey : null)
+                              || (request?.additional_data?.unit_assignments?.[srv.display_label || srv.name] ? (srv.display_label || srv.name) : null)
+                              || (request?.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name] ? (srv.target_unit_name || srv.name) : null)
+                              || compoundKey;
+                            const serviceLabel = srv.display_label || srv.name;
                             const unitName = srv.target_unit_name || srv.name;
                             const unitDeadline = uMeta?.deadline || srv.deadline;
                             const unitStartDate = uMeta?.start_date || srv.start_date;
@@ -2319,7 +2334,7 @@ export const JobRequestDetail: React.FC = () => {
                                 {canEditThisUnitMilestone && (
                                   <button
                                     type="button"
-                                    onClick={() => handleOpenUnitMilestoneModal(unitName, unitStartDate, unitDeadline, unitMilestoneNote)}
+                                    onClick={() => handleOpenUnitMilestoneModal(targetUnitTrackKey, serviceLabel, unitStartDate, unitDeadline, unitMilestoneNote)}
                                     className="btn btn-ghost btn-xs text-indigo-600 hover:bg-indigo-100/70 font-black text-[10px] uppercase gap-1 px-2.5 py-1 h-7 rounded-lg border border-indigo-200/80 shadow-2xs shrink-0 self-end sm:self-center"
                                   >
                                     <Edit3 className="w-3 h-3" />
@@ -4895,10 +4910,10 @@ export const JobRequestDetail: React.FC = () => {
                 <span>Unit Deliverable Milestone</span>
               </div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                Set Timeline for {milestoneUnitName}
+                Set Timeline for {milestoneServiceLabel || milestoneUnitName}
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                Set internal start and target completion dates for this unit's deliverables.
+                Set internal start and target completion dates for this service's deliverables.
                 {request?.deadline && (
                   <span className="block mt-1 text-slate-700 font-bold">
                     Master Project Deadline: {formatDate(request.deadline)}
