@@ -746,8 +746,12 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   const toggleStaffSelection = (staffId: number) => {
-    // If the logged-in user is staff, prevent them from removing existing assigned team members
-    if (user?.role === 'staff' && !user?.is_acting_manager) {
+    // If the logged-in user is regular staff (NOT manager, NOT acting manager, NOT unit head),
+    // prevent them from removing existing assigned team members.
+    // Unit Heads, Managers, Acting Managers, and Admins can manage and change team assignments freely.
+    const isUnitHeadUser = Boolean(user?.is_unit_head && user.is_unit_head !== 0 && (user.is_unit_head as any) !== '0');
+    const isRegularStaff = Boolean(user?.role === 'staff' && !user?.is_acting_manager && !isUnitHeadUser);
+    if (isRegularStaff) {
       const isAlreadyAssigned = Boolean(request.assigned_staff_ids?.split(',').map(Number).includes(staffId));
       if (isAlreadyAssigned) {
         return;
@@ -4243,12 +4247,14 @@ export const JobRequestDetail: React.FC = () => {
               <h3 className="text-xl font-bold text-slate-800 tracking-tight">
                 {isInterUnitJob && isCollaboratingUnitHead
                   ? `Manage ${user?.unit || ''} Team Assignment`
-                  : (user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head ? 'Invite Team Members' : 'Manage Team Assignment')}
+                  : (user?.role === 'staff' && !user?.is_acting_manager && !Boolean(user?.is_unit_head && user.is_unit_head !== 0 && (user.is_unit_head as any) !== '0')
+                    ? 'Invite Team Members'
+                    : 'Manage Team Assignment')}
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-1">
                 {isInterUnitJob && isCollaboratingUnitHead
                   ? `Assign or update staff from ${user?.unit || 'your unit'} for this project.`
-                  : (user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head
+                  : (user?.role === 'staff' && !user?.is_acting_manager && !Boolean(user?.is_unit_head && user.is_unit_head !== 0 && (user.is_unit_head as any) !== '0')
                     ? 'Invite staff members and specify tasks for this project.'
                     : 'Add or remove staff assigned to this project and set tasks.')}
               </p>
@@ -4368,10 +4374,11 @@ export const JobRequestDetail: React.FC = () => {
                   const lockedToService = staffAssignedToOtherTracks[m.id];
                   const isLockedToOtherService = Boolean(lockedToService);
                   // For regular staff, lock staff who are already in the team from being removed. Unit Heads can manage team.
-                  const isRegularStaff = user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head;
+                  const isUnitHeadUser = Boolean(user?.is_unit_head && user.is_unit_head !== 0 && (user.is_unit_head as any) !== '0');
+                  const isRegularStaff = Boolean(user?.role === 'staff' && !user?.is_acting_manager && !isUnitHeadUser);
                   const isLocked = isRegularStaff
                     ? (isSelfStaff || isAlreadyDone || isAlreadyAssigned || isLockedToOtherService)
-                    : (isSelfStaff || isAlreadyDone || isLockedToOtherService);
+                    : (isAlreadyDone || isLockedToOtherService);
 
                   return (
                     <div
@@ -4471,7 +4478,7 @@ export const JobRequestDetail: React.FC = () => {
               >
                 {actionLoading ? (
                   <span className="loading loading-spinner"></span>
-                ) : user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head ? (
+                ) : user?.role === 'staff' && !user?.is_acting_manager && !Boolean(user?.is_unit_head && user.is_unit_head !== 0 && (user.is_unit_head as any) !== '0') ? (
                   'Invite Team'
                 ) : (
                   'Save Team Assignment'
