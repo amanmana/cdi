@@ -351,8 +351,18 @@ export const PublicHome: React.FC = () => {
           additional_data: {
             is_multi_unit: selectedItems.length > 1,
             selected_services: selectedServicesPayload,
-            unit_scopes: Object.fromEntries(
-              selectedItems.map((item) => [
+            unit_scopes: Object.fromEntries([
+              ...selectedItems.map((item) => [
+                item.key || `${item.target_unit_name}_${item.id || item.name}`,
+                {
+                  unit: item.target_unit_name,
+                  service_name: item.name,
+                  service_display_label: item.display_label,
+                  scope: unitScopes[item.key]?.description || '',
+                  fields: unitScopes[item.key]?.fields || {},
+                },
+              ]),
+              ...selectedItems.map((item) => [
                 item.target_unit_name,
                 {
                   service_name: item.name,
@@ -360,8 +370,8 @@ export const PublicHome: React.FC = () => {
                   scope: unitScopes[item.key]?.description || '',
                   fields: unitScopes[item.key]?.fields || {},
                 },
-              ])
-            ),
+              ]),
+            ]),
           },
         }),
       });

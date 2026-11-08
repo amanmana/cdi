@@ -1972,8 +1972,9 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
 
     if (additionalDataObj.unit_assignments) {
       for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
-        const uClean = uName.toLowerCase().trim();
-        const belongsToManager = isAdminActor || managerDeptUnits.includes(uClean);
+        const targetUnit = (uMeta as any)?.unit_name || uName;
+        const uClean = targetUnit.toLowerCase().trim();
+        const belongsToManager = isAdminActor || managerDeptUnits.includes(uClean) || managerDeptUnits.some(m => uClean.startsWith(m) || uName.toLowerCase().trim().startsWith(m));
         if (belongsToManager) {
           (uMeta as any).manager_approved = true;
           (uMeta as any).manager_id = user.id;
@@ -2034,12 +2035,20 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
     if (additionalDataObj.unit_assignments) {
       let currentUnitMeta: any = null;
       for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
-        if (
-          userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
-          (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim())
-        ) {
-          currentUnitMeta = uMeta;
-          break;
+        const targetUnit = (uMeta as any)?.unit_name || uName;
+        const matchesUnit = userManagedUnits.some(mu => {
+          const m = mu.toLowerCase().trim();
+          return m === targetUnit.toLowerCase().trim() || m === uName.toLowerCase().trim() || uName.toLowerCase().trim().startsWith(m);
+        }) || (user.unit && (user.unit.toLowerCase().trim() === targetUnit.toLowerCase().trim() || uName.toLowerCase().trim().startsWith(user.unit.toLowerCase().trim())));
+
+        if (matchesUnit) {
+          if ((uMeta as any).status === 'awaiting_head_assignment' || (uMeta as any).status !== 'accepted') {
+            currentUnitMeta = uMeta;
+            break;
+          }
+          if (!currentUnitMeta) {
+            currentUnitMeta = uMeta;
+          }
         }
       }
 
@@ -2054,6 +2063,24 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
         currentUnitMeta.head_name = user.name;
         if (Array.isArray(staff_ids) && staff_ids.length > 0) {
           currentUnitMeta.assigned_staff_ids = staff_ids;
+          const placeholders = staff_ids.map(() => '?').join(',');
+          const sRows = await db.prepare(`SELECT id, name FROM users WHERE id IN (${placeholders})`).bind(...staff_ids).all<any>();
+          if (sRows?.results) {
+            currentUnitMeta.assigned_staff_names = sRows.results.map((r: any) => r.name);
+          }
+
+          // Create individual tasks in job_tasks for any assigned staff who don't have one yet
+          for (const sid of staff_ids) {
+            const existingTask = await db.prepare(
+              'SELECT id FROM job_tasks WHERE job_request_id = ? AND assigned_to_user_id = ?'
+            ).bind(request.id, sid).first();
+            if (!existingTask) {
+              const taskTitle = currentUnitMeta.service_name ? `${currentUnitMeta.service_name} task` : 'Assigned Unit Task';
+              await db.prepare(
+                'INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status) VALUES (?, ?, ?, ?, "pending")'
+              ).bind(request.id, taskTitle, sid, user.id).run();
+            }
+          }
         }
       }
 
@@ -2183,9 +2210,52 @@ jobRequestsRouter.post('/:id/reject', async (c) => {
     return c.json({ error: 'Unauthorized to reject this request.' }, 403);
   }
 
+  const fromStep = request.current_step_name || 'Manager Review';
+
+  if (isMultiUnit && additionalDataObj.unit_assignments) {
+    let managerDeptUnits: string[] = [];
+    if (user.role !== 'admin' && user.role !== 'director') {
+      const managerDeptId = (user as any).managed_department_id || user.department_id || (user as any).acting_manager_department_id;
+      if (managerDeptId) {
+        const { results: mUnits } = await db.prepare('SELECT name FROM units WHERE department_id = ?').bind(managerDeptId).all<{ name: string }>();
+        managerDeptUnits = (mUnits || []).map(u => u.name.toLowerCase().trim());
+      }
+    }
+
+    let hasOtherActiveUnits = false;
+    let anyUnitUpdated = false;
+
+    for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+      const targetUnit = (uMeta as any)?.unit_name || uName;
+      const uClean = targetUnit.toLowerCase().trim();
+      const belongsToManager = user.role === 'admin' || user.role === 'director' || managerDeptUnits.includes(uClean) || managerDeptUnits.some(m => uClean.startsWith(m) || uName.toLowerCase().trim().startsWith(m));
+
+      if (belongsToManager && (uMeta as any).status !== 'accepted') {
+        (uMeta as any).status = 'rejected';
+        (uMeta as any).rejected_by = user.name;
+        (uMeta as any).rejected_reason = comment;
+        anyUnitUpdated = true;
+      } else if ((uMeta as any).status === 'accepted' || (uMeta as any).routing_target === 'staff') {
+        hasOtherActiveUnits = true;
+      }
+    }
+
+    if (anyUnitUpdated && hasOtherActiveUnits) {
+      await db.prepare(
+        'UPDATE job_requests SET status = "staff_processing", current_step_name = "Staff Processing & Design", additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(JSON.stringify(additionalDataObj), request.id).run();
+
+      await db.prepare(
+        `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
+         VALUES (?, 'REJECT_PART', ?, ?, ?, 'Staff Processing & Design', ?)`
+      ).bind(request.id, user.id, user.name, fromStep, `Scope rejected by Manager (${user.name}): ${comment}. Other active services remain in progress.`).run();
+
+      return c.json({ success: true, message: 'Scope rejected. Other active services remain in progress.' });
+    }
+  }
+
   const newStatus = 'rejected';
   const newStepName = 'Rejected';
-  const fromStep = request.current_step_name || 'Manager Review';
 
   await db.prepare(
     'UPDATE job_requests SET status = ?, current_step_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
@@ -2436,9 +2506,15 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     }
 
     for (const [uName, uMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+      const baseUnit = ((uMeta as any)?.unit_name || uName.split(' — ')[0]).toLowerCase().trim();
       const isCurrentHeadUnit =
-        userManagedUnits.some(mu => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
-        (user.unit && user.unit.toLowerCase().trim() === uName.toLowerCase().trim());
+        userManagedUnits.some(mu => mu.toLowerCase().trim() === baseUnit || mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+        (user.unit && (user.unit.toLowerCase().trim() === baseUnit || user.unit.toLowerCase().trim() === uName.toLowerCase().trim()));
+
+      // If this track was directly routed to staff (e.g. Web Development), do not overwrite its assigned_staff_ids or status
+      if ((uMeta as any)?.routing_target === 'staff') {
+        continue;
+      }
 
       if (isCurrentHeadUnit) {
         (uMeta as any).status = 'accepted';
@@ -2449,7 +2525,7 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
       if (Array.isArray(staff_ids)) {
         const matchingStaffForThisUnit = staff_ids.filter((sid: number) => {
           const u = staffUnitMap[sid];
-          return u && u === uName.toLowerCase().trim();
+          return u && (u === baseUnit || u === uName.toLowerCase().trim());
         });
         if (isCurrentHeadUnit || matchingStaffForThisUnit.length > 0) {
           (uMeta as any).assigned_staff_ids = matchingStaffForThisUnit;
@@ -2476,7 +2552,25 @@ jobRequestsRouter.post('/:id/update-team', async (c) => {
     }
   }
 
-  const assignedStr = Array.isArray(staff_ids) ? staff_ids.join(',') : '';
+  // Combine staff_ids with any staff assigned to direct-to-staff tracks in unit_assignments
+  const allAssignedIds = new Set<number>();
+  if (Array.isArray(staff_ids)) {
+    staff_ids.forEach(id => {
+      const n = Number(id);
+      if (!isNaN(n) && n > 0) allAssignedIds.add(n);
+    });
+  }
+  if (additionalDataObj?.unit_assignments) {
+    for (const [_, trackMeta] of Object.entries(additionalDataObj.unit_assignments as any)) {
+      if (Array.isArray(trackMeta?.assigned_staff_ids)) {
+        trackMeta.assigned_staff_ids.forEach((id: any) => {
+          const n = Number(id);
+          if (!isNaN(n) && n > 0) allAssignedIds.add(n);
+        });
+      }
+    }
+  }
+  const assignedStr = Array.from(allAssignedIds).join(',');
 
   // Merge staff_tasks into additional_data
   if (staff_tasks && typeof staff_tasks === 'object') {

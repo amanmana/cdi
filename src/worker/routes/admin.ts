@@ -465,7 +465,8 @@ admin.put('/units/:id', async (c) => {
   const user = c.get('user');
   const id = c.req.param('id');
   const numId = parseInt(id, 10);
-  const { name, department_id, public_label, is_public, head_id, routing_target, suggested_staff_id, suggested_staff_name, form_schema } = await c.req.json();
+  const body = await c.req.json();
+  const { name, department_id, public_label, is_public, head_id, routing_target, suggested_staff_id, suggested_staff_name, form_schema } = body;
 
   const isAdmin = user.role === 'admin' || user.role === 'director';
   const isHeadUnit = Boolean(user.is_unit_head);
@@ -525,13 +526,27 @@ admin.put('/units/:id', async (c) => {
     updates.push('routing_target = ?');
     params.push(routing_target || 'manager');
   }
-  if (suggested_staff_id !== undefined) {
+  if (suggested_staff_id !== undefined || body.suggested_staff_ids !== undefined) {
+    const rawStaffInput = body.suggested_staff_ids !== undefined ? body.suggested_staff_ids : suggested_staff_id;
+    let staffIdToSave: string | null = null;
+    let staffNameToSave: string | null = null;
+    if (rawStaffInput) {
+      const idList: number[] = Array.isArray(rawStaffInput)
+        ? rawStaffInput.map(Number).filter((n) => !isNaN(n) && n > 0)
+        : String(rawStaffInput).split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n) && n > 0);
+      if (idList.length > 0) {
+        staffIdToSave = idList.join(',');
+        const placeholders = idList.map(() => '?').join(',');
+        const staffRows = await db.prepare(`SELECT id, name FROM users WHERE id IN (${placeholders})`).bind(...idList).all<any>();
+        if (staffRows?.results && staffRows.results.length > 0) {
+          staffNameToSave = staffRows.results.map((r: any) => r.name).join(', ');
+        }
+      }
+    }
     updates.push('suggested_staff_id = ?');
-    params.push(suggested_staff_id ? Number(suggested_staff_id) : null);
-  }
-  if (suggested_staff_name !== undefined) {
+    params.push(staffIdToSave);
     updates.push('suggested_staff_name = ?');
-    params.push(suggested_staff_name || null);
+    params.push(staffNameToSave);
   }
   if (form_schema !== undefined) {
     updates.push('form_schema = ?');

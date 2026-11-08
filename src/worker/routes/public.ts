@@ -208,8 +208,19 @@ publicApi.post('/job-requests', async (c) => {
     }
 
     if (Array.isArray(selected_services) && selected_services.length > 0) {
+      const unitServiceCounts: Record<string, number> = {};
+      for (const s of selected_services) {
+        const u = s.target_unit_name || s.name;
+        unitServiceCounts[u] = (unitServiceCounts[u] || 0) + 1;
+      }
+
       for (const s of selected_services) {
         const uName = s.target_unit_name || s.name;
+        const serviceLabel = s.display_label || s.name || uName;
+        const assignmentKey = unitServiceCounts[uName] > 1
+          ? `${uName} — ${serviceLabel}`
+          : uName;
+
         if (!targetUnitsList.includes(uName)) {
           targetUnitsList.push(uName);
         }
@@ -265,32 +276,28 @@ publicApi.post('/job-requests', async (c) => {
           for (const sid of srvStaffIds) {
             if (!initialStaffIdsList.includes(sid)) {
               initialStaffIdsList.push(sid);
-              directStaffTasks.push({
-                staffId: sid,
-                title: s.scope || title,
-              });
             }
+            directStaffTasks.push({
+              staffId: sid,
+              title: `${serviceLabel}: ${s.scope || title}`,
+            });
           }
         }
 
-        const existingAssignment = unitAssignmentsMap[uName];
-        const effectiveRouting = (existingAssignment?.routing_target === 'manager' || rTarget === 'manager')
-          ? 'manager'
-          : (existingAssignment?.routing_target === 'head_unit' || rTarget === 'head_unit')
-          ? 'head_unit'
-          : rTarget;
-
-        unitAssignmentsMap[uName] = {
-          status: isDirectStaff ? 'accepted' : (effectiveRouting === 'head_unit' ? 'awaiting_head_assignment' : (effectiveRouting === 'staff' ? 'accepted' : 'pending_manager_approval')),
-          assigned_staff_ids: isDirectStaff ? srvStaffIds : (existingAssignment?.assigned_staff_ids || []),
-          assigned_staff_names: isDirectStaff ? srvStaffNames : (existingAssignment?.assigned_staff_names || []),
-          service_name: existingAssignment ? `${existingAssignment.service_name}, ${s.display_label || s.name || uName}` : (s.display_label || s.name || uName),
-          routing_target: effectiveRouting,
-          suggested_staff_id: srvStaffIds.join(',') || existingAssignment?.suggested_staff_id || null,
-          suggested_staff_name: srvStaffNames.join(', ') || existingAssignment?.suggested_staff_name || null,
+        unitAssignmentsMap[assignmentKey] = {
+          unit_name: uName,
+          service_name: serviceLabel,
+          service_key: s.key,
+          target_unit_id: uId,
+          status: isDirectStaff ? 'accepted' : (rTarget === 'head_unit' ? 'awaiting_head_assignment' : 'pending_manager_approval'),
+          assigned_staff_ids: isDirectStaff ? srvStaffIds : [],
+          assigned_staff_names: isDirectStaff ? srvStaffNames : [],
+          routing_target: rTarget,
+          suggested_staff_id: srvStaffIds.join(',') || null,
+          suggested_staff_name: srvStaffNames.join(', ') || null,
           department_id: uRow?.department_id || null,
-          scope: existingAssignment ? `${existingAssignment.scope}\n\n[${s.display_label || s.name}]: ${s.scope || ''}` : (s.scope || ''),
-          custom_fields: { ...(existingAssignment?.custom_fields || {}), ...(s.fields || {}) },
+          scope: s.scope || '',
+          custom_fields: s.fields || {},
         };
       }
 

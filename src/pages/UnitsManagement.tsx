@@ -120,6 +120,7 @@ export const UnitsManagement: React.FC = () => {
     is_public: true,
     head_id: '',
     routing_target: 'manager',
+    suggested_staff_ids: [] as number[],
     suggested_staff_id: '',
     suggested_staff_name: '',
   });
@@ -491,6 +492,13 @@ export const UnitsManagement: React.FC = () => {
   // ==========================================
   const handleOpenConfigUnitModal = (u: any) => {
     setConfiguringUnit(u);
+    const parsedStaffIds: number[] = u.suggested_staff_id
+      ? String(u.suggested_staff_id)
+          .split(',')
+          .map((s: string) => Number(s.trim()))
+          .filter((n: number) => !isNaN(n) && n > 0)
+      : [];
+
     setUnitConfigForm({
       name: u.name || '',
       department_id: u.department_id ? String(u.department_id) : '',
@@ -498,6 +506,7 @@ export const UnitsManagement: React.FC = () => {
       is_public: u.is_public !== undefined ? Boolean(u.is_public) : true,
       head_id: u.head_id ? String(u.head_id) : '',
       routing_target: u.routing_target || 'manager',
+      suggested_staff_ids: parsedStaffIds,
       suggested_staff_id: u.suggested_staff_id ? String(u.suggested_staff_id) : '',
       suggested_staff_name: u.suggested_staff_name || '',
     });
@@ -520,7 +529,8 @@ export const UnitsManagement: React.FC = () => {
           is_public: unitConfigForm.is_public ? 1 : 0,
           head_id: unitConfigForm.head_id ? Number(unitConfigForm.head_id) : null,
           routing_target: unitConfigForm.routing_target || 'manager',
-          suggested_staff_id: unitConfigForm.suggested_staff_id ? Number(unitConfigForm.suggested_staff_id) : null,
+          suggested_staff_ids: unitConfigForm.suggested_staff_ids,
+          suggested_staff_id: unitConfigForm.suggested_staff_ids.join(',') || null,
           suggested_staff_name: unitConfigForm.suggested_staff_name || null,
         }),
       });
@@ -2166,39 +2176,146 @@ export const UnitsManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">
-                  Suggested Specialist Staff (Pilihan)
-                </label>
-                <select
-                  value={unitConfigForm.suggested_staff_id}
-                  onChange={(e) => {
-                    const sid = e.target.value;
-                    const found = usersList.find((u) => String(u.id) === String(sid));
-                    setUnitConfigForm({
-                      ...unitConfigForm,
-                      suggested_staff_id: sid,
-                      suggested_staff_name: found ? found.name : '',
-                    });
-                  }}
-                  className="select select-bordered w-full text-xs rounded-xl bg-slate-50 border-slate-200 h-10 font-medium focus:bg-white"
-                >
-                  <option value="">-- No Suggested Staff (Let Unit Head decide) --</option>
-                  {usersList
-                    .filter((u) => {
-                      if (!configuringUnit) return false;
-                      const uUnit = (u.unit || '').toLowerCase().trim();
-                      const cfgUnit = (configuringUnit.name || '').toLowerCase().trim();
-                      return u.role === 'staff' && (u.unit_id === configuringUnit.id || uUnit === cfgUnit);
-                    })
-                    .map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} ({u.unit || configuringUnit.name}) — {u.email}
-                      </option>
-                    ))}
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1 font-medium">
-                  Cadangan staf pakar untuk penugasan pantas atau penugasan terus (Direct to Staff).
-                </p>
+                {(() => {
+                  const eligibleStaff = usersList.filter((u) => {
+                    if (!configuringUnit) return false;
+                    const uUnit = (u.unit || '').toLowerCase().trim();
+                    const cfgUnit = (configuringUnit.name || '').toLowerCase().trim();
+                    return (u.role === 'staff' || u.is_unit_head === 1) && (Number(u.unit_id) === Number(configuringUnit.id) || uUnit === cfgUnit);
+                  });
+
+                  const unitCustomServices = customServices.filter((cs) =>
+                    cs.is_active && (
+                      Number(cs.target_unit_id) === Number(configuringUnit?.id) ||
+                      (cs.target_unit_name && configuringUnit?.name && cs.target_unit_name.toLowerCase().trim() === configuringUnit.name.toLowerCase().trim())
+                    )
+                  );
+
+                  const customServiceStaffMap: Record<number, string> = {};
+                  unitCustomServices.forEach((cs) => {
+                    if (cs.suggested_staff_id) {
+                      const sids = String(cs.suggested_staff_id).split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n) && n > 0);
+                      sids.forEach((sid) => {
+                        customServiceStaffMap[sid] = cs.display_label || cs.name;
+                      });
+                    }
+                  });
+
+                  const isLetUnitHeadDecide = unitConfigForm.suggested_staff_ids.length === 0;
+
+                  return (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700">
+                          Suggested Specialist Staff (Pilihan)
+                        </label>
+                        {unitConfigForm.suggested_staff_ids.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setUnitConfigForm({ ...unitConfigForm, suggested_staff_ids: [] })}
+                            className="text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:underline"
+                          >
+                            Kosongkan Pilihan
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Option 1: Default Let Unit Head Decide */}
+                      <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                        isLetUnitHeadDecide
+                          ? 'bg-teal-50/80 border-teal-400 text-teal-950 font-semibold shadow-xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={isLetUnitHeadDecide}
+                          onChange={() => {
+                            setUnitConfigForm({ ...unitConfigForm, suggested_staff_ids: [] });
+                          }}
+                          className="checkbox checkbox-xs checkbox-primary rounded mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span>Biarkan Ketua Unit Tentukan (Manual)</span>
+                            <span className="badge badge-xs bg-teal-100 text-teal-800 border-teal-200 font-bold">LALAI</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                            Ketua Unit akan memilih mana-mana staf yang sesuai secara manual setiap kali permohonan baru diterima.
+                          </div>
+                        </div>
+                      </label>
+
+                      {/* Staff list with locked state for Custom Service staff */}
+                      {eligibleStaff.length === 0 ? (
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500">
+                          Tiada staf didaftarkan di bawah unit ini.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                          {eligibleStaff.map((u) => {
+                            const lockedService = customServiceStaffMap[u.id];
+                            const isLocked = Boolean(lockedService);
+                            const isSelected = unitConfigForm.suggested_staff_ids.includes(u.id);
+
+                            return (
+                              <label
+                                key={u.id}
+                                title={isLocked ? `Staf ini telah dikhaskan untuk Custom Service: ${lockedService}. Tukar di tab Custom Services.` : undefined}
+                                className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs transition-all ${
+                                  isLocked
+                                    ? 'bg-slate-100/80 border-slate-200 text-slate-400 cursor-not-allowed opacity-75'
+                                    : isSelected
+                                    ? 'bg-purple-50 border-purple-400 text-purple-950 font-semibold shadow-xs cursor-pointer'
+                                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100/60 cursor-pointer'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  disabled={isLocked}
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    if (isLocked) return;
+                                    const nextIds = isSelected
+                                      ? unitConfigForm.suggested_staff_ids.filter((id) => id !== u.id)
+                                      : [...unitConfigForm.suggested_staff_ids, u.id];
+                                    setUnitConfigForm({ ...unitConfigForm, suggested_staff_ids: nextIds });
+                                  }}
+                                  className="checkbox checkbox-xs checkbox-primary rounded disabled:opacity-40"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="truncate font-bold text-slate-800 flex items-center gap-1">
+                                    <span className="truncate">{u.name}</span>
+                                    {isLocked && (
+                                      <span className="badge badge-xs bg-amber-100 text-amber-900 border-amber-300 font-black shrink-0 text-[9px] px-1.5 py-0.5" title={`Dikhaskan untuk ${lockedService}`}>
+                                        🔒 {lockedService}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 truncate">{u.email}</div>
+                                </div>
+                                {u.is_unit_head === 1 && (
+                                  <span className="text-[9px] bg-teal-100 text-teal-800 px-1 py-0.5 rounded font-black shrink-0">HEAD</span>
+                                )}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                        {unitConfigForm.suggested_staff_ids.length > 0 ? (
+                          <span className="text-purple-700 font-semibold">
+                            ✓ {unitConfigForm.suggested_staff_ids.length} staf dicadangkan untuk penugasan pantas unit ini.
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">
+                            💡 Staf bertanda lencana <strong>🔒 [Nama Servis]</strong> dikhaskan dalam Custom Services dan tidak boleh dipilih di sini.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>

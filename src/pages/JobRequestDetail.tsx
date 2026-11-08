@@ -305,7 +305,16 @@ export const JobRequestDetail: React.FC = () => {
     if (isUnitHeadActor) {
       setStaffUnitFilter(myUnitName || user?.unit || 'All');
       if ((!selectedStaff || selectedStaff.length === 0) && myUnitMeta?.suggested_staff_id) {
-        setSelectedStaff([Number(myUnitMeta.suggested_staff_id)]);
+        const rawSuggested = String(myUnitMeta.suggested_staff_id);
+        const suggested = rawSuggested
+          .split(',')
+          .map((s: string) => Number(s.trim()))
+          .filter((sid: number) => !isNaN(sid) && sid > 0 && !staffAssignedToOtherTracks[sid]);
+        if (suggested.length > 0) {
+          setSelectedStaff(suggested);
+        } else {
+          setSelectedStaff([]);
+        }
       }
     } else {
       setSelectedStaff([]);
@@ -990,13 +999,18 @@ export const JobRequestDetail: React.FC = () => {
   );
 
   // Check ALL unit entries matching current Unit Head
-  const myMatchingUnits = Object.entries(request?.additional_data?.unit_assignments || {}).filter(([uName]) => {
-    return managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
-           (userUnit && userUnit === uName.toLowerCase().trim());
+  const myMatchingUnits = Object.entries(request?.additional_data?.unit_assignments || {}).filter(([uName, uMeta]: [string, any]) => {
+    const targetUnit = (uMeta?.unit_name || uName).toLowerCase().trim();
+    const cleanUName = uName.toLowerCase().trim();
+    return managedUnits.some((mu) => {
+      const m = mu.toLowerCase().trim();
+      return m === targetUnit || m === cleanUName || cleanUName.startsWith(m + ' —') || cleanUName.startsWith(m + ' (');
+    }) || (userUnit && (userUnit === targetUnit || userUnit === cleanUName || cleanUName.startsWith(userUnit + ' —') || cleanUName.startsWith(userUnit + ' (')));
   });
-  const myUnitEntry = myMatchingUnits.length > 0 ? myMatchingUnits[0] : null;
+  const myUnitEntry = myMatchingUnits.find(([_, uMeta]: [string, any]) => uMeta?.status !== 'accepted' && (uMeta?.routing_target === 'head_unit' || uMeta?.manager_approved))
+    || (myMatchingUnits.length > 0 ? myMatchingUnits[0] : null);
   const myUnitMeta: any = myUnitEntry ? myUnitEntry[1] : null;
-  const myUnitName = myUnitEntry ? myUnitEntry[0] : (user?.unit || '');
+  const myUnitName = myUnitMeta?.unit_name || (myUnitEntry ? myUnitEntry[0].split(' — ')[0] : (user?.unit || ''));
 
   // Is Unit Head waiting for Manager approval?
   // If ANY unit belonging to this Unit Head still needs Manager approval:
@@ -1005,7 +1019,7 @@ export const JobRequestDetail: React.FC = () => {
     (
       myMatchingUnits.some(([_, uMeta]: [string, any]) => {
         const isMgrRoute = (uMeta?.routing_target || 'manager') === 'manager';
-        return isMgrRoute && !uMeta?.manager_approved;
+        return isMgrRoute && !uMeta?.manager_approved && uMeta?.status !== 'rejected';
       }) ||
       (!request?.additional_data?.unit_assignments && !isDirectToHeadUnit && (request?.additional_data?.routing_target || 'manager') === 'manager')
     )
@@ -1021,7 +1035,7 @@ export const JobRequestDetail: React.FC = () => {
         : (typeof uMeta?.assigned_staff_ids === 'string' && uMeta.assigned_staff_ids.trim()
             ? uMeta.assigned_staff_ids.split(',').map((id: string) => Number(id.trim()))
             : []);
-      return (uMeta?.status === 'accepted' || staffList.length > 0);
+      return (uMeta?.status === 'accepted' || staffList.length > 0 || uMeta?.status === 'rejected');
     })
   );
 
@@ -1043,9 +1057,14 @@ export const JobRequestDetail: React.FC = () => {
   const hasUnitNeedingManagerApproval = Boolean(
     request?.additional_data?.unit_assignments
       ? Object.entries(request.additional_data.unit_assignments).some(([uName, uMeta]: [string, any]) => {
-          const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim());
+          const targetUnit = (uMeta?.unit_name || uName).toLowerCase().trim();
+          const cleanUName = uName.toLowerCase().trim();
+          const belongsToMyDept = managedUnits.some((mu) => {
+            const m = mu.toLowerCase().trim();
+            return m === targetUnit || m === cleanUName || cleanUName.startsWith(m + ' —') || cleanUName.startsWith(m + ' (');
+          }) || (userDeptId && Number(uMeta?.department_id) === Number(userDeptId));
           const isManagerRoute = (uMeta?.routing_target || 'manager') === 'manager';
-          return belongsToMyDept && isManagerRoute && !uMeta?.manager_approved;
+          return belongsToMyDept && isManagerRoute && !uMeta?.manager_approved && uMeta?.status !== 'rejected';
         })
       : !isDirectToHeadUnit && (request?.additional_data?.routing_target || 'manager') === 'manager'
   );
@@ -1145,6 +1164,22 @@ export const JobRequestDetail: React.FC = () => {
       myAssignedMultiUnit[1]?.status === 'accepted'
     )
   );
+
+  // Identify staff already assigned to other active sub-services/tracks in this request
+  const staffAssignedToOtherTracks = useMemo(() => {
+    const map: Record<number, string> = {};
+    if (request?.additional_data?.unit_assignments) {
+      for (const [trackKey, trackMeta] of Object.entries(request.additional_data.unit_assignments as any)) {
+        if (trackKey === myUnitEntry?.[0]) continue;
+        if ((trackMeta?.status === 'accepted' || trackMeta?.routing_target === 'staff') && Array.isArray(trackMeta?.assigned_staff_ids)) {
+          trackMeta.assigned_staff_ids.forEach((sid: number) => {
+            map[sid] = trackMeta.service_name || trackKey;
+          });
+        }
+      }
+    }
+    return map;
+  }, [request?.additional_data?.unit_assignments, myUnitEntry]);
 
   const getAstRequesterBadge = (ast: any) => {
     if (!ast) return 'Staff';
@@ -2165,8 +2200,18 @@ export const JobRequestDetail: React.FC = () => {
 
                   <div className={`grid gap-4 ${isSingleUnit ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                     {servicesList.map((srv: any, idx: number) => {
-                      const uMeta = request.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name];
+                      const targetUnit = srv.target_unit_name || srv.name;
+                      const srvLabel = srv.display_label || srv.name;
+                      const uMeta = request.additional_data?.unit_assignments?.[`${targetUnit} — ${srvLabel}`]
+                        || request.additional_data?.unit_assignments?.[targetUnit]
+                        || request.additional_data?.unit_assignments?.[srv.name]
+                        || Object.entries(request.additional_data?.unit_assignments || {}).find(([k, m]: [string, any]) => 
+                             m?.service_name === srv.name || m?.service_name === srv.display_label || k.includes(srv.name) || k.includes(srv.display_label)
+                           )?.[1];
                       const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
+                      const isRejected = uMeta?.status === 'rejected';
+                      const isAwaitingHead = uMeta?.status === 'awaiting_head_assignment';
+
                       return (
                         <div key={idx} className="bg-white rounded-xl p-5 border border-indigo-100/70 shadow-sm space-y-3.5">
                           <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
@@ -2184,9 +2229,21 @@ export const JobRequestDetail: React.FC = () => {
                               </span>
                             </div>
                             <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider shrink-0 ${
-                              isAccepted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                              isRejected
+                                ? 'bg-rose-100 text-rose-800'
+                                : isAccepted
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : isAwaitingHead
+                                ? 'bg-teal-100 text-teal-800'
+                                : 'bg-amber-100 text-amber-800'
                             }`}>
-                              {isAccepted ? '✓ In Progress' : 'Pending Assignment'}
+                              {isRejected
+                                ? '✖ Ditolak'
+                                : isAccepted
+                                ? '✓ In Progress'
+                                : isAwaitingHead
+                                ? 'Menunggu Ketua Unit'
+                                : 'Menunggu Kelulusan'}
                             </span>
                           </div>
 
@@ -2219,10 +2276,15 @@ export const JobRequestDetail: React.FC = () => {
                             </div>
                           )}
 
-                          {uMeta?.assigned_staff_names && uMeta.assigned_staff_names.length > 0 && (
+                          {uMeta?.assigned_staff_names && uMeta.assigned_staff_names.length > 0 ? (
                             <div className="pt-1 flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50/50 px-3 py-2 rounded-xl">
                               <User className="w-3.5 h-3.5" />
                               <span>Assigned Specialist: {uMeta.assigned_staff_names.join(', ')}</span>
+                            </div>
+                          ) : isAccepted ? null : (
+                            <div className="pt-1 flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold italic bg-slate-50 px-3 py-1.5 rounded-xl">
+                              <Clock className="w-3.5 h-3.5 text-amber-500" />
+                              <span>{isAwaitingHead ? 'Menunggu Ketua Unit melantik staf' : 'Menunggu kelulusan Pengurus'}</span>
                             </div>
                           )}
 
@@ -3816,22 +3878,34 @@ export const JobRequestDetail: React.FC = () => {
                   ) : (
                     filteredModalStaff.map((m) => {
                       const isChecked = selectedStaff.includes(m.id);
+                      const lockedToService = staffAssignedToOtherTracks[m.id];
+                      const isLocked = Boolean(lockedToService);
+
                       return (
                         <label
                           key={m.id}
                           onClick={() => {
+                            if (isLocked) return;
                             if (isChecked) setSelectedStaff(selectedStaff.filter((sid) => sid !== m.id));
                             else setSelectedStaff([...selectedStaff, m.id]);
                           }}
-                          className="flex items-center justify-between p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition-colors"
+                          className={`flex items-center justify-between p-2 rounded-xl transition-colors ${
+                            isLocked
+                              ? 'opacity-60 bg-slate-50 cursor-not-allowed border border-slate-200'
+                              : 'hover:bg-blue-50/50 cursor-pointer'
+                          }`}
                         >
                           <div className="flex items-center gap-3">
                             <div
                               className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                isChecked ? 'border-blue-600 bg-white' : 'border-slate-300 bg-white'
+                                isLocked
+                                  ? 'border-slate-300 bg-slate-100 text-slate-400'
+                                  : isChecked
+                                  ? 'border-blue-600 bg-white'
+                                  : 'border-slate-300 bg-white'
                               }`}
                             >
-                              {isChecked && <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>}
+                              {isChecked && <div className={`w-2.5 h-2.5 rounded-full ${isLocked ? 'bg-slate-400' : 'bg-blue-600'}`}></div>}
                             </div>
                             <div>
                               <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
@@ -3839,6 +3913,11 @@ export const JobRequestDetail: React.FC = () => {
                                 {Boolean(m.is_unit_head) && (
                                   <span className="text-[9px] bg-amber-50 text-amber-700 font-black px-1.5 py-0.2 rounded border border-amber-200">
                                     HEAD
+                                  </span>
+                                )}
+                                {isLocked && (
+                                  <span className="text-[9px] bg-slate-200 text-slate-700 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    🔒 Dikhaskan untuk {lockedToService}
                                   </span>
                                 )}
                               </div>
@@ -4302,11 +4381,13 @@ export const JobRequestDetail: React.FC = () => {
                   const projectStaffDetail = data.staffDetails?.find((s: any) => s.id === m.id);
                   const isAlreadyDone = projectStaffDetail?.is_done || false;
                   const isAlreadyAssigned = Boolean(request.assigned_staff_ids?.split(',').map(Number).includes(m.id));
+                  const lockedToService = staffAssignedToOtherTracks[m.id];
+                  const isLockedToOtherService = Boolean(lockedToService);
                   // For regular staff, lock staff who are already in the team from being removed. Unit Heads can manage team.
                   const isRegularStaff = user?.role === 'staff' && !user?.is_acting_manager && !user?.is_unit_head;
                   const isLocked = isRegularStaff
-                    ? (isSelfStaff || isAlreadyDone || isAlreadyAssigned)
-                    : (isSelfStaff || isAlreadyDone);
+                    ? (isSelfStaff || isAlreadyDone || isAlreadyAssigned || isLockedToOtherService)
+                    : (isSelfStaff || isAlreadyDone || isLockedToOtherService);
 
                   return (
                     <div
@@ -4351,6 +4432,11 @@ export const JobRequestDetail: React.FC = () => {
                               {isAlreadyDone && <span className="text-[10px] text-emerald-600 font-semibold italic">(Done)</span>}
                               {!isSelfStaff && !isAlreadyDone && isAlreadyAssigned && (
                                 <span className="text-[10px] text-blue-600 font-semibold italic">(In Team)</span>
+                              )}
+                              {isLockedToOtherService && (
+                                <span className="text-[9px] bg-slate-200 text-slate-700 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  🔒 Dikhaskan untuk {lockedToService}
+                                </span>
                               )}
                             </span>
                             {m.unit && (
