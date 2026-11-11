@@ -25,6 +25,10 @@ import {
   Briefcase,
   Sparkles,
   Camera,
+  LayoutGrid,
+  ExternalLink,
+  Search,
+  Zap,
 } from 'lucide-react';
 
 export interface CustomService {
@@ -69,7 +73,13 @@ export const UnitsManagement: React.FC = () => {
   }
 
   // Navigation tab for Admin
-  const [activeTab, setActiveTab] = useState<'structure' | 'services' | 'builder'>('structure');
+  const [activeTab, setActiveTab] = useState<'public_services' | 'structure' | 'services' | 'builder'>('public_services');
+
+  // Search & Filter state for Public Form Services tab
+  const [searchPublicService, setSearchPublicService] = useState('');
+  const [filterPublicServiceType, setFilterPublicServiceType] = useState<'all' | 'unit' | 'custom_service'>('all');
+  const [filterPublicServiceRoute, setFilterPublicServiceRoute] = useState<'all' | 'manager' | 'head_unit' | 'staff'>('all');
+  const [filterPublicServiceDept, setFilterPublicServiceDept] = useState<'all' | string>('all');
 
   // Main data states
   const [departments, setDepartments] = useState<any[]>([]);
@@ -374,6 +384,160 @@ export const UnitsManagement: React.FC = () => {
     }
     return [];
   }, [units, user, isAdmin, isHeadUnit]);
+
+  // Toggle unit public visibility directly
+  const handleToggleUnitPublic = async (unit: any) => {
+    try {
+      const nextPublic = (unit.is_public === 0 || unit.is_public === false) ? 1 : 0;
+      const res = await fetch(`/api/admin/units/${unit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: unit.name,
+          department_id: unit.department_id ? Number(unit.department_id) : null,
+          public_label: unit.public_label || null,
+          is_public: nextPublic,
+          head_id: unit.head_id ? Number(unit.head_id) : null,
+          routing_target: unit.routing_target || 'manager',
+          suggested_staff_id: unit.suggested_staff_id || null,
+        }),
+      });
+      if (res.ok) {
+        refreshAll();
+      }
+    } catch (err) {
+      console.error('Failed to toggle unit public visibility:', err);
+    }
+  };
+
+  const getSpecialistDisplayName = (staffIdRaw: any, routingTarget: string = 'manager') => {
+    if (!staffIdRaw) {
+      if (routingTarget === 'staff') return 'Semua Staf Unit (Auto)';
+      return 'Biarkan Ketua Unit Tentukan (Manual)';
+    }
+    const ids = String(staffIdRaw)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (ids.length === 0) {
+      if (routingTarget === 'staff') return 'Semua Staf Unit (Auto)';
+      return 'Biarkan Ketua Unit Tentukan (Manual)';
+    }
+    const names = ids
+      .map((id) => {
+        const found = usersList.find((u) => String(u.id) === String(id));
+        return found ? found.name : `Staff #${id}`;
+      })
+      .filter(Boolean);
+    return names.length > 0
+      ? names.join(', ')
+      : routingTarget === 'staff'
+      ? 'Semua Staf Unit (Auto)'
+      : 'Biarkan Ketua Unit Tentukan (Manual)';
+  };
+
+  const publicFormServicesList = useMemo(() => {
+    const list: any[] = [];
+
+    // 1. Base Units (excluding Administrator)
+    units
+      .filter((u) => u.name !== 'Administrator')
+      .forEach((u) => {
+        const dept = departments.find((d) => d.id === u.department_id);
+        const deptName = u.department_name || dept?.name || 'General';
+        const specialistDisplay = getSpecialistDisplayName(u.suggested_staff_id, u.routing_target);
+        const qCount = (u.form_schema || []).length;
+        list.push({
+          id: `unit_${u.id}`,
+          itemType: 'unit' as const,
+          rawItem: u,
+          name: u.name,
+          title: u.public_label && u.public_label.trim() ? u.public_label.trim() : u.name,
+          unitName: u.name,
+          departmentName: deptName,
+          departmentId: u.department_id,
+          routingTarget: (u.routing_target || 'manager') as 'manager' | 'head_unit' | 'staff',
+          suggestedSpecialistDisplay: specialistDisplay,
+          headName: u.head_name || null,
+          isActive: u.is_public !== 0 && u.is_public !== false,
+          questionCount: qCount,
+          description: u.public_label && u.public_label !== u.name ? `Unit: ${u.name}` : 'Standard Unit Service',
+        });
+      });
+
+    // 2. Custom Services
+    customServices.forEach((s) => {
+      const dept = departments.find((d) => d.id === s.department_id);
+      const deptName = s.department_name || dept?.name || 'General';
+      const specialistDisplay = s.suggested_staff_name || getSpecialistDisplayName(s.suggested_staff_id, s.routing_target);
+      const qCount = (s.form_schema || []).length;
+      list.push({
+        id: `custom_${s.id}`,
+        itemType: 'custom_service' as const,
+        rawItem: s,
+        name: s.name,
+        title: s.display_label || s.name,
+        unitName: s.target_unit_name,
+        departmentName: deptName,
+        departmentId: s.department_id,
+        routingTarget: (s.routing_target || 'manager') as 'manager' | 'head_unit' | 'staff',
+        suggestedSpecialistDisplay: specialistDisplay,
+        headName: null,
+        isActive: Boolean(s.is_active),
+        questionCount: qCount,
+        description: s.description || `Specialized service fulfilled by ${s.target_unit_name}.`,
+      });
+    });
+
+    return list;
+  }, [units, customServices, departments, usersList]);
+
+  const routeStats = useMemo(() => {
+    let managerCount = 0;
+    let headUnitCount = 0;
+    let staffCount = 0;
+    let activeCount = 0;
+
+    publicFormServicesList.forEach((item) => {
+      if (item.isActive) activeCount++;
+      if (item.routingTarget === 'staff') staffCount++;
+      else if (item.routingTarget === 'head_unit') headUnitCount++;
+      else managerCount++;
+    });
+
+    return {
+      total: publicFormServicesList.length,
+      active: activeCount,
+      manager: managerCount,
+      headUnit: headUnitCount,
+      staff: staffCount,
+    };
+  }, [publicFormServicesList]);
+
+  const filteredPublicServices = useMemo(() => {
+    return publicFormServicesList.filter((item) => {
+      if (filterPublicServiceType !== 'all' && item.itemType !== filterPublicServiceType) {
+        return false;
+      }
+      if (filterPublicServiceRoute !== 'all' && item.routingTarget !== filterPublicServiceRoute) {
+        return false;
+      }
+      if (filterPublicServiceDept !== 'all' && String(item.departmentId) !== String(filterPublicServiceDept)) {
+        return false;
+      }
+      if (searchPublicService.trim()) {
+        const q = searchPublicService.toLowerCase().trim();
+        const matchTitle = item.title.toLowerCase().includes(q);
+        const matchUnit = item.unitName.toLowerCase().includes(q);
+        const matchDept = item.departmentName.toLowerCase().includes(q);
+        const matchSpec = item.suggestedSpecialistDisplay.toLowerCase().includes(q);
+        if (!matchTitle && !matchUnit && !matchDept && !matchSpec) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [publicFormServicesList, filterPublicServiceType, filterPublicServiceRoute, filterPublicServiceDept, searchPublicService]);
 
   // For Head Unit: auto-select their first accessible unit and lock to builder view
   useEffect(() => {
@@ -810,7 +974,24 @@ export const UnitsManagement: React.FC = () => {
 
         {/* Tab switch for Admin */}
         {isAdmin && (
-          <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 shrink-0">
+          <div className="flex flex-wrap items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('public_services')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all ${
+                activeTab === 'public_services'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span>Public Form Services</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'public_services' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'
+              }`}>
+                {publicFormServicesList.length}
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab('structure')}
@@ -850,6 +1031,377 @@ export const UnitsManagement: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ========================================================= */}
+      {/* TAB 0: PUBLIC FORM SERVICES OVERVIEW (ADMIN ONLY)         */}
+      {/* ========================================================= */}
+      {isAdmin && activeTab === 'public_services' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Top KPI Metrics Banner */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Total Public Services</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-slate-900">{routeStats.total}</span>
+                  <span className="text-xs font-bold text-emerald-600">({routeStats.active} Active)</span>
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shadow-inner">
+                <LayoutGrid className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Manager Review</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-blue-600">{routeStats.manager}</span>
+                  <span className="text-[10px] font-bold text-slate-400">Standard route</span>
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shadow-inner">
+                <Building2 className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Direct to Unit Head</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-teal-600">{routeStats.headUnit}</span>
+                  <span className="text-[10px] font-bold text-teal-600">Bypasses Manager</span>
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold shadow-inner">
+                <Crown className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Direct to Staff</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-amber-600">{routeStats.staff}</span>
+                  <span className="text-[10px] font-bold text-amber-600">Auto-Approve</span>
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shadow-inner">
+                <Zap className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Action & Filter Bar */}
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchPublicService}
+                  onChange={(e) => setSearchPublicService(e.target.value)}
+                  placeholder="Cari nama servis, unit pelaksana, pakar staf, atau jabatan..."
+                  className="input input-sm w-full pl-10 pr-9 h-10 rounded-2xl bg-slate-50 border-slate-200 focus:bg-white text-xs font-medium placeholder:text-slate-400"
+                />
+                {searchPublicService && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchPublicService('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenAddCustomService}
+                  className="btn bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl h-10 px-4 border-none shadow-md shadow-purple-500/20 flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Custom Service</span>
+                </button>
+                <a
+                  href="/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-outline border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs rounded-xl h-10 px-3.5 flex items-center gap-1.5"
+                  title="Lihat borang awam sebenar di tab baharu"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Public Form</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Quick Filters */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Tapis:</span>
+
+              {/* Type Filter */}
+              <div className="join bg-slate-100 p-0.5 rounded-xl border border-slate-200/60">
+                <button
+                  type="button"
+                  onClick={() => setFilterPublicServiceType('all')}
+                  className={`join-item btn btn-xs border-none font-bold text-[11px] h-7 px-3 rounded-lg ${
+                    filterPublicServiceType === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'bg-transparent text-slate-500'
+                  }`}
+                >
+                  Semua ({publicFormServicesList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterPublicServiceType('unit')}
+                  className={`join-item btn btn-xs border-none font-bold text-[11px] h-7 px-3 rounded-lg ${
+                    filterPublicServiceType === 'unit' ? 'bg-white text-blue-600 shadow-xs' : 'bg-transparent text-slate-500'
+                  }`}
+                >
+                  Base Units ({publicFormServicesList.filter((i) => i.itemType === 'unit').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterPublicServiceType('custom_service')}
+                  className={`join-item btn btn-xs border-none font-bold text-[11px] h-7 px-3 rounded-lg ${
+                    filterPublicServiceType === 'custom_service' ? 'bg-white text-purple-600 shadow-xs' : 'bg-transparent text-slate-500'
+                  }`}
+                >
+                  Custom Services ({publicFormServicesList.filter((i) => i.itemType === 'custom_service').length})
+                </button>
+              </div>
+
+              {/* Route Filter */}
+              <select
+                value={filterPublicServiceRoute}
+                onChange={(e) => setFilterPublicServiceRoute(e.target.value as any)}
+                className="select select-xs select-bordered h-7 rounded-xl text-[11px] font-bold bg-white text-slate-700"
+              >
+                <option value="all">Semua Laluan Kelulusan</option>
+                <option value="manager">🏢 Dept. Manager Review</option>
+                <option value="head_unit">👑 Direct to Head Unit</option>
+                <option value="staff">⚡ Direct to Staff</option>
+              </select>
+
+              {/* Department Filter */}
+              {departments.length > 0 && (
+                <select
+                  value={filterPublicServiceDept}
+                  onChange={(e) => setFilterPublicServiceDept(e.target.value)}
+                  className="select select-xs select-bordered h-7 rounded-xl text-[11px] font-bold bg-white text-slate-700"
+                >
+                  <option value="all">Semua Jabatan</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {(searchPublicService || filterPublicServiceType !== 'all' || filterPublicServiceRoute !== 'all' || filterPublicServiceDept !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchPublicService('');
+                    setFilterPublicServiceType('all');
+                    setFilterPublicServiceRoute('all');
+                    setFilterPublicServiceDept('all');
+                  }}
+                  className="text-[11px] font-bold text-rose-600 hover:text-rose-800 hover:underline ml-auto"
+                >
+                  Reset Tapisan
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Unified Cards Grid */}
+          {filteredPublicServices.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 border border-slate-100 text-center space-y-3 shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <Search className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-extrabold text-slate-800">Tiada Servis Ditemui</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Tiada servis atau unit yang sepadan dengan tapisan carian anda. Sila ubah terma carian atau klik Reset Tapisan.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredPublicServices.map((item) => {
+                const isCustom = item.itemType === 'custom_service';
+                const deptColorClass = item.departmentName.toLowerCase().includes('design')
+                  ? 'bg-purple-50 text-purple-700 border-purple-200/80'
+                  : 'bg-blue-50 text-blue-700 border-blue-200/80';
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`bg-white rounded-3xl p-5 border transition-all flex flex-col justify-between shadow-md hover:shadow-lg ${
+                      item.isActive
+                        ? isCustom
+                          ? 'border-purple-100 hover:border-purple-300'
+                          : 'border-slate-200/90 hover:border-blue-300'
+                        : 'border-slate-200 bg-slate-50/70 opacity-75'
+                    }`}
+                  >
+                    <div className="space-y-3.5">
+                      {/* Top Row: Department Tag & Public Active Toggle */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${deptColorClass}`}>
+                            {item.departmentName}
+                          </span>
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                            isCustom
+                              ? 'bg-purple-100/70 text-purple-800 border-purple-200'
+                              : 'bg-slate-100 text-slate-700 border-slate-200'
+                          }`}>
+                            {isCustom ? (
+                              <>
+                                <Sparkles className="w-2.5 h-2.5 text-purple-600" />
+                                <span>Custom Service</span>
+                              </>
+                            ) : (
+                              <span>Base Unit</span>
+                            )}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (item.itemType === 'unit') {
+                              handleToggleUnitPublic(item.rawItem);
+                            } else {
+                              handleToggleServiceActive(item.rawItem);
+                            }
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black transition-all border ${
+                            item.isActive
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-slate-200/80 text-slate-500 border-slate-300 hover:bg-slate-300/80'
+                          }`}
+                          title={item.isActive ? 'Servis Aktif di Public Form (Klik untuk sembunyikan)' : 'Servis Tersembunyi (Klik untuk aktifkan)'}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${item.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                          <span>{item.isActive ? 'PUBLIC ACTIVE' : 'HIDDEN'}</span>
+                        </button>
+                      </div>
+
+                      {/* Service Title & Subtitle */}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                            isCustom ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {isCustom ? <Camera className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-base font-extrabold text-slate-900 tracking-tight leading-snug truncate" title={item.title}>
+                              {item.title}
+                            </h3>
+                            {item.title !== item.unitName && (
+                              <p className="text-[11px] font-semibold text-slate-400">
+                                Unit: {item.unitName}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-slate-500 mt-2 line-clamp-2 leading-relaxed">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Routing & Assignment Info (Gambar 3 Format) */}
+                      <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 font-semibold text-[11px] shrink-0">Fulfillment Unit:</span>
+                          <span className="font-extrabold text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200/80 truncate max-w-[190px]" title={item.unitName}>
+                            {item.unitName}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 font-semibold text-[11px] shrink-0">Suggested Specialist:</span>
+                          <span className="font-extrabold text-indigo-700 bg-indigo-50/70 px-2 py-0.5 rounded-md border border-indigo-100 truncate max-w-[190px]" title={item.suggestedSpecialistDisplay}>
+                            {item.suggestedSpecialistDisplay}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 font-semibold text-[11px] shrink-0">Workflow Route:</span>
+                          <span className={`font-black text-[10px] px-2 py-0.5 rounded-md border shrink-0 ${
+                            item.routingTarget === 'staff'
+                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : item.routingTarget === 'head_unit'
+                              ? 'bg-teal-50 text-teal-800 border-teal-200'
+                              : 'bg-blue-50 text-blue-800 border-blue-200'
+                          }`}>
+                            {item.routingTarget === 'staff'
+                              ? `⚡ Direct to Staff`
+                              : item.routingTarget === 'head_unit'
+                              ? `👑 Direct to Head Unit${item.headName ? ` (${item.headName})` : ''}`
+                              : '🏢 Dept. Manager Review'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 font-semibold text-[11px] shrink-0">Dynamic Intake Questions:</span>
+                          <span className="font-black text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100 shrink-0">
+                            {item.questionCount} {item.questionCount === 1 ? 'question' : 'questions'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Actions */}
+                    <div className="flex items-center justify-between gap-2 pt-3.5 mt-3.5 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.itemType === 'unit') {
+                            handleOpenBuilder(item.rawItem);
+                          } else {
+                            handleOpenServiceBuilder(item.rawItem);
+                          }
+                        }}
+                        className="btn btn-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 rounded-xl font-bold flex items-center gap-1.5 h-8 px-3"
+                        title="Urus soalan spesifikasi borang (Dynamic Intake Questions)"
+                      >
+                        <Sliders className="w-3.5 h-3.5" />
+                        <span>Questions ({item.questionCount})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.itemType === 'unit') {
+                            handleOpenConfigUnitModal(item.rawItem);
+                          } else {
+                            handleOpenEditCustomService(item.rawItem);
+                          }
+                        }}
+                        className="btn btn-xs bg-blue-600 hover:bg-blue-700 text-white border-none rounded-xl font-bold flex items-center gap-1.5 h-8 px-3.5 shadow-sm shadow-blue-500/20"
+                        title="Tukar Workflow Route & Specialist Staff secara pantas"
+                      >
+                        <Settings2 className="w-3.5 h-3.5" />
+                        <span>Quick Edit</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* TAB 1: DEPARTMENTS & ORG STRUCTURE (ADMIN ONLY)           */}
