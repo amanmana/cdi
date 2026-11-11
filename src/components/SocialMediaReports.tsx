@@ -461,6 +461,11 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
       list = list.filter((s) => s.id === Number(user?.id));
     }
 
+    // Sort each staff's jobsList by date descending (newest first)
+    list.forEach((s) => {
+      s.jobsList.sort((a, b) => getJobDate(b).getTime() - getJobDate(a).getTime());
+    });
+
     return list.sort((a, b) => b.completed - a.completed);
   }, [yearlyJobs, currentUnit, isRegularStaff, user?.id, allUsers, isSocMed]);
 
@@ -1192,12 +1197,19 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                           </div>
                         )}
 
-                        {/* Recent Jobs Handled */}
+                        {/* Assigned Requests Handled in Selected Year */}
                         <div className="space-y-2">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                            Recent Assigned Requests ({staff.jobsList.length})
-                          </span>
-                          <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                              Assigned Requests in {selectedYear} ({staff.jobsList.length} Total)
+                            </span>
+                            {staff.jobsList.length > 10 && (
+                              <span className="text-[10px] font-bold text-slate-400">
+                                Showing latest 10 of {staff.jobsList.length}
+                              </span>
+                            )}
+                          </div>
+                          <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
                             {staff.jobsList.slice(0, 10).map((job: any) => (
                               <div
                                 key={job.id}
