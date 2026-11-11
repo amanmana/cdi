@@ -3135,17 +3135,14 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
         </div>
       )}
 
-      {/* 6. TAB 4: REPORTS HUB */}
+      {/* 6. TAB 4: REPORTS HUB (Universal for all Units & Roles) */}
       {activeTab === 'reports' && (
-        <div>
-          {currentUnit.toLowerCase().includes('social') || currentUnit.toLowerCase().includes('socmed') ? (
-            <SocialMediaReports jobs={unitJobs} user={user} currentUnit={currentUnit} />
-          ) : (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
-              <ReportsPage embedded={true} overrideUnit={currentUnit} />
-            </div>
-          )}
-        </div>
+        <SocialMediaReports
+          jobs={unitJobs}
+          user={user}
+          currentUnit={currentUnit}
+          allUsers={allUsersList}
+        />
       )}
 
       {/* MODAL: ADD KANBAN COLUMN */}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ReportsPage } from '../pages/ReportsPage';
 import {
@@ -17,12 +17,14 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Building2,
 } from 'lucide-react';
 
 interface SocialMediaReportsProps {
   jobs: any[];
   user: any;
   currentUnit: string;
+  allUsers?: any[];
 }
 
 const MONTH_NAMES = [
@@ -81,9 +83,23 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
   jobs,
   user,
   currentUnit,
+  allUsers,
 }) => {
+  const isSocMed = Boolean(
+    currentUnit.toLowerCase().includes('social') ||
+    currentUnit.toLowerCase().includes('socmed')
+  );
+
   // Current view: 'general' (Pillars & Platforms) vs 'individual' (Staff KPI) vs 'weekly' (Weekly Log)
-  const [reportView, setReportView] = useState<'general' | 'individual' | 'weekly'>('general');
+  const [reportView, setReportView] = useState<'general' | 'individual' | 'weekly'>(
+    isSocMed ? 'general' : 'individual'
+  );
+
+  useEffect(() => {
+    if (!isSocMed && reportView === 'general') {
+      setReportView('individual');
+    }
+  }, [isSocMed, currentUnit]);
 
   // Year filter (default to current year, e.g. 2026)
   const currentCalendarYear = new Date().getFullYear();
@@ -315,7 +331,7 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
   const isRegularStaff = user?.role === 'staff' && !user?.is_unit_head && !user?.is_acting_manager;
 
   const staffKpiData = useMemo(() => {
-    const targetUnitClean = (currentUnit || 'Social Media').toLowerCase().trim();
+    const targetUnitClean = (currentUnit || '').toLowerCase().trim();
 
     const staffMap: Record<number, {
       id: number;
@@ -328,9 +344,39 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
       monthlyCounts: number[];
       pillarsCount: Record<string, number>;
       platformsCount: Record<string, number>;
+      servicesCount: Record<string, number>;
       jobsList: any[];
     }> = {};
 
+    // 1. Pre-populate all active unit staff from allUsers (if available)
+    if (Array.isArray(allUsers) && allUsers.length > 0) {
+      allUsers.forEach((u: any) => {
+        const uUnit = (u.unit || '').toLowerCase().trim();
+        const isMatch = Boolean(
+          (targetUnitClean && uUnit === targetUnitClean) ||
+          (isSocMed && (uUnit.includes('social') || uUnit.includes('socmed')))
+        );
+        if (isMatch && (u.role === 'staff' || u.is_unit_head)) {
+          const uId = Number(u.id);
+          staffMap[uId] = {
+            id: uId,
+            name: u.name,
+            email: u.email,
+            unit: u.unit || currentUnit,
+            totalAssigned: 0,
+            completed: 0,
+            inProgress: 0,
+            monthlyCounts: new Array(12).fill(0),
+            pillarsCount: {},
+            platformsCount: {},
+            servicesCount: {},
+            jobsList: [],
+          };
+        }
+      });
+    }
+
+    // 2. Aggregate yearly jobs
     yearlyJobs.forEach((job) => {
       const staffList = job.assigned_staff || job.assigned_staff_details || [];
       const d = getJobDate(job);
@@ -338,16 +384,28 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
       const { pillars, platforms } = extractPillarsAndPlatforms(job);
       const isDone = job.status === 'completed' || job.is_done;
 
+      // Extract services or categories for breakdown
+      const serviceNames: string[] = [];
+      const addData = job.additional_data || {};
+      if (Array.isArray(addData.selected_services)) {
+        addData.selected_services.forEach((s: any) => {
+          if (s.title) serviceNames.push(s.title);
+          else if (s.name) serviceNames.push(s.name);
+        });
+      }
+      if (serviceNames.length === 0 && job.title) {
+        serviceNames.push(job.title);
+      }
+
       if (Array.isArray(staffList) && staffList.length > 0) {
         staffList.forEach((s: any) => {
           const sUnit = (s.unit || '').toLowerCase().trim();
 
-          // STRICT UNIT FILTER: Only display staff who belong to Social Media unit!
+          // STRICT UNIT FILTER: Only display staff who belong to current unit!
           // Exclude cross-unit collaborators (e.g. Graphic & Web, Writer)
           const isUnitMember = Boolean(
-            sUnit.includes('social') ||
-            sUnit.includes('socmed') ||
-            (targetUnitClean && sUnit === targetUnitClean)
+            (targetUnitClean && sUnit === targetUnitClean) ||
+            (isSocMed && (sUnit.includes('social') || sUnit.includes('socmed')))
           );
 
           if (!isUnitMember) {
@@ -367,6 +425,7 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
               monthlyCounts: new Array(12).fill(0),
               pillarsCount: {},
               platformsCount: {},
+              servicesCount: {},
               jobsList: [],
             };
           }
@@ -376,12 +435,20 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
           else staffMap[sId].inProgress += 1;
 
           staffMap[sId].monthlyCounts[mIdx] += 1;
-          pillars.forEach((p) => {
-            staffMap[sId].pillarsCount[p] = (staffMap[sId].pillarsCount[p] || 0) + 1;
-          });
-          platforms.forEach((pl) => {
-            staffMap[sId].platformsCount[pl] = (staffMap[sId].platformsCount[pl] || 0) + 1;
-          });
+
+          if (isSocMed) {
+            pillars.forEach((p) => {
+              staffMap[sId].pillarsCount[p] = (staffMap[sId].pillarsCount[p] || 0) + 1;
+            });
+            platforms.forEach((pl) => {
+              staffMap[sId].platformsCount[pl] = (staffMap[sId].platformsCount[pl] || 0) + 1;
+            });
+          } else {
+            serviceNames.forEach((srv) => {
+              staffMap[sId].servicesCount[srv] = (staffMap[sId].servicesCount[srv] || 0) + 1;
+            });
+          }
+
           staffMap[sId].jobsList.push(job);
         });
       }
@@ -395,38 +462,70 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
     }
 
     return list.sort((a, b) => b.completed - a.completed);
-  }, [yearlyJobs, currentUnit, isRegularStaff, user?.id]);
+  }, [yearlyJobs, currentUnit, isRegularStaff, user?.id, allUsers, isSocMed]);
 
-  // CSV Export Handler (Downloads structured spreadsheet matching Image 2)
+  // Overall Unit Performance Stats for current year
+  const yearlyUnitStats = useMemo(() => {
+    const total = yearlyJobs.length;
+    const completed = yearlyJobs.filter((j) => j.status === 'completed' || j.is_done).length;
+    const inProgress = total - completed;
+    const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, inProgress, rate };
+  }, [yearlyJobs]);
+
+  // CSV Export Handler
   const handleExportCSV = () => {
     const rows: string[][] = [];
 
-    // Table 1: Pillars by Month
-    rows.push([`PILLARS REPORT - ${selectedYear} (${currentUnit})`]);
-    rows.push(['PILLARS', ...MONTH_NAMES, 'TOTAL']);
+    if (isSocMed) {
+      // Table 1: Pillars by Month
+      rows.push([`PILLARS REPORT - ${selectedYear} (${currentUnit})`]);
+      rows.push(['PILLARS', ...MONTH_NAMES, 'TOTAL']);
 
-    allPillars.forEach((p) => {
-      const counts = pillarsMatrix.matrix[p] || new Array(12).fill(0);
-      rows.push([p, ...counts.map(String), String(pillarsMatrix.rowTotals[p] || 0)]);
+      allPillars.forEach((p) => {
+        const counts = pillarsMatrix.matrix[p] || new Array(12).fill(0);
+        rows.push([p, ...counts.map(String), String(pillarsMatrix.rowTotals[p] || 0)]);
+      });
+      rows.push(['TOTAL', ...pillarsMatrix.monthlyTotals.map(String), String(pillarsMatrix.grandTotal)]);
+      rows.push([]);
+
+      // Table 2: Platforms by Month
+      rows.push([`PLATFORM REPORT - ${selectedYear} (${currentUnit})`]);
+      rows.push(['SOCIAL MEDIA', ...MONTH_NAMES, 'TOTAL']);
+
+      allPlatforms.forEach((pl) => {
+        const counts = platformsMatrix.matrix[pl] || new Array(12).fill(0);
+        rows.push([pl, ...counts.map(String), String(platformsMatrix.rowTotals[pl] || 0)]);
+      });
+      rows.push(['TOTAL', ...platformsMatrix.monthlyTotals.map(String), String(platformsMatrix.grandTotal)]);
+      rows.push([]);
+    }
+
+    // Staff KPI Performance Table (included for all units!)
+    rows.push([`STAFF KPI PERFORMANCE REPORT - ${selectedYear} (${currentUnit})`]);
+    rows.push(['STAFF NAME', 'EMAIL', 'UNIT', 'ASSIGNED', 'COMPLETED', 'IN PROGRESS', 'COMPLETION RATE', ...MONTH_NAMES, 'DELIVERABLES']);
+    staffKpiData.forEach((staff) => {
+      const compRate = staff.totalAssigned > 0 ? `${Math.round((staff.completed / staff.totalAssigned) * 100)}%` : '0%';
+      const categories = Object.keys(staff.servicesCount || staff.pillarsCount || {}).join('; ');
+      rows.push([
+        staff.name,
+        staff.email,
+        staff.unit,
+        String(staff.totalAssigned),
+        String(staff.completed),
+        String(staff.inProgress),
+        compRate,
+        ...staff.monthlyCounts.map(String),
+        categories || 'General Tasks',
+      ]);
     });
-    rows.push(['TOTAL', ...pillarsMatrix.monthlyTotals.map(String), String(pillarsMatrix.grandTotal)]);
-    rows.push([]);
-
-    // Table 2: Platforms by Month
-    rows.push([`PLATFORM REPORT - ${selectedYear} (${currentUnit})`]);
-    rows.push(['SOCIAL MEDIA', ...MONTH_NAMES, 'TOTAL']);
-
-    allPlatforms.forEach((pl) => {
-      const counts = platformsMatrix.matrix[pl] || new Array(12).fill(0);
-      rows.push([pl, ...counts.map(String), String(platformsMatrix.rowTotals[pl] || 0)]);
-    });
-    rows.push(['TOTAL', ...platformsMatrix.monthlyTotals.map(String), String(platformsMatrix.grandTotal)]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((e) => e.map(val => `"${val}"`).join(',')).join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Social_Media_Report_${selectedYear}.csv`);
+    const filenameUnit = currentUnit.replace(/[^a-zA-Z0-9]/g, '_');
+    link.setAttribute('download', `${filenameUnit}_KPI_Report_${selectedYear}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -463,14 +562,16 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
       <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100/80 text-indigo-700 text-xs font-black uppercase tracking-wider mb-2">
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Social Media Intelligence & Reporting Hub</span>
+            {isSocMed ? <Share2 className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}
+            <span>{currentUnit} Intelligence & Reporting Hub</span>
           </div>
           <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-            Content Analytics & Performance Matrix
+            {isSocMed ? 'Content Analytics & Performance Matrix' : `${currentUnit} Performance & Staff KPI Matrix`}
           </h2>
           <p className="text-xs text-slate-500 font-medium mt-1">
-            Data aggregated from internal job intake forms, dynamic client specifications, and publishing completions.
+            {isSocMed
+              ? 'Data aggregated from internal job intake forms, dynamic client specifications, and publishing completions.'
+              : 'Data aggregated from assigned tickets, specialist workload allocations, and job completions.'}
           </p>
         </div>
 
@@ -517,70 +618,120 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
       </div>
 
       {/* KPI Overview Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Publications ({selectedYear})</p>
-            <h3 className="text-2xl font-black text-slate-900 mt-1">{pillarsMatrix.grandTotal}</h3>
-            <span className="text-[11px] font-bold text-slate-500">All Active & Completed Posts</span>
+      {isSocMed ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Publications ({selectedYear})</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">{pillarsMatrix.grandTotal}</h3>
+              <span className="text-[11px] font-bold text-slate-500">All Active & Completed Posts</span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shadow-inner">
+              <Layers className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shadow-inner">
-            <Layers className="w-6 h-6" />
-          </div>
-        </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Top Strategic Pillar</p>
-            <h3 className="text-lg font-black text-slate-900 mt-1 truncate max-w-[160px]" title={topPillar.name}>
-              {topPillar.name}
-            </h3>
-            <span className="text-[11px] font-bold text-indigo-600">{topPillar.count} published posts</span>
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Top Strategic Pillar</p>
+              <h3 className="text-lg font-black text-slate-900 mt-1 truncate max-w-[160px]" title={topPillar.name}>
+                {topPillar.name}
+              </h3>
+              <span className="text-[11px] font-bold text-indigo-600">{topPillar.count} published posts</span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shadow-inner">
+              <Award className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shadow-inner">
-            <Award className="w-6 h-6" />
-          </div>
-        </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Top Publishing Channel</p>
-            <h3 className="text-lg font-black text-slate-900 mt-1 truncate max-w-[160px]" title={topPlatform.name}>
-              {topPlatform.name}
-            </h3>
-            <span className="text-[11px] font-bold text-emerald-600">{topPlatform.count} total distributions</span>
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Top Publishing Channel</p>
+              <h3 className="text-lg font-black text-slate-900 mt-1 truncate max-w-[160px]" title={topPlatform.name}>
+                {topPlatform.name}
+              </h3>
+              <span className="text-[11px] font-bold text-emerald-600">{topPlatform.count} total distributions</span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-inner">
+              <TrendingUp className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-inner">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-        </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active Staff Specialists</p>
-            <h3 className="text-2xl font-black text-slate-900 mt-1">{staffKpiData.length}</h3>
-            <span className="text-[11px] font-bold text-slate-500">Unit contributors in {selectedYear}</span>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold shadow-inner">
-            <User className="w-6 h-6" />
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active Staff Specialists</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">{staffKpiData.length}</h3>
+              <span className="text-[11px] font-bold text-slate-500">Unit contributors in {selectedYear}</span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold shadow-inner">
+              <User className="w-6 h-6" />
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Requests ({selectedYear})</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">{yearlyUnitStats.total}</h3>
+              <span className="text-[11px] font-bold text-slate-500">All Active & Completed</span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shadow-inner">
+              <Layers className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Completed Requests</p>
+              <h3 className="text-2xl font-black text-emerald-600 mt-1">{yearlyUnitStats.completed}</h3>
+              <span className="text-[11px] font-bold text-slate-500">Finalized deliverables</span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-inner">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Completion Rate</p>
+              <h3 className="text-2xl font-black text-indigo-600 mt-1">{yearlyUnitStats.rate}%</h3>
+              <span className="text-[11px] font-bold text-slate-500">{yearlyUnitStats.inProgress} currently in progress</span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shadow-inner">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-purple-600">Active Staff Specialists</p>
+              <h3 className="text-2xl font-black text-purple-700 mt-1">{staffKpiData.length}</h3>
+              <span className="text-[11px] font-bold text-slate-500">Unit contributors in {selectedYear}</span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold shadow-inner">
+              <User className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sub-Tab Navigation Switcher */}
       <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 w-fit">
-        <button
-          type="button"
-          onClick={() => setReportView('general')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
-            reportView === 'general'
-              ? 'bg-white text-indigo-700 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          <span>General Report (Pillars & Platforms)</span>
-        </button>
+        {isSocMed && (
+          <button
+            type="button"
+            onClick={() => setReportView('general')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+              reportView === 'general'
+                ? 'bg-white text-indigo-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>General Report (Pillars & Platforms)</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -976,40 +1127,70 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                           </div>
                         </div>
 
-                        {/* Two Columns: Top Pillars & Top Platforms */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs space-y-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                              Pillar Contribution
-                            </span>
-                            <div className="space-y-1.5">
-                              {Object.entries(staff.pillarsCount).map(([pName, count]) => (
-                                <div key={pName} className="flex items-center justify-between text-xs">
-                                  <span className="font-bold text-slate-700">{pName}</span>
-                                  <span className="font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                                    {count}
-                                  </span>
-                                </div>
-                              ))}
+                        {/* Breakdown: Pillars & Platforms (for SocMed) vs Service Deliverables (for Other Units) */}
+                        {isSocMed ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs space-y-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                                Pillar Contribution
+                              </span>
+                              <div className="space-y-1.5">
+                                {Object.entries(staff.pillarsCount).length === 0 ? (
+                                  <span className="text-xs text-slate-400 italic">No pillars recorded</span>
+                                ) : (
+                                  Object.entries(staff.pillarsCount).map(([pName, count]) => (
+                                    <div key={pName} className="flex items-center justify-between text-xs">
+                                      <span className="font-bold text-slate-700">{pName}</span>
+                                      <span className="font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                                        {count}
+                                      </span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs space-y-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                              Platform Distribution
-                            </span>
-                            <div className="space-y-1.5">
-                              {Object.entries(staff.platformsCount).map(([plName, count]) => (
-                                <div key={plName} className="flex items-center justify-between text-xs">
-                                  <span className="font-bold text-slate-700">{plName}</span>
-                                  <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                                    {count}
-                                  </span>
-                                </div>
-                              ))}
+                            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs space-y-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                                Platform Distribution
+                              </span>
+                              <div className="space-y-1.5">
+                                {Object.entries(staff.platformsCount).length === 0 ? (
+                                  <span className="text-xs text-slate-400 italic">No platforms recorded</span>
+                                ) : (
+                                  Object.entries(staff.platformsCount).map(([plName, count]) => (
+                                    <div key={plName} className="flex items-center justify-between text-xs">
+                                      <span className="font-bold text-slate-700">{plName}</span>
+                                      <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                        {count}
+                                      </span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs space-y-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                              Deliverable & Service Category Contribution
+                            </span>
+                            {Object.keys(staff.servicesCount).length === 0 ? (
+                              <span className="text-xs text-slate-400 italic">No specific service categories recorded</span>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                {Object.entries(staff.servicesCount).map(([sName, count]) => (
+                                  <div key={sName} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                                    <span className="font-bold text-slate-700 truncate pr-2" title={sName}>{sName}</span>
+                                    <span className="font-extrabold text-indigo-600 bg-white border border-indigo-100 px-2 py-0.5 rounded-md shrink-0">
+                                      {count}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Recent Jobs Handled */}
                         <div className="space-y-2">
