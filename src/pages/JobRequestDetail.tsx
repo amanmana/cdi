@@ -2302,7 +2302,7 @@ export const JobRequestDetail: React.FC = () => {
                                   type="button"
                                   onClick={() => handleOpenSpecModal(srv, true)}
                                   className="btn btn-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl font-bold flex items-center gap-1 h-7 px-2.5 shadow-xs transition-all"
-                                  title="Lihat & Sunting Keperluan Klien (Mod Ketua Unit)"
+                                  title="View & Edit Client Requirements (Head of Unit Mode)"
                                 >
                                   <Edit3 className="w-3 h-3 text-indigo-600" />
                                   <span>View & Edit Specs</span>
@@ -2312,7 +2312,7 @@ export const JobRequestDetail: React.FC = () => {
                                   type="button"
                                   onClick={() => handleOpenSpecModal(srv, false)}
                                   className="btn btn-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold flex items-center gap-1 h-7 px-2.5 shadow-xs transition-all"
-                                  title="Lihat Spesifikasi Penuh (Modal Window)"
+                                  title="View Full Specifications (Modal Window)"
                                 >
                                   <Eye className="w-3 h-3 text-slate-600" />
                                   <span>View Full Specs</span>
@@ -2329,12 +2329,12 @@ export const JobRequestDetail: React.FC = () => {
                                   : 'bg-amber-100 text-amber-800'
                               }`}>
                                 {isRejected
-                                  ? '✖ Ditolak'
+                                  ? '✖ Rejected'
                                   : isAccepted
                                   ? '✓ In Progress'
                                   : isAwaitingHead
-                                  ? 'Menunggu Ketua Unit'
-                                  : 'Menunggu Kelulusan'}
+                                  ? 'Awaiting Unit Head'
+                                  : 'Awaiting Approval'}
                               </span>
                             </div>
                           </div>
@@ -2350,13 +2350,13 @@ export const JobRequestDetail: React.FC = () => {
                                 className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
                               >
                                 <Eye className="w-2.5 h-2.5" />
-                                <span>Buka Penuh</span>
+                                <span>View Full</span>
                               </button>
                             </div>
                             <p 
                               onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
                               className="text-xs font-medium text-slate-700 bg-slate-50 hover:bg-indigo-50/30 p-3 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer leading-relaxed whitespace-pre-wrap"
-                              title="Klik untuk lihat paparan penuh"
+                              title="Click to view full specifications"
                             >
                               {srv.scope || 'No specific deliverable brief specified.'}
                             </p>
@@ -2373,7 +2373,7 @@ export const JobRequestDetail: React.FC = () => {
                                   onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
                                   className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
                                 >
-                                  <span>Lihat Penuh</span>
+                                  <span>View Full</span>
                                   <ArrowRight className="w-2.5 h-2.5" />
                                 </button>
                               </div>
@@ -2383,7 +2383,7 @@ export const JobRequestDetail: React.FC = () => {
                                     key={fk} 
                                     onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
                                     className="bg-slate-50/80 hover:bg-indigo-50/50 p-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer min-w-0 group"
-                                    title="Klik untuk membuka tetingkap spesifikasi penuh"
+                                    title="Click to open full specifications modal"
                                   >
                                     <span className="text-[9px] font-bold text-slate-400 group-hover:text-indigo-600 uppercase block truncate">
                                       {fk.replace(/_/g, ' ')}
@@ -2402,11 +2402,11 @@ export const JobRequestDetail: React.FC = () => {
                             <div 
                               onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
                               className="p-3 bg-amber-50/80 hover:bg-amber-50 border border-amber-200 rounded-xl space-y-1 cursor-pointer transition-all"
-                              title="Klik untuk kemaskini atau lihat arahan"
+                              title="Click to view or edit instructions"
                             >
                               <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800">
                                 <Crown className="w-3 h-3 text-amber-600" />
-                                <span>Arahan Khas Ketua Unit untuk Staf</span>
+                                <span>Head of Unit Guidance Notes for Staff</span>
                               </div>
                               <p className="text-xs font-semibold text-amber-950 leading-relaxed whitespace-pre-wrap">
                                 {srv.head_guidance_notes || uMeta?.head_guidance_notes}
@@ -5171,7 +5171,7 @@ export const JobRequestDetail: React.FC = () => {
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 mb-1.5">
                   <Layers className="w-3.5 h-3.5" />
-                  <span>Keperluan Klien & Spesifikasi Unit</span>
+                  <span>Client Requirements & Unit Specifications</span>
                 </div>
                 <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                   <span>{activeSpecService.display_label || activeSpecService.name}</span>
@@ -5182,9 +5182,9 @@ export const JobRequestDetail: React.FC = () => {
                   )}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Unit Pelaksana: <strong className="text-slate-800">{activeSpecService.target_unit_name || activeSpecService.name}</strong>
+                  Fulfillment Unit: <strong className="text-slate-800">{activeSpecService.target_unit_name || activeSpecService.name}</strong>
                   {canEditServiceSpec(activeSpecService) && (
-                    <span className="ml-2 text-indigo-600 font-bold">• Kuasa Ketua Unit / Admin Aktif</span>
+                    <span className="ml-2 text-indigo-600 font-bold">• Head of Unit / Admin Mode Active</span>
                   )}
                 </p>
               </div>
@@ -5203,12 +5203,12 @@ export const JobRequestDetail: React.FC = () => {
                     {isEditingSpec ? (
                       <>
                         <Eye className="w-3.5 h-3.5" />
-                        <span>Mod Lihat Sahaja</span>
+                        <span>View Only Mode</span>
                       </>
                     ) : (
                       <>
                         <Edit3 className="w-3.5 h-3.5" />
-                        <span>Sunting Maklumat</span>
+                        <span>Edit Specifications</span>
                       </>
                     )}
                   </button>
@@ -5229,9 +5229,9 @@ export const JobRequestDetail: React.FC = () => {
                 <div className="p-3.5 bg-indigo-50/80 border border-indigo-200/80 rounded-2xl text-xs text-indigo-900 font-medium flex items-start gap-2.5">
                   <Edit3 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="font-extrabold block">Mod Suntingan Ketua Unit Aktif</strong>
+                    <strong className="font-extrabold block">Head of Unit Edit Mode Active</strong>
                     <span>
-                      Anda boleh menambah baik, membetulkan, atau melengkapkan skop kerja dan jawapan spesifikasi di bawah. Sebarang perubahan akan disimpan untuk rujukan staf pelaksana unit.
+                      You can refine, correct, or complete the work scope and intake specifications below. All updates will be saved for the unit fulfillment staff reference.
                     </span>
                   </div>
                 </div>
@@ -5250,7 +5250,7 @@ export const JobRequestDetail: React.FC = () => {
                       className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                     >
                       {copiedKey === 'scope' ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedKey === 'scope' ? 'Disalin!' : 'Salin Skop'}</span>
+                      <span>{copiedKey === 'scope' ? 'Copied!' : 'Copy Scope'}</span>
                     </button>
                   )}
                 </div>
@@ -5260,12 +5260,12 @@ export const JobRequestDetail: React.FC = () => {
                     rows={3}
                     value={specScope}
                     onChange={(e) => setSpecScope(e.target.value)}
-                    placeholder="Masukkan skop ringkas permohonan untuk unit ini..."
+                    placeholder="Enter deliverable scope or brief for this unit..."
                     className="textarea textarea-bordered w-full rounded-2xl text-xs font-medium bg-white p-3.5 focus:border-indigo-600 focus:outline-none leading-relaxed"
                   />
                 ) : (
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 text-xs font-medium text-slate-700 leading-relaxed whitespace-pre-wrap select-text">
-                    {specScope || <span className="text-slate-400 italic">Tiada arahan skop khusus dinyatakan oleh klien.</span>}
+                    {specScope || <span className="text-slate-400 italic">No specific deliverable brief specified by client.</span>}
                   </div>
                 )}
               </div>
@@ -5275,7 +5275,7 @@ export const JobRequestDetail: React.FC = () => {
                 <div className="space-y-3 pt-2 border-t border-slate-100">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                      Spesifikasi Unit ({Object.keys(specFields).length} Butiran Intake)
+                      Unit Specifications ({Object.keys(specFields).length} Intake Items)
                     </label>
                   </div>
 
@@ -5295,7 +5295,7 @@ export const JobRequestDetail: React.FC = () => {
                                 className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 flex items-center gap-1"
                               >
                                 {copiedKey === fk ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                                <span>{copiedKey === fk ? 'Disalin' : 'Salin'}</span>
+                                <span>{copiedKey === fk ? 'Copied' : 'Copy'}</span>
                               </button>
                             )}
                           </div>
@@ -5318,7 +5318,7 @@ export const JobRequestDetail: React.FC = () => {
                             )
                           ) : (
                             <p className="text-xs font-bold text-slate-800 break-words leading-relaxed select-text">
-                              {String(fv) || <span className="text-slate-400 italic font-normal">Tiada maklumat diisi</span>}
+                              {String(fv) || <span className="text-slate-400 italic font-normal">No information provided</span>}
                             </p>
                           )}
                         </div>
@@ -5332,7 +5332,7 @@ export const JobRequestDetail: React.FC = () => {
               <div className="pt-2 border-t border-slate-100 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-800">
                   <Crown className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Arahan & Nota Khas Ketua Unit untuk Staf</span>
+                  <span>Head of Unit Guidance & Internal Notes for Staff</span>
                 </div>
 
                 {isEditingSpec ? (
@@ -5341,18 +5341,18 @@ export const JobRequestDetail: React.FC = () => {
                       rows={3}
                       value={specGuidanceNotes}
                       onChange={(e) => setSpecGuidanceNotes(e.target.value)}
-                      placeholder="Masukkan nota panduan khas untuk staf pelaksana unit anda (cth: saiz kanvas, garis panduan warna, penekanan utama)..."
+                      placeholder="Enter guidance notes or instructions for your unit's staff (e.g. canvas size, color guidelines, key focus areas)..."
                       className="textarea textarea-bordered w-full rounded-2xl text-xs font-medium bg-amber-50/40 border-amber-200 focus:border-amber-400 p-3.5 focus:outline-none leading-relaxed"
                     />
                     <span className="text-[10px] text-slate-400 block italic">
-                      Nota ini akan dipaparkan secara khusus di atas kad tugasan staf unit.
+                      These notes will be displayed on the unit staff task card.
                     </span>
                   </div>
                 ) : (
                   <div className="p-3.5 bg-amber-50/60 border border-amber-200/80 rounded-2xl text-xs font-medium text-amber-900 leading-relaxed whitespace-pre-wrap select-text">
                     {specGuidanceNotes || (
                       <span className="text-amber-700/60 italic">
-                        Tiada arahan tambahan khusus daripada Ketua Unit buat masa ini.
+                        No additional guidance from the Head of Unit yet.
                       </span>
                     )}
                   </div>
@@ -5364,9 +5364,9 @@ export const JobRequestDetail: React.FC = () => {
             <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 shrink-0">
               <span className="text-[11px] text-slate-400">
                 {activeSpecService.specifications_updated_by ? (
-                  <span>Dikemaskini oleh: <strong className="text-slate-600">{activeSpecService.specifications_updated_by}</strong></span>
+                  <span>Updated by: <strong className="text-slate-600">{activeSpecService.specifications_updated_by}</strong></span>
                 ) : (
-                  <span>Input asal daripada borang awam pelanggan.</span>
+                  <span>Original input from client public submission form.</span>
                 )}
               </span>
 
@@ -5376,7 +5376,7 @@ export const JobRequestDetail: React.FC = () => {
                   onClick={() => setShowSpecModal(false)}
                   className="btn btn-sm btn-ghost text-slate-600 font-extrabold text-xs rounded-xl h-10 px-4"
                 >
-                  Tutup
+                  Close
                 </button>
                 {isEditingSpec && (
                   <button
@@ -5385,7 +5385,7 @@ export const JobRequestDetail: React.FC = () => {
                     disabled={savingSpec}
                     className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl h-10 px-5 shadow-md shadow-indigo-600/25 border-none"
                   >
-                    {savingSpec ? <span className="loading loading-spinner loading-xs"></span> : 'Simpan Spesifikasi'}
+                    {savingSpec ? <span className="loading loading-spinner loading-xs"></span> : 'Save Specifications'}
                   </button>
                 )}
               </div>

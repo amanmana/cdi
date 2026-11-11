@@ -1102,7 +1102,7 @@ export const UnitsManagement: React.FC = () => {
                   type="text"
                   value={searchPublicService}
                   onChange={(e) => setSearchPublicService(e.target.value)}
-                  placeholder="Cari nama servis, unit pelaksana, pakar staf, atau jabatan..."
+                  placeholder="Search service name, fulfillment unit, specialist, or department..."
                   className="input input-sm w-full pl-10 pr-9 h-10 rounded-2xl bg-slate-50 border-slate-200 focus:bg-white text-xs font-medium placeholder:text-slate-400"
                 />
                 {searchPublicService && (
@@ -1131,7 +1131,7 @@ export const UnitsManagement: React.FC = () => {
                   target="_blank"
                   rel="noreferrer"
                   className="btn bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 font-extrabold text-xs rounded-xl h-10 px-3.5 flex items-center gap-1.5 shadow-xs transition-all"
-                  title="Lihat borang awam sebenar di tab baharu"
+                  title="View live public form in new tab"
                 >
                   <ExternalLink className="w-4 h-4" />
                   <span>Public Form</span>
@@ -1141,7 +1141,7 @@ export const UnitsManagement: React.FC = () => {
 
             {/* Quick Filters */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Tapis:</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Filter:</span>
 
               {/* Type Filter */}
               <div className="join bg-slate-100 p-0.5 rounded-xl border border-slate-200/60">
@@ -1152,7 +1152,7 @@ export const UnitsManagement: React.FC = () => {
                     filterPublicServiceType === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'bg-transparent text-slate-500'
                   }`}
                 >
-                  Semua ({publicFormServicesList.length})
+                  All ({publicFormServicesList.length})
                 </button>
                 <button
                   type="button"
@@ -1180,7 +1180,7 @@ export const UnitsManagement: React.FC = () => {
                 onChange={(e) => setFilterPublicServiceRoute(e.target.value as any)}
                 className="select select-xs select-bordered h-7 rounded-xl text-[11px] font-bold bg-white text-slate-700"
               >
-                <option value="all">Semua Laluan Kelulusan</option>
+                <option value="all">All Workflow Routes</option>
                 <option value="manager">🏢 Dept. Manager Review</option>
                 <option value="head_unit">👑 Direct to Head Unit</option>
                 <option value="staff">⚡ Direct to Staff</option>
@@ -1193,7 +1193,7 @@ export const UnitsManagement: React.FC = () => {
                   onChange={(e) => setFilterPublicServiceDept(e.target.value)}
                   className="select select-xs select-bordered h-7 rounded-xl text-[11px] font-bold bg-white text-slate-700"
                 >
-                  <option value="all">Semua Jabatan</option>
+                  <option value="all">All Departments</option>
                   {departments.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
@@ -1213,7 +1213,7 @@ export const UnitsManagement: React.FC = () => {
                   }}
                   className="text-[11px] font-bold text-rose-600 hover:text-rose-800 hover:underline ml-auto"
                 >
-                  Reset Tapisan
+                  Reset Filters
                 </button>
               )}
             </div>
@@ -1225,9 +1225,9 @@ export const UnitsManagement: React.FC = () => {
               <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
                 <Search className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-extrabold text-slate-800">Tiada Servis Ditemui</h3>
+              <h3 className="text-base font-extrabold text-slate-800">No Services Found</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Tiada servis atau unit yang sepadan dengan tapisan carian anda. Sila ubah terma carian atau klik Reset Tapisan.
+                No services or units match your current search and filters. Please refine your query or click Reset Filters.
               </p>
             </div>
           ) : (
@@ -1286,7 +1286,7 @@ export const UnitsManagement: React.FC = () => {
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                               : 'bg-slate-200/80 text-slate-500 border-slate-300 hover:bg-slate-300/80'
                           }`}
-                          title={item.isActive ? 'Servis Aktif di Public Form (Klik untuk sembunyikan)' : 'Servis Tersembunyi (Klik untuk aktifkan)'}
+                          title={item.isActive ? 'Service Active on Public Form (Click to hide)' : 'Service Hidden (Click to activate)'}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${item.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                           <span>{item.isActive ? 'PUBLIC ACTIVE' : 'HIDDEN'}</span>
@@ -1373,7 +1373,7 @@ export const UnitsManagement: React.FC = () => {
                           }
                         }}
                         className="btn btn-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 rounded-xl font-bold flex items-center gap-1.5 h-8 px-3"
-                        title="Urus soalan spesifikasi borang (Dynamic Intake Questions)"
+                        title="Manage dynamic intake questions"
                       >
                         <Sliders className="w-3.5 h-3.5" />
                         <span>Questions ({item.questionCount})</span>
@@ -1389,7 +1389,7 @@ export const UnitsManagement: React.FC = () => {
                           }
                         }}
                         className="btn btn-xs bg-blue-600 hover:bg-blue-700 text-white border-none rounded-xl font-bold flex items-center gap-1.5 h-8 px-3.5 shadow-sm shadow-blue-500/20"
-                        title="Tukar Workflow Route & Specialist Staff secara pantas"
+                        title="Quick edit workflow route & specialist staff"
                       >
                         <Settings2 className="w-3.5 h-3.5" />
                         <span>Quick Edit</span>
