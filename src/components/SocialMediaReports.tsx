@@ -370,6 +370,10 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
   const [expandedStaffList, setExpandedStaffList] = useState<Record<number, boolean>>({});
 
+  // Interactive Monthly & Status Filter per staff member
+  const [staffMonthFilter, setStaffMonthFilter] = useState<Record<number, number | 'all'>>({});
+  const [staffStatusFilter, setStaffStatusFilter] = useState<Record<number, 'all' | 'in_progress' | 'completed'>>({});
+
   // Chart visual presentation: 'clustered' (Excel replica) vs 'stacked'
   const [chartStyle, setChartStyle] = useState<'clustered' | 'stacked'>('clustered');
   const [hoveredChartPoint, setHoveredChartPoint] = useState<{ pillar: string; month: string; val: number; x: number; y: number } | null>(null);
@@ -1850,24 +1854,50 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                     {/* Expandable Breakdown Body */}
                     {isExpanded && (
                       <div className="p-6 md:p-8 bg-slate-50/50 space-y-6">
-                        {/* Monthly Output Distribution */}
+                        {/* Monthly Output Distribution (Interactive Month Filter) */}
                         <div>
-                          <h5 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
-                            Monthly Output Distribution ({selectedYear})
-                          </h5>
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                              Monthly Output Distribution ({selectedYear})
+                            </h5>
+                            {(staffMonthFilter[staff.id] !== undefined && staffMonthFilter[staff.id] !== 'all') && (
+                              <button
+                                type="button"
+                                onClick={() => setStaffMonthFilter({ ...staffMonthFilter, [staff.id]: 'all' })}
+                                className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 underline uppercase"
+                              >
+                                Showing {MONTH_NAMES[staffMonthFilter[staff.id] as number]} • Clear Filter
+                              </button>
+                            )}
+                          </div>
                           <div className="grid grid-cols-6 sm:grid-cols-12 gap-2 text-center">
                             {MONTH_SHORT.map((m, idx) => {
                               const count = staff.monthlyCounts[idx] || 0;
+                              const isSelected = staffMonthFilter[staff.id] === idx;
                               return (
-                                <div
+                                <button
+                                  type="button"
                                   key={m}
-                                  className={`p-2.5 rounded-xl border text-xs ${
-                                    count > 0 ? 'bg-white border-indigo-200 text-indigo-900 font-black shadow-2xs' : 'bg-slate-100/60 border-slate-200/60 text-slate-400 font-medium'
+                                  onClick={() => {
+                                    setStaffMonthFilter({
+                                      ...staffMonthFilter,
+                                      [staff.id]: isSelected ? 'all' : idx,
+                                    });
+                                  }}
+                                  className={`p-2.5 rounded-xl border text-xs transition-all flex flex-col items-center justify-center ${
+                                    isSelected
+                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md ring-2 ring-indigo-500/30'
+                                      : count > 0
+                                      ? 'bg-white border-indigo-200 text-indigo-900 font-black hover:border-indigo-400 hover:bg-indigo-50/40 shadow-2xs cursor-pointer'
+                                      : 'bg-slate-100/60 border-slate-200/60 text-slate-400 font-medium hover:bg-slate-100 cursor-pointer'
                                   }`}
+                                  title={`Click to filter assigned requests for ${MONTH_NAMES[idx]}`}
                                 >
-                                  <span className="text-[9px] uppercase tracking-wider block text-slate-400">{m}</span>
+                                  <span className={`text-[9px] uppercase tracking-wider block ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
+                                    {m}
+                                  </span>
                                   <span className="text-sm font-black mt-0.5 block">{count}</span>
-                                </div>
+                                </button>
                               );
                             })}
                           </div>
@@ -1945,46 +1975,129 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                           </div>
                         )}
 
-                        {/* Assigned Requests Handled in Selected Year */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                              Assigned Requests in {selectedYear} ({staff.jobsList.length} Total)
-                            </span>
-                            {staff.jobsList.length > 10 && (
-                              <span className="text-[10px] font-bold text-slate-400">
-                                Showing latest 10 of {staff.jobsList.length}
-                              </span>
-                            )}
-                          </div>
-                          <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-                            {staff.jobsList.slice(0, 10).map((job: any) => (
-                              <div
-                                key={job.id}
-                                className="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between text-xs"
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="font-black text-indigo-700 shrink-0">#{job.ticket_no || job.id}</span>
-                                  <span className="font-bold text-slate-800 truncate">{job.title}</span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
-                                    job.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                                  }`}>
-                                    {job.status === 'completed' ? 'Done' : 'Processing'}
+                        {/* Assigned Requests Handled in Selected Year (Interactive Month & Status Filter) */}
+                        {(() => {
+                          const activeMonthIdx = staffMonthFilter[staff.id] ?? 'all';
+                          const activeStatus = staffStatusFilter[staff.id] ?? 'all';
+
+                          let monthScoped = staff.jobsList;
+                          if (activeMonthIdx !== 'all') {
+                            monthScoped = monthScoped.filter((j: any) => getJobDate(j).getMonth() === activeMonthIdx);
+                          }
+
+                          const totalInScope = monthScoped.length;
+                          const inProgressInScope = monthScoped.filter((j: any) => j.status !== 'completed' && !j.is_done).length;
+                          const completedInScope = monthScoped.filter((j: any) => j.status === 'completed' || j.is_done).length;
+
+                          let filtered = monthScoped;
+                          if (activeStatus === 'in_progress') {
+                            filtered = filtered.filter((j: any) => j.status !== 'completed' && !j.is_done);
+                          } else if (activeStatus === 'completed') {
+                            filtered = filtered.filter((j: any) => j.status === 'completed' || j.is_done);
+                          }
+
+                          return (
+                            <div className="space-y-3 pt-2">
+                              {/* Header & Filter Controls Bar */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-2.5">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                                    Assigned Requests {activeMonthIdx !== 'all' ? `in ${MONTH_NAMES[activeMonthIdx as number]}` : `in ${selectedYear}`}
                                   </span>
-                                  <Link
-                                    to={`/portal/job-requests/${job.id}`}
-                                    className="text-slate-400 hover:text-indigo-600"
-                                    title="Open ticket details"
+                                  <span className="badge badge-sm font-black bg-indigo-50 text-indigo-700 border-indigo-200">
+                                    {filtered.length} {filtered.length === 1 ? 'Job' : 'Jobs'}
+                                  </span>
+                                  {activeMonthIdx !== 'all' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setStaffMonthFilter({ ...staffMonthFilter, [staff.id]: 'all' })}
+                                      className="text-[10px] font-extrabold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded-md transition-colors"
+                                      title="Reset to all months"
+                                    >
+                                      ✕ Reset Month
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Status Filter Pills: All, In Progress, Completed */}
+                                <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => setStaffStatusFilter({ ...staffStatusFilter, [staff.id]: 'all' })}
+                                    className={`px-2.5 py-1 text-[10px] font-black rounded-lg transition-all ${
+                                      activeStatus === 'all'
+                                        ? 'bg-slate-900 text-white shadow-2xs'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                    }`}
                                   >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                  </Link>
+                                    All ({totalInScope})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setStaffStatusFilter({ ...staffStatusFilter, [staff.id]: 'in_progress' })}
+                                    className={`px-2.5 py-1 text-[10px] font-black rounded-lg transition-all ${
+                                      activeStatus === 'in_progress'
+                                        ? 'bg-amber-600 text-white shadow-2xs'
+                                        : 'bg-white text-amber-700 hover:bg-amber-50 border border-amber-200'
+                                    }`}
+                                  >
+                                    In Progress ({inProgressInScope})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setStaffStatusFilter({ ...staffStatusFilter, [staff.id]: 'completed' })}
+                                    className={`px-2.5 py-1 text-[10px] font-black rounded-lg transition-all ${
+                                      activeStatus === 'completed'
+                                        ? 'bg-emerald-600 text-white shadow-2xs'
+                                        : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200'
+                                    }`}
+                                  >
+                                    Completed ({completedInScope})
+                                  </button>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        </div>
+
+                              {/* Requests List Container */}
+                              {filtered.length === 0 ? (
+                                <div className="p-6 text-center bg-white rounded-2xl border border-slate-100 text-slate-400 text-xs font-semibold">
+                                  No requests found matching this month & status filter.
+                                </div>
+                              ) : (
+                                <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1">
+                                  {filtered.map((job: any) => (
+                                    <div
+                                      key={job.id}
+                                      className="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between text-xs hover:border-indigo-100 transition-colors shadow-2xs"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <span className="font-black text-indigo-700 shrink-0">#{job.ticket_no || job.id}</span>
+                                        <span className="font-bold text-slate-800 truncate" title={job.title}>
+                                          {job.title}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                          job.status === 'completed' || job.is_done
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : 'bg-amber-100 text-amber-800'
+                                        }`}>
+                                          {job.status === 'completed' || job.is_done ? 'Done' : 'Processing'}
+                                        </span>
+                                        <Link
+                                          to={`/portal/job-requests/${job.id}`}
+                                          className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors"
+                                          title="Open ticket details"
+                                        >
+                                          <ExternalLink className="w-3.5 h-3.5" />
+                                        </Link>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
