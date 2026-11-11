@@ -92,6 +92,23 @@ const COLOR_PALETTE = [
   { bg: 'bg-indigo-600', fill: '#4f46e5', border: 'border-indigo-700', text: 'text-indigo-700' },
 ];
 
+const normalizePlatform = (raw: string): string => {
+  const clean = raw.trim();
+  const lower = clean.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (lower.includes('linke') && lower.includes('repost')) return 'LinkedIn Repost';
+  if (lower.includes('linke')) return 'LinkedIn';
+  if (lower.includes('face') && lower.includes('repost')) return 'Facebook Repost';
+  if (lower.includes('face')) return 'Facebook';
+  if (lower.includes('insta')) return 'Instagram';
+  if (lower.includes('tik')) return 'Tiktok';
+  if (lower.includes('you')) return 'Youtube';
+  if (lower.includes('thread')) return 'Threads';
+  if (lower.includes('twit') || lower === 'x') return 'Twitter';
+
+  const match = CANONICAL_PLATFORMS.find((cp) => cp.toLowerCase() === clean.toLowerCase());
+  return match || clean;
+};
+
 export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
   jobs,
   user,
@@ -158,52 +175,46 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
     const platforms: string[] = [];
     const addData = job.additional_data || {};
 
+    const checkObj = (obj: any) => {
+      if (!obj || typeof obj !== 'object') return;
+      for (const [k, v] of Object.entries(obj)) {
+        const kLower = k.toLowerCase().replace(/[^a-z]/g, '');
+        if (kLower.includes('pillar')) {
+          if (Array.isArray(v)) pillars.push(...v);
+          else if (typeof v === 'string') pillars.push(...v.split(',').map((s: string) => s.trim()));
+        }
+        if (
+          kLower.includes('plat') || // matches platorm, platform, platforms
+          kLower.includes('channel') ||
+          kLower.includes('socmed') ||
+          kLower.includes('socialmedia')
+        ) {
+          if (Array.isArray(v)) platforms.push(...v);
+          else if (typeof v === 'string') platforms.push(...v.split(',').map((s: string) => s.trim()));
+        }
+      }
+    };
+
     // 1. From selected_services
     if (Array.isArray(addData.selected_services)) {
       for (const s of addData.selected_services) {
-        const f = s.fields || s.custom_fields || {};
-        const p = f.pillar || f.Pillar;
-        if (p) {
-          if (Array.isArray(p)) pillars.push(...p);
-          else if (typeof p === 'string') pillars.push(...p.split(',').map((str: string) => str.trim()));
-        }
-        const plat = f.platform || f.Platform || f.platforms || f.Platforms || f.social_media || f.Social_Media;
-        if (plat) {
-          if (Array.isArray(plat)) platforms.push(...plat);
-          else if (typeof plat === 'string') platforms.push(...plat.split(',').map((str: string) => str.trim()));
-        }
+        checkObj(s.fields);
+        checkObj(s.custom_fields);
       }
     }
 
     // 2. From unit_assignments
     if (addData.unit_assignments && typeof addData.unit_assignments === 'object') {
       for (const [_, uMeta] of Object.entries(addData.unit_assignments as any)) {
-        const f = (uMeta as any)?.custom_fields || (uMeta as any)?.fields || {};
-        const p = f.pillar || f.Pillar;
-        if (p) {
-          if (Array.isArray(p)) pillars.push(...p);
-          else if (typeof p === 'string') pillars.push(...p.split(',').map((str: string) => str.trim()));
-        }
-        const plat = f.platform || f.Platform || f.platforms || f.Platforms;
-        if (plat) {
-          if (Array.isArray(plat)) platforms.push(...plat);
-          else if (typeof plat === 'string') platforms.push(...plat.split(',').map((str: string) => str.trim()));
-        }
+        checkObj((uMeta as any)?.fields);
+        checkObj((uMeta as any)?.custom_fields);
       }
     }
 
-    // 3. From direct custom_fields
-    const direct = addData.custom_fields_data || addData.custom_fields || {};
-    const pDirect = direct.pillar || direct.Pillar;
-    if (pDirect) {
-      if (Array.isArray(pDirect)) pillars.push(...pDirect);
-      else if (typeof pDirect === 'string') pillars.push(...pDirect.split(',').map((str: string) => str.trim()));
-    }
-    const platDirect = direct.platform || direct.Platform || direct.platforms;
-    if (platDirect) {
-      if (Array.isArray(platDirect)) platforms.push(...platDirect);
-      else if (typeof platDirect === 'string') platforms.push(...platDirect.split(',').map((str: string) => str.trim()));
-    }
+    // 3. Direct from additional_data & custom_fields
+    checkObj(addData.custom_fields);
+    checkObj(addData.custom_fields_data);
+    checkObj(addData);
 
     // Canonical matching for known pillars
     const cleanPillars = Array.from(new Set(pillars.filter(Boolean))).map((p) => {
@@ -212,10 +223,9 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
     });
 
     // Canonical matching for known platforms
-    const cleanPlatforms = Array.from(new Set(platforms.filter(Boolean))).map((pl) => {
-      const plMatch = CANONICAL_PLATFORMS.find((cpl) => cpl.toLowerCase() === pl.toLowerCase().trim());
-      return plMatch || pl.trim();
-    });
+    const cleanPlatforms = Array.from(new Set(platforms.filter(Boolean)))
+      .map(normalizePlatform)
+      .filter((p) => p && !['true', 'false', 'null', 'undefined'].includes(p.toLowerCase()));
 
     return {
       pillars: cleanPillars.length > 0 ? cleanPillars : ['Unassigned Pillar'],
@@ -549,6 +559,87 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
     document.body.removeChild(link);
   };
 
+  // Section-specific PDF / Print Handler (clean landscape executive preview)
+  const handlePrintSection = (elementId: string, title: string) => {
+    const elem = document.getElementById(elementId);
+    if (!elem) {
+      window.print();
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=1100,height=850');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const clonedElem = elem.cloneNode(true) as HTMLElement;
+    clonedElem.querySelectorAll('.no-print, button').forEach((el) => el.remove());
+
+    const contentHtml = clonedElem.innerHTML;
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title} - ${selectedYear}</title>
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+          <style>
+            @page {
+              size: landscape;
+              margin: 15mm 12mm;
+            }
+            body {
+              font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              background-color: #ffffff;
+              color: #0f172a;
+              padding: 24px;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 11px;
+            }
+            th, td {
+              border: 1px solid #cbd5e1;
+              padding: 8px 6px;
+            }
+            .no-print {
+              display: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div style="border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #4f46e5;">Corporate Digital Innovation (CDI)</span>
+              <h1 style="font-size: 20px; font-weight: 900; margin: 2px 0 0 0; color: #0f172a;">${title}</h1>
+              <p style="font-size: 11px; color: #64748b; margin: 2px 0 0 0;">Unit: ${currentUnit} • Calendar Year: ${selectedYear} • Generated on: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+            </div>
+            <div style="text-align: right;">
+              <span style="background-color: #e0e7ff; color: #3730a3; padding: 4px 10px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase;">Executive Presentation Report</span>
+            </div>
+          </div>
+          <div style="margin-top: 12px;">
+            ${contentHtml}
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   // Top Performing Highlights
   const topPillar = useMemo(() => {
     let topName = 'N/A';
@@ -787,8 +878,8 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
       {reportView === 'general' && (
         <div className="space-y-10">
           {/* 1. TABLE 1: PILLARS BY MONTH */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-5 md:p-6 border-b border-slate-100 flex items-center justify-between">
+          <div id="table-pillars" className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-5 md:p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
@@ -798,9 +889,20 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                   Monthly distribution of content strategy pillars published across the year.
                 </p>
               </div>
-              <span className="text-xs font-black bg-blue-50 text-blue-800 px-3 py-1 rounded-full border border-blue-100">
-                Total: {pillarsMatrix.grandTotal} Posts
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black bg-blue-50 text-blue-800 px-3 py-1 rounded-full border border-blue-100">
+                  Total: {pillarsMatrix.grandTotal} Posts
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handlePrintSection('table-pillars', `Content Pillars by Month (${selectedYear})`)}
+                  className="btn btn-xs bg-white hover:bg-slate-100 text-slate-700 font-extrabold rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1 transition-all h-8 px-2.5"
+                  title="Export this table as PDF"
+                >
+                  <Printer className="w-3 h-3 text-slate-500" />
+                  <span>Export PDF</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -861,8 +963,8 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
           </div>
 
           {/* 2. TABLE 2: PLATFORM BY MONTH */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-5 md:p-6 border-b border-slate-100 flex items-center justify-between">
+          <div id="table-platforms" className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-5 md:p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
@@ -872,9 +974,20 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                   Monthly distribution of content deployed per social media platform.
                 </p>
               </div>
-              <span className="text-xs font-black bg-emerald-50 text-emerald-800 px-3 py-1 rounded-full border border-emerald-100">
-                Total: {platformsMatrix.grandTotal} Deliverables
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black bg-emerald-50 text-emerald-800 px-3 py-1 rounded-full border border-emerald-100">
+                  Total: {platformsMatrix.grandTotal} Deliverables
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handlePrintSection('table-platforms', `Publishing Platforms by Month (${selectedYear})`)}
+                  className="btn btn-xs bg-white hover:bg-slate-100 text-slate-700 font-extrabold rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1 transition-all h-8 px-2.5"
+                  title="Export this table as PDF"
+                >
+                  <Printer className="w-3 h-3 text-slate-500" />
+                  <span>Export PDF</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -933,13 +1046,24 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
           </div>
 
           {/* 3. GROUPED BAR CHART: PILLARS BY MONTH (EXACT IMAGE 2 REPLICA) */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 md:p-8 space-y-6">
+          <div id="chart-pillars" className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 md:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight italic">
-                  Pillars by Month ({selectedYear})
-                </h3>
-                <p className="text-xs text-slate-400 font-medium">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight italic">
+                    Pillars by Month ({selectedYear})
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => handlePrintSection('chart-pillars', `Pillars by Month Comparative Chart (${selectedYear})`)}
+                    className="btn btn-xs bg-white hover:bg-slate-100 text-slate-700 font-extrabold rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1 transition-all h-7 px-2"
+                    title="Export this chart as PDF"
+                  >
+                    <Printer className="w-3 h-3 text-slate-500" />
+                    <span>Export PDF</span>
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
                   Grouped comparative visualization of strategic focus across each calendar month.
                 </p>
               </div>
