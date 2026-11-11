@@ -173,28 +173,80 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
     return new Date();
   };
 
+  // Helper to parse JSON if stored as string
+  const parseSafeJson = (val: any) => {
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          return JSON.parse(trimmed);
+        } catch {
+          return val;
+        }
+      }
+    }
+    return val;
+  };
+
   // Helper to extract pillars & platforms from job
   const extractPillarsAndPlatforms = (job: any) => {
     const pillars: string[] = [];
     const platforms: string[] = [];
-    const addData = job.additional_data || {};
+    const addData = parseSafeJson(job.additional_data) || {};
 
-    const checkObj = (obj: any) => {
+    const checkObj = (rawObj: any) => {
+      const obj = parseSafeJson(rawObj);
       if (!obj || typeof obj !== 'object') return;
-      for (const [k, v] of Object.entries(obj)) {
-        const kLower = k.toLowerCase().replace(/[^a-z]/g, '');
+
+      for (const [k, rawV] of Object.entries(obj)) {
+        const v = parseSafeJson(rawV);
+        const kLower = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        // 1. Check for Pillar fields
         if (kLower.includes('pillar')) {
-          if (Array.isArray(v)) pillars.push(...v);
-          else if (typeof v === 'string') pillars.push(...v.split(',').map((s: string) => s.trim()));
+          if (Array.isArray(v)) {
+            pillars.push(...v);
+          } else if (typeof v === 'string') {
+            pillars.push(...v.split(',').map((s: string) => s.trim()));
+          } else if (typeof v === 'object' && v !== null) {
+            Object.entries(v).forEach(([pk, pv]) => {
+              if (pv === true || pv === 'true' || pv === '1' || pv === 1) pillars.push(pk);
+            });
+          }
         }
+
+        // 2. Check for Platform / Channel / Socmed fields
         if (
-          kLower.includes('plat') || // matches platorm, platform, platforms
+          kLower.includes('plat') || // matches platform, platforms, platorm
           kLower.includes('channel') ||
           kLower.includes('socmed') ||
-          kLower.includes('socialmedia')
+          kLower.includes('socialmedia') ||
+          kLower.includes('distribut')
         ) {
-          if (Array.isArray(v)) platforms.push(...v);
-          else if (typeof v === 'string') platforms.push(...v.split(',').map((s: string) => s.trim()));
+          if (Array.isArray(v)) {
+            platforms.push(...v);
+          } else if (typeof v === 'string') {
+            platforms.push(...v.split(',').map((s: string) => s.trim()));
+          } else if (typeof v === 'object' && v !== null) {
+            // Checkbox maps: e.g. { "Instagram": true, "Facebook": true }
+            Object.entries(v).forEach(([subK, subV]) => {
+              if (subV === true || subV === 'true' || subV === '1' || subV === 1 || subV === 'checked') {
+                platforms.push(subK);
+              }
+            });
+          }
+        }
+
+        // 3. Platform name itself as key (e.g. instagram: true, facebook: true, tiktok: true)
+        const matchedCanonical = CANONICAL_PLATFORMS.find(
+          (cp) => cp.toLowerCase().replace(/[^a-z0-9]/g, '') === kLower
+        );
+        if (matchedCanonical) {
+          if (v === true || v === 'true' || v === '1' || v === 1 || v === 'checked' || v === 'yes') {
+            platforms.push(matchedCanonical);
+          } else if (typeof v === 'string' && v.trim() && v !== 'false' && v !== '0') {
+            platforms.push(matchedCanonical);
+          }
         }
       }
     };
@@ -218,6 +270,7 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
     // 3. Direct from additional_data & custom_fields
     checkObj(addData.custom_fields);
     checkObj(addData.custom_fields_data);
+    checkObj(addData.specifications);
     checkObj(addData);
 
     // Canonical matching for known pillars
