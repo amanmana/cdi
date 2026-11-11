@@ -1132,9 +1132,9 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
             <div className="w-full overflow-x-auto relative pt-2">
               <div className="min-w-[850px] w-full">
                 {(() => {
-                  // Coordinate specifications for 1000 x 430 viewBox
+                  // Coordinate specifications for 1000 x 410 viewBox
                   const svgWidth = 1000;
-                  const svgHeight = 430;
+                  const svgHeight = 410;
                   const plotX = 65;
                   const plotRight = 780;
                   const plotWidth = plotRight - plotX; // 715px
@@ -1213,24 +1213,14 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                               />
                             )}
 
-                            {/* Month Label below baseline */}
+                            {/* Single Month Label below baseline */}
                             <text
                               x={slotCenterX}
-                              y={plotBottom + 22}
+                              y={plotBottom + 20}
                               textAnchor="middle"
-                              className="text-[9px] font-black fill-slate-600 tracking-wider uppercase"
+                              className="text-[10px] font-extrabold fill-slate-700 tracking-wider uppercase"
                             >
                               {shortMonth}
-                            </text>
-
-                            {/* Month sub-label (Full name on hover or small) */}
-                            <text
-                              x={slotCenterX}
-                              y={plotBottom + 35}
-                              textAnchor="middle"
-                              className="text-[7.5px] font-bold fill-slate-400 uppercase tracking-tighter"
-                            >
-                              {mName.slice(0, 4)}
                             </text>
 
                             {/* --- BARS RENDERING: CLUSTERED MODE --- */}
