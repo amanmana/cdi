@@ -2152,37 +2152,34 @@ export const JobRequestDetail: React.FC = () => {
             </div>
             )}
 
-            {/* Client Info Soft Box */}
-            <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
+            {/* Project Requirements & Client Details Combined Box */}
+            <div className="bg-blue-50/30 p-6 rounded-2xl border border-blue-100/70 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-black text-blue-700 uppercase tracking-wider">
+                <FileText className="w-4 h-4 text-blue-600" />
+                <span>PROJECT REQUIREMENTS & CLIENT DETAILS</span>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                {/* Client Name */}
+                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                     CLIENT NAME
                   </span>
-                  <span className="text-sm font-extrabold text-slate-900 mt-0.5 block">
+                  <span className="text-sm font-extrabold text-slate-900 block">
                     {request.client_name}
                   </span>
                 </div>
 
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                {/* Email */}
+                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                     EMAIL
                   </span>
-                  <span className="text-sm font-extrabold text-slate-900 mt-0.5 block">
+                  <span className="text-sm font-extrabold text-slate-900 block">
                     {request.client_email}
                   </span>
                 </div>
-              </div>
-            </div>
 
-            {/* Project Requirements Soft Box */}
-            <div className="bg-blue-50/30 p-6 rounded-2xl border border-blue-100/70 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-black text-blue-700 uppercase tracking-wider">
-                <FileText className="w-4 h-4 text-blue-600" />
-                <span>PROJECT REQUIREMENTS</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Additional Form Data Fields (Filter out technical IDs, internal flags, and objects) */}
                 {request.additional_data &&
                   Object.entries(request.additional_data)
