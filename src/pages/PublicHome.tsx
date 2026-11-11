@@ -328,6 +328,7 @@ export const PublicHome: React.FC = () => {
         suggested_staff_name: item.suggested_staff_name,
         scope: unitScopes[item.key]?.description || '',
         fields: unitScopes[item.key]?.fields || {},
+        form_schema: item.form_schema || [],
       }));
 
       const primaryUnitName = selectedItems.map((s) => s.target_unit_name).join(', ');

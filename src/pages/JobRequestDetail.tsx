@@ -110,6 +110,7 @@ export const JobRequestDetail: React.FC = () => {
 
   // Cross-Unit Assistance Modal State
   const [unitsList, setUnitsList] = useState<any[]>([]);
+  const [customServicesList, setCustomServicesList] = useState<any[]>([]);
   const [showRequestAssistanceModal, setShowRequestAssistanceModal] = useState(false);
   const [assistanceTargetUnit, setAssistanceTargetUnit] = useState('');
   const [assistanceSuggestedStaffId, setAssistanceSuggestedStaffId] = useState<number | ''>('');
@@ -278,6 +279,15 @@ export const JobRequestDetail: React.FC = () => {
         }
       })
       .catch((err) => console.error('Failed to load units:', err));
+
+    fetch('/api/public/custom-services')
+      .then((res) => res.json())
+      .then((csData) => {
+        if (Array.isArray(csData)) {
+          setCustomServicesList(csData);
+        }
+      })
+      .catch((err) => console.error('Failed to load custom services:', err));
   }, [id, token, user?.id]);
 
   if (loading) {
@@ -1246,6 +1256,101 @@ export const JobRequestDetail: React.FC = () => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const getServiceSchema = (srv: any) => {
+    if (!srv) return [];
+    if (Array.isArray(srv.form_schema) && srv.form_schema.length > 0) {
+      return srv.form_schema;
+    }
+    const srvName = (srv.name || '').toLowerCase().trim();
+    const srvLabel = (srv.display_label || '').toLowerCase().trim();
+    const targetUnit = (srv.target_unit_name || '').toLowerCase().trim();
+
+    // 1. Match custom service
+    const matchedCs = customServicesList.find((cs: any) => {
+      const csName = (cs.name || '').toLowerCase().trim();
+      const csLabel = (cs.display_label || '').toLowerCase().trim();
+      return (
+        (srv.id && cs.id === srv.id) ||
+        (srvName && (csName === srvName || csLabel === srvName)) ||
+        (srvLabel && (csName === srvLabel || csLabel === srvLabel))
+      );
+    });
+    if (matchedCs && Array.isArray(matchedCs.form_schema) && matchedCs.form_schema.length > 0) {
+      return matchedCs.form_schema;
+    }
+
+    // 2. Match unit
+    const matchedUnit = unitsList.find((u: any) => {
+      const uName = (u.name || '').toLowerCase().trim();
+      const uLabel = (u.display_label || u.public_label || '').toLowerCase().trim();
+      return (
+        (srv.target_unit_id && u.id === srv.target_unit_id) ||
+        (targetUnit && (uName === targetUnit || uLabel === targetUnit)) ||
+        (srvName && (uName === srvName || uLabel === srvName))
+      );
+    });
+    if (matchedUnit && Array.isArray(matchedUnit.form_schema) && matchedUnit.form_schema.length > 0) {
+      return matchedUnit.form_schema;
+    }
+
+    return [];
+  };
+
+  const currentServiceSchema = useMemo(() => {
+    return getServiceSchema(activeSpecService);
+  }, [activeSpecService, customServicesList, unitsList]);
+
+  const allDisplayFields = useMemo(() => {
+    if (!activeSpecService) return [];
+
+    // 1. Map fields defined in the schema
+    const schemaMapped = currentServiceSchema.map((field: any) => {
+      const matchedKey = Object.keys(specFields).find(
+        (k) => k.toLowerCase() === field.id.toLowerCase()
+      );
+      const val = matchedKey !== undefined ? specFields[matchedKey] : '';
+      return {
+        id: field.id,
+        matchedKey: matchedKey || field.id,
+        label: field.label || field.id.replace(/_/g, ' '),
+        type: field.type || 'text',
+        options: Array.isArray(field.options)
+          ? field.options
+          : typeof field.options === 'string'
+          ? field.options.split(',').map((o: string) => o.trim()).filter(Boolean)
+          : [],
+        placeholder: field.placeholder,
+        required: field.required,
+        value: val,
+      };
+    });
+
+    // 2. Map any extra intake fields from specFields that are not in schema
+    const schemaKeySet = new Set(schemaMapped.map((f: any) => f.id.toLowerCase()));
+    const extraMapped = Object.entries(specFields)
+      .filter(([k]) => !schemaKeySet.has(k.toLowerCase()))
+      .map(([k, v]) => ({
+        id: k,
+        matchedKey: k,
+        label: k.replace(/_/g, ' ').toUpperCase(),
+        type: String(v).length > 80 || String(v).includes('\n') ? 'textarea' : 'text',
+        options: [],
+        placeholder: '',
+        required: false,
+        value: v,
+      }));
+
+    return [...schemaMapped, ...extraMapped];
+  }, [activeSpecService, currentServiceSchema, specFields]);
+
+  const handleUpdateSpecField = (fieldId: string, matchedKey: string, newVal: any) => {
+    setSpecFields((prev) => ({
+      ...prev,
+      [matchedKey]: newVal,
+      [fieldId]: newVal,
+    }));
   };
 
   const getAstRequesterBadge = (ast: any) => {
@@ -2351,19 +2456,24 @@ export const JobRequestDetail: React.FC = () => {
                                 Unit Specifications ({Object.keys(srv.fields).length})
                               </span>
                               <div className={`grid gap-2 ${isSingleUnit ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2'}`}>
-                                {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => (
-                                  <div 
-                                    key={fk} 
-                                    className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 min-w-0"
-                                  >
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase block truncate">
-                                      {fk.replace(/_/g, ' ')}
-                                    </span>
-                                    <span className="text-xs font-bold text-slate-800 block truncate mt-0.5">
-                                      {String(fv)}
-                                    </span>
-                                  </div>
-                                ))}
+                                {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => {
+                                  const srvSchema = getServiceSchema(srv);
+                                  const matchedField = srvSchema.find((f: any) => f.id.toLowerCase() === fk.toLowerCase());
+                                  const displayLabel = matchedField?.label || fk.replace(/_/g, ' ');
+                                  return (
+                                    <div 
+                                      key={fk} 
+                                      className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 min-w-0"
+                                    >
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase block truncate" title={displayLabel}>
+                                        {displayLabel}
+                                      </span>
+                                      <span className="text-xs font-bold text-slate-800 block truncate mt-0.5">
+                                        {String(fv)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -5238,22 +5348,24 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {/* Dynamic Specifications & Intake Questions */}
-              {Object.keys(specFields).length > 0 && (
+              {allDisplayFields.length > 0 && (
                 <div className="space-y-3 pt-2 border-t border-slate-100">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                      Unit Specifications ({Object.keys(specFields).length} Intake Items)
+                      Unit Specifications ({allDisplayFields.length} Intake Items)
                     </label>
                   </div>
 
                   <div className="space-y-3">
-                    {Object.entries(specFields).map(([fk, fv]) => {
-                      const fieldLabel = fk.replace(/_/g, ' ').toUpperCase();
+                    {allDisplayFields.map((field) => {
+                      const fk = field.matchedKey || field.id;
+                      const fv = field.value;
+
                       return (
-                        <div key={fk} className="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/70 space-y-1.5">
+                        <div key={field.id} className="bg-slate-50/70 p-3.5 sm:p-4 rounded-2xl border border-slate-200/70 space-y-2">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                              {fieldLabel}
+                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                              {field.label} {field.required && <span className="text-rose-500">*</span>}
                             </span>
                             {!isEditingSpec && fv && (
                               <button
@@ -5268,25 +5380,127 @@ export const JobRequestDetail: React.FC = () => {
                           </div>
 
                           {isEditingSpec ? (
-                            String(fv).length > 80 || String(fv).includes('\n') ? (
-                              <textarea
-                                rows={2}
-                                value={String(fv)}
-                                onChange={(e) => setSpecFields({ ...specFields, [fk]: e.target.value })}
-                                className="textarea textarea-bordered w-full rounded-xl text-xs font-medium bg-white p-2.5 focus:border-indigo-600 focus:outline-none"
-                              />
-                            ) : (
-                              <input
-                                type="text"
-                                value={String(fv)}
-                                onChange={(e) => setSpecFields({ ...specFields, [fk]: e.target.value })}
-                                className="input input-sm input-bordered w-full rounded-xl text-xs font-semibold bg-white px-3 focus:border-indigo-600 focus:outline-none"
-                              />
-                            )
+                            <div>
+                              {field.type === 'radio' && field.options.length > 0 ? (
+                                <div className="flex flex-wrap gap-2 pt-0.5">
+                                  {field.options.map((opt: string, i: number) => {
+                                    const isSelected = String(fv) === opt;
+                                    return (
+                                      <label
+                                        key={i}
+                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-all shadow-2xs ${
+                                          isSelected
+                                            ? 'bg-indigo-50/90 border-indigo-500 text-indigo-900 shadow-indigo-500/10'
+                                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        <input
+                                          type="radio"
+                                          name={`spec_field_${field.id}`}
+                                          value={opt}
+                                          checked={isSelected}
+                                          onChange={() => handleUpdateSpecField(field.id, fk, opt)}
+                                          className="radio radio-primary radio-xs"
+                                        />
+                                        <span>{opt}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              ) : field.type === 'select' && field.options.length > 0 ? (
+                                <select
+                                  value={fv || ''}
+                                  onChange={(e) => handleUpdateSpecField(field.id, fk, e.target.value)}
+                                  className="select select-bordered select-sm bg-white border-slate-200 rounded-xl w-full h-10 text-xs font-semibold focus:border-indigo-600 focus:outline-none"
+                                >
+                                  <option value="">-- {field.placeholder || `Select ${field.label}`} --</option>
+                                  {field.options.map((opt: string) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : field.type === 'date' ? (
+                                <input
+                                  type="date"
+                                  value={fv || ''}
+                                  onChange={(e) => handleUpdateSpecField(field.id, fk, e.target.value)}
+                                  className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-10 text-xs font-semibold focus:border-indigo-600 focus:outline-none"
+                                />
+                              ) : field.type === 'number' ? (
+                                <input
+                                  type="number"
+                                  placeholder={field.placeholder || '0'}
+                                  value={fv !== undefined && fv !== null ? fv : ''}
+                                  onChange={(e) => handleUpdateSpecField(field.id, fk, e.target.value)}
+                                  className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-10 text-xs font-semibold focus:border-indigo-600 focus:outline-none"
+                                />
+                              ) : field.type === 'checkbox' && field.options.length > 0 ? (
+                                <div className="flex flex-wrap gap-2 pt-0.5">
+                                  {field.options.map((opt: string, i: number) => {
+                                    const currentArr: string[] = Array.isArray(fv)
+                                      ? fv
+                                      : typeof fv === 'string'
+                                      ? fv.split(', ').filter(Boolean)
+                                      : [];
+                                    const isChecked = currentArr.includes(opt);
+                                    return (
+                                      <label
+                                        key={i}
+                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
+                                          isChecked
+                                            ? 'bg-indigo-50/90 border-indigo-500 text-indigo-900'
+                                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={(e) => {
+                                            const updated = e.target.checked
+                                              ? [...currentArr, opt]
+                                              : currentArr.filter((v: string) => v !== opt);
+                                            handleUpdateSpecField(field.id, fk, updated.join(', '));
+                                          }}
+                                          className="checkbox checkbox-primary checkbox-xs rounded"
+                                        />
+                                        <span>{opt}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              ) : field.type === 'textarea' || (String(fv).length > 80 || String(fv).includes('\n')) ? (
+                                <textarea
+                                  rows={2}
+                                  value={String(fv || '')}
+                                  placeholder={field.placeholder || `Enter ${field.label}...`}
+                                  onChange={(e) => handleUpdateSpecField(field.id, fk, e.target.value)}
+                                  className="textarea textarea-bordered w-full rounded-xl text-xs font-medium bg-white p-2.5 focus:border-indigo-600 focus:outline-none"
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={String(fv || '')}
+                                  placeholder={field.placeholder || `Enter ${field.label}...`}
+                                  onChange={(e) => handleUpdateSpecField(field.id, fk, e.target.value)}
+                                  className="input input-sm input-bordered w-full rounded-xl text-xs font-semibold bg-white px-3 focus:border-indigo-600 focus:outline-none"
+                                />
+                              )}
+                            </div>
                           ) : (
-                            <p className="text-xs font-bold text-slate-800 break-words leading-relaxed select-text">
-                              {String(fv) || <span className="text-slate-400 italic font-normal">No information provided</span>}
-                            </p>
+                            <div>
+                              {field.type === 'radio' || field.type === 'select' ? (
+                                <div className="pt-0.5">
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-50/80 border border-indigo-100/90 text-indigo-900 text-xs font-extrabold shadow-2xs">
+                                    {String(fv) || <span className="text-slate-400 italic font-normal">No information provided</span>}
+                                  </span>
+                                </div>
+                              ) : (
+                                <p className="text-xs font-bold text-slate-800 break-words leading-relaxed select-text">
+                                  {String(fv) || <span className="text-slate-400 italic font-normal">No information provided</span>}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
                       );
