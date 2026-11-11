@@ -109,6 +109,237 @@ const normalizePlatform = (raw: string): string => {
   return match || clean;
 };
 
+// ==============================================================
+// 3-TIER SERVICE CATEGORY CLASSIFIER (FOR NON-SOCMED UNITS)
+// Tier 1: Explicit Form Field (service_category / media_type / etc.)
+// Tier 2: Canonical Sub-Service Name
+// Tier 3: Smart Keyword Classifier
+// ==============================================================
+export const resolveNonSocmedCategory = (job: any, staffUnit: string): string => {
+  const unitLower = (staffUnit || '').toLowerCase().trim();
+  const addData = typeof job.additional_data === 'object' && job.additional_data !== null
+    ? job.additional_data
+    : (typeof job.additional_data === 'string' && (job.additional_data.startsWith('{') || job.additional_data.startsWith('['))
+        ? (() => { try { return JSON.parse(job.additional_data); } catch { return {}; } })()
+        : {});
+
+  // 1. TIER 1: Check for explicit dropdown / field value entered in Form Builder
+  const explicitCandidates: string[] = [];
+  const checkFields = (fObj: any) => {
+    if (!fObj || typeof fObj !== 'object') return;
+    for (const [k, v] of Object.entries(fObj)) {
+      if (typeof v !== 'string' || !v.trim()) continue;
+      const kClean = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (
+        kClean.includes('servicecategory') ||
+        kClean.includes('category') ||
+        kClean.includes('mediatype') ||
+        kClean.includes('deliverable') ||
+        kClean.includes('itemtype')
+      ) {
+        explicitCandidates.push(v.trim());
+      }
+    }
+  };
+
+  checkFields(addData.custom_fields);
+  checkFields(addData.custom_fields_data);
+  checkFields(addData.specifications);
+  checkFields(addData);
+
+  // Check inside unit_assignments
+  if (addData.unit_assignments && typeof addData.unit_assignments === 'object') {
+    for (const [uName, uMeta] of Object.entries(addData.unit_assignments as any)) {
+      const uMetaObj = uMeta as any;
+      if (uName.toLowerCase().includes(unitLower) || unitLower.includes(uName.toLowerCase())) {
+        checkFields(uMetaObj?.fields);
+        checkFields(uMetaObj?.custom_fields);
+        if (uMetaObj?.service_name) explicitCandidates.push(uMetaObj.service_name);
+        if (uMetaObj?.service_label) explicitCandidates.push(uMetaObj.service_label);
+      }
+    }
+  }
+
+  // Check inside selected_services
+  if (Array.isArray(addData.selected_services)) {
+    for (const s of addData.selected_services) {
+      checkFields(s.fields);
+      checkFields(s.custom_fields);
+      if (s.title) explicitCandidates.push(s.title);
+      else if (s.name) explicitCandidates.push(s.name);
+    }
+  }
+
+  // --- UNIT: GRAPHIC & WEB ---
+  if (unitLower.includes('graphic') || unitLower.includes('web') || unitLower.includes('design')) {
+    const CANONICAL_GRAPHIC = [
+      'Print & Event Collaterals',
+      'Web & UI/UX Development',
+      'Branding & Corporate Identity',
+      'Digital & Social Media Graphics',
+      '3D & Multimedia Design',
+      'General Graphic Deliverables',
+    ];
+
+    // Priority 1: Match explicit dropdown selections
+    for (const cand of explicitCandidates) {
+      const matched = CANONICAL_GRAPHIC.find(
+        (cg) => cg.toLowerCase() === cand.toLowerCase() || cand.toLowerCase().includes(cg.toLowerCase())
+      );
+      if (matched) return matched;
+    }
+
+    // Priority 2: Smart Keyword Classifier
+    const textCorpus = `${job.title || ''} ${job.description || ''} ${explicitCandidates.join(' ')}`.toLowerCase();
+
+    if (/(banting|banner|poster|backdrop|flyer|brochure|booklet|sijil|certificate|print|signage|billboard|collateral|gala dinner|loop)/i.test(textCorpus)) {
+      return 'Print & Event Collaterals';
+    }
+    if (/(web|website|portal|landing|ui|ux|frontend|html|css)/i.test(textCorpus)) {
+      return 'Web & UI/UX Development';
+    }
+    if (/(logo|brand|branding|identiti|corporate identity|guideline|kad nama|merchandise|cenderahati|merchandising|business card)/i.test(textCorpus)) {
+      return 'Branding & Corporate Identity';
+    }
+    if (/(social|socmed|instagram|instargram|facebook|feed|story|post|infografik|infographic|thumbnail|digital)/i.test(textCorpus)) {
+      return 'Digital & Social Media Graphics';
+    }
+    if (/(3d|render|mockup|booth|motion|animation|stage mockup|kv)/i.test(textCorpus)) {
+      return '3D & Multimedia Design';
+    }
+
+    return 'General Graphic Deliverables';
+  }
+
+  // --- UNIT: WRITER ---
+  if (unitLower.includes('writer') || unitLower.includes('penulis') || unitLower.includes('editorial')) {
+    const CANONICAL_WRITER = [
+      'Articles & Press Releases',
+      'Speeches & Keynote Addresses',
+      'Official Reports & Publications',
+      'Video Scripts & Voiceovers',
+      'Copywriting & Campaign Messaging',
+      'Proofreading & Translation',
+      'General Editorial Deliverables',
+    ];
+
+    for (const cand of explicitCandidates) {
+      const matched = CANONICAL_WRITER.find(
+        (cw) => cw.toLowerCase() === cand.toLowerCase() || cand.toLowerCase().includes(cw.toLowerCase())
+      );
+      if (matched) return matched;
+    }
+
+    const textCorpus = `${job.title || ''} ${job.description || ''} ${explicitCandidates.join(' ')}`.toLowerCase();
+
+    if (/(artikel|article|press|siaran media|media release|news|berita|kenyataan media)/i.test(textCorpus)) {
+      return 'Articles & Press Releases';
+    }
+    if (/(speech|ucapan|keynote|kata aluan|amanat|talking point)/i.test(textCorpus)) {
+      return 'Speeches & Keynote Addresses';
+    }
+    if (/(report|laporan|annual report|tahunan|buletin|newsletter|modul|module|buku program)/i.test(textCorpus)) {
+      return 'Official Reports & Publications';
+    }
+    if (/(script|skrip|voiceover|vo|montaj|montage)/i.test(textCorpus)) {
+      return 'Video Scripts & Voiceovers';
+    }
+    if (/(copy|copywriting|caption|tagline|slogan|kempen|campaign|promosi)/i.test(textCorpus)) {
+      return 'Copywriting & Campaign Messaging';
+    }
+    if (/(proofread|proofreading|sunting|penyuntingan|terjemah|translation|translate)/i.test(textCorpus)) {
+      return 'Proofreading & Translation';
+    }
+
+    return 'General Editorial Deliverables';
+  }
+
+  // --- UNIT: EVENTS ---
+  if (unitLower.includes('event') || unitLower.includes('acara') || unitLower.includes('majlis')) {
+    const CANONICAL_EVENTS = [
+      'VIP & Protocol Coordination',
+      'Technical & Audio Visual (AV) Support',
+      'Floor Plan & Stage Logistics',
+      'Guest Registration & RSVP Management',
+      'Event Kits & Souvenir Management',
+      'General Event Operations',
+    ];
+
+    for (const cand of explicitCandidates) {
+      const matched = CANONICAL_EVENTS.find(
+        (ce) => ce.toLowerCase() === cand.toLowerCase() || cand.toLowerCase().includes(ce.toLowerCase())
+      );
+      if (matched) return matched;
+    }
+
+    const textCorpus = `${job.title || ''} ${job.description || ''} ${explicitCandidates.join(' ')}`.toLowerCase();
+
+    if (/(protocol|protokol|vip|rundown|atur cara|emcee|pengacara)/i.test(textCorpus)) {
+      return 'VIP & Protocol Coordination';
+    }
+    if (/(technical|teknikal|av|audio|visual|pa system|sound|lighting|led)/i.test(textCorpus)) {
+      return 'Technical & Audio Visual (AV) Support';
+    }
+    if (/(logistic|logistik|dewan|stage|pentas|floor plan|setup|susun atur)/i.test(textCorpus)) {
+      return 'Floor Plan & Stage Logistics';
+    }
+    if (/(rsvp|registration|pendaftaran|kehadiran|attendance|guest)/i.test(textCorpus)) {
+      return 'Guest Registration & RSVP Management';
+    }
+    if (/(souvenir|cenderahati|kit|goodie|bag|sijil)/i.test(textCorpus)) {
+      return 'Event Kits & Souvenir Management';
+    }
+
+    return 'General Event Operations';
+  }
+
+  // --- UNIT: MULTIMEDIA ---
+  if (unitLower.includes('multi') || unitLower.includes('video') || unitLower.includes('foto') || unitLower.includes('photo')) {
+    const CANONICAL_MULTIMEDIA = [
+      'Photography & Photo Editing',
+      'Video Production & Shoot',
+      'Video Editing & Event Montages',
+      'Motion Graphics & Animation',
+      'Audio Production & Podcasts',
+      'General Multimedia Deliverables',
+    ];
+
+    for (const cand of explicitCandidates) {
+      const matched = CANONICAL_MULTIMEDIA.find(
+        (cm) => cm.toLowerCase() === cand.toLowerCase() || cand.toLowerCase().includes(cm.toLowerCase())
+      );
+      if (matched) return matched;
+    }
+
+    const textCorpus = `${job.title || ''} ${job.description || ''} ${explicitCandidates.join(' ')}`.toLowerCase();
+
+    if (/(photo|foto|fotografi|portrait|gambar)/i.test(textCorpus)) {
+      return 'Photography & Photo Editing';
+    }
+    if (/(shoot|shooting|rakaman|camera|videografi|filming)/i.test(textCorpus)) {
+      return 'Video Production & Shoot';
+    }
+    if (/(edit|editing|montaj|montage|teaser|wrap-up)/i.test(textCorpus)) {
+      return 'Video Editing & Event Montages';
+    }
+    if (/(motion|animation|animasi|graphics|stinger)/i.test(textCorpus)) {
+      return 'Motion Graphics & Animation';
+    }
+    if (/(audio|podcast|voice|suara)/i.test(textCorpus)) {
+      return 'Audio Production & Podcasts';
+    }
+
+    return 'General Multimedia Deliverables';
+  }
+
+  // Any other unit
+  if (explicitCandidates.length > 0) {
+    return explicitCandidates[0];
+  }
+
+  return 'General Deliverables';
+};
+
 export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
   jobs,
   user,
@@ -483,19 +714,6 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
       const { pillars, platforms } = extractPillarsAndPlatforms(job);
       const isDone = job.status === 'completed' || job.is_done;
 
-      // Extract services or categories for breakdown
-      const serviceNames: string[] = [];
-      const addData = job.additional_data || {};
-      if (Array.isArray(addData.selected_services)) {
-        addData.selected_services.forEach((s: any) => {
-          if (s.title) serviceNames.push(s.title);
-          else if (s.name) serviceNames.push(s.name);
-        });
-      }
-      if (serviceNames.length === 0 && job.title) {
-        serviceNames.push(job.title);
-      }
-
       if (Array.isArray(staffList) && staffList.length > 0) {
         staffList.forEach((s: any) => {
           const sUnit = (s.unit || '').toLowerCase().trim();
@@ -543,9 +761,9 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
               staffMap[sId].platformsCount[pl] = (staffMap[sId].platformsCount[pl] || 0) + 1;
             });
           } else {
-            serviceNames.forEach((srv) => {
-              staffMap[sId].servicesCount[srv] = (staffMap[sId].servicesCount[srv] || 0) + 1;
-            });
+            // Robust 3-Tier classification: Dropdown field -> Official Service -> Keyword Classifier
+            const resolvedCat = resolveNonSocmedCategory(job, s.unit || currentUnit);
+            staffMap[sId].servicesCount[resolvedCat] = (staffMap[sId].servicesCount[resolvedCat] || 0) + 1;
           }
 
           staffMap[sId].jobsList.push(job);
@@ -1706,14 +1924,21 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                             {Object.keys(staff.servicesCount).length === 0 ? (
                               <span className="text-xs text-slate-400 italic">No specific service categories recorded</span>
                             ) : (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                                {Object.entries(staff.servicesCount).map(([sName, count]) => (
-                                  <div key={sName} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                                    <span className="font-bold text-slate-700 truncate pr-2" title={sName}>{sName}</span>
-                                    <span className="font-extrabold text-indigo-600 bg-white border border-indigo-100 px-2 py-0.5 rounded-md shrink-0">
-                                      {count}
-                                    </span>
-                                  </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                {Object.entries(staff.servicesCount)
+                                  .sort((a, b) => b[1] - a[1])
+                                  .map(([sName, count]) => (
+                                    <div
+                                      key={sName}
+                                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-100/70 border border-slate-200/60 text-xs transition-colors"
+                                    >
+                                      <span className="font-bold text-slate-800 truncate pr-2" title={sName}>
+                                        {sName}
+                                      </span>
+                                      <span className="font-black text-indigo-700 bg-white border border-indigo-200 px-2 py-0.5 rounded-md shadow-2xs shrink-0">
+                                        {count}
+                                      </span>
+                                    </div>
                                 ))}
                               </div>
                             )}
