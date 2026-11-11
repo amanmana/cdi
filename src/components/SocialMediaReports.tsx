@@ -79,6 +79,19 @@ const PILLAR_COLORS: Record<string, { bg: string; fill: string; border: string; 
 
 const DEFAULT_COLOR = { bg: 'bg-purple-600', fill: '#9333ea', border: 'border-purple-700', text: 'text-purple-700' };
 
+const COLOR_PALETTE = [
+  { bg: 'bg-blue-600', fill: '#2563eb', border: 'border-blue-700', text: 'text-blue-700' },
+  { bg: 'bg-amber-600', fill: '#d97706', border: 'border-amber-700', text: 'text-amber-700' },
+  { bg: 'bg-slate-500', fill: '#64748b', border: 'border-slate-600', text: 'text-slate-700' },
+  { bg: 'bg-yellow-500', fill: '#eab308', border: 'border-yellow-600', text: 'text-yellow-700' },
+  { bg: 'bg-cyan-600', fill: '#0891b2', border: 'border-cyan-700', text: 'text-cyan-700' },
+  { bg: 'bg-emerald-600', fill: '#059669', border: 'border-emerald-700', text: 'text-emerald-700' },
+  { bg: 'bg-purple-600', fill: '#9333ea', border: 'border-purple-700', text: 'text-purple-700' },
+  { bg: 'bg-rose-500', fill: '#f43f5e', border: 'border-rose-600', text: 'text-rose-700' },
+  { bg: 'bg-teal-600', fill: '#0d9488', border: 'border-teal-700', text: 'text-teal-700' },
+  { bg: 'bg-indigo-600', fill: '#4f46e5', border: 'border-indigo-700', text: 'text-indigo-700' },
+];
+
 export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
   jobs,
   user,
@@ -805,7 +818,7 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                   {allPillars.map((p, idx) => {
                     const counts = pillarsMatrix.matrix[p] || new Array(12).fill(0);
                     const rowTotal = pillarsMatrix.rowTotals[p] || 0;
-                    const colorStyle = PILLAR_COLORS[p.toLowerCase()] || DEFAULT_COLOR;
+                    const colorStyle = PILLAR_COLORS[p.toLowerCase()] || COLOR_PALETTE[idx % COLOR_PALETTE.length];
 
                     return (
                       <tr key={p} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
@@ -933,8 +946,8 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
 
               {/* Chart Legend */}
               <div className="flex flex-wrap items-center gap-3">
-                {allPillars.slice(0, 8).map((p) => {
-                  const color = PILLAR_COLORS[p.toLowerCase()] || DEFAULT_COLOR;
+                {allPillars.map((p, pIdx) => {
+                  const color = PILLAR_COLORS[p.toLowerCase()] || COLOR_PALETTE[pIdx % COLOR_PALETTE.length];
                   return (
                     <div key={p} className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
                       <span className={`w-3 h-3 rounded-sm ${color.bg}`} />
@@ -960,16 +973,16 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                 {MONTH_SHORT.map((m, mIdx) => {
                   return (
                     <div key={m} className="flex-1 flex flex-col items-center h-full justify-end relative group">
-                      <div className="flex items-end justify-center gap-0.5 w-full h-[85%] px-0.5">
-                        {allPillars.map((p) => {
+                      <div className="flex items-end justify-center gap-1 w-full h-[85%] px-0.5">
+                        {allPillars.map((p, pIdx) => {
                           const val = (pillarsMatrix.matrix[p] || [])[mIdx] || 0;
                           const heightPct = maxPillarMonthlyValue > 0 ? (val / maxPillarMonthlyValue) * 100 : 0;
-                          const color = PILLAR_COLORS[p.toLowerCase()] || DEFAULT_COLOR;
+                          const color = PILLAR_COLORS[p.toLowerCase()] || COLOR_PALETTE[pIdx % COLOR_PALETTE.length];
 
                           return (
                             <div
                               key={p}
-                              className="relative flex-1 max-w-[12px] flex flex-col justify-end items-center group/bar"
+                              className="relative flex-1 max-w-[14px] h-full flex flex-col justify-end items-center group/bar"
                             >
                               {/* Hover Tooltip */}
                               {val > 0 && (
@@ -977,9 +990,17 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
                                   {p}: {val}
                                 </div>
                               )}
+
+                              {/* Value Label above bar */}
+                              {val > 0 && (
+                                <span className="text-[9px] font-black text-slate-700 mb-0.5 leading-none">
+                                  {val}
+                                </span>
+                              )}
+
                               <div
-                                style={{ height: `${Math.max(heightPct, val > 0 ? 4 : 0)}%` }}
-                                className={`w-full rounded-t-xs transition-all ${color.bg} hover:opacity-90`}
+                                style={{ height: val > 0 ? `${Math.max(heightPct, 6)}%` : '0px' }}
+                                className={`w-full rounded-t-xs transition-all ${color.bg} hover:opacity-90 shadow-2xs`}
                               />
                             </div>
                           );
