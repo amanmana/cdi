@@ -315,6 +315,8 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
   const isRegularStaff = user?.role === 'staff' && !user?.is_unit_head && !user?.is_acting_manager;
 
   const staffKpiData = useMemo(() => {
+    const targetUnitClean = (currentUnit || 'Social Media').toLowerCase().trim();
+
     const staffMap: Record<number, {
       id: number;
       name: string;
@@ -338,6 +340,20 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
 
       if (Array.isArray(staffList) && staffList.length > 0) {
         staffList.forEach((s: any) => {
+          const sUnit = (s.unit || '').toLowerCase().trim();
+
+          // STRICT UNIT FILTER: Only display staff who belong to Social Media unit!
+          // Exclude cross-unit collaborators (e.g. Graphic & Web, Writer)
+          const isUnitMember = Boolean(
+            sUnit.includes('social') ||
+            sUnit.includes('socmed') ||
+            (targetUnitClean && sUnit === targetUnitClean)
+          );
+
+          if (!isUnitMember) {
+            return;
+          }
+
           const sId = Number(s.id);
           if (!staffMap[sId]) {
             staffMap[sId] = {
