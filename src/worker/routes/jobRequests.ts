@@ -3239,6 +3239,111 @@ jobRequestsRouter.post('/:id/unit-timeline', async (c) => {
   return c.json({ success: true, message: 'Unit deliverable milestone updated' });
 });
 
+// POST /api/job-requests/:id/update-specifications - Update deliverable scope, intake specifications & head guidance
+jobRequestsRouter.post('/:id/update-specifications', async (c) => {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const idParam = c.req.param('id');
+  const { unit_name, service_label, scope, custom_fields, head_guidance_notes } = await c.req.json();
+
+  const request = await findJobRequest(db, idParam);
+  if (!request) return c.json({ error: 'Job request not found' }, 404);
+
+  // Authorization check: Admin, Director, or matching Head of Unit
+  const isAuthorized = Boolean(
+    user.role === 'admin' ||
+    user.role === 'director' ||
+    user.is_unit_head
+  );
+  if (!isAuthorized) {
+    return c.json({ error: 'Unauthorized to edit project specifications.' }, 403);
+  }
+
+  let addData: any = {};
+  if (request.additional_data) {
+    try {
+      addData = typeof request.additional_data === 'string' ? JSON.parse(request.additional_data) : request.additional_data;
+    } catch {}
+  }
+
+  if (!addData.unit_assignments) {
+    addData.unit_assignments = {};
+  }
+
+  // Determine target key in unit_assignments
+  let targetKey = unit_name || '';
+  if (!addData.unit_assignments[targetKey]) {
+    const foundEntry = Object.entries(addData.unit_assignments).find(([k, v]: [string, any]) => {
+      return k === unit_name ||
+        (service_label && v?.service_name === service_label) ||
+        v?.service_name === unit_name ||
+        (service_label && k.endsWith(`— ${service_label}`)) ||
+        k.endsWith(`— ${unit_name}`);
+    });
+    if (foundEntry) {
+      targetKey = foundEntry[0];
+    } else if (unit_name) {
+      addData.unit_assignments[targetKey] = {};
+    }
+  }
+
+  if (targetKey && addData.unit_assignments[targetKey]) {
+    if (scope !== undefined) {
+      addData.unit_assignments[targetKey].scope = String(scope).trim();
+    }
+    if (custom_fields && typeof custom_fields === 'object') {
+      addData.unit_assignments[targetKey].custom_fields = custom_fields;
+    }
+    if (head_guidance_notes !== undefined) {
+      addData.unit_assignments[targetKey].head_guidance_notes = String(head_guidance_notes).trim();
+    }
+    addData.unit_assignments[targetKey].specifications_updated_by = user.name;
+    addData.unit_assignments[targetKey].specifications_updated_at = new Date().toISOString();
+  }
+
+  // Also sync in selected_services
+  if (Array.isArray(addData.selected_services)) {
+    for (const s of addData.selected_services) {
+      const sLabel = s.display_label || s.name;
+      const sCompound = `${s.target_unit_name || s.name} — ${sLabel}`;
+      const isMatch = sCompound === targetKey ||
+        (service_label && sLabel === service_label) ||
+        (service_label && s.name === service_label) ||
+        s.name === targetKey ||
+        (s.target_unit_name || s.name) === targetKey;
+
+      if (isMatch) {
+        if (scope !== undefined) {
+          s.scope = String(scope).trim();
+        }
+        if (custom_fields && typeof custom_fields === 'object') {
+          s.fields = custom_fields;
+        }
+        if (head_guidance_notes !== undefined) {
+          s.head_guidance_notes = String(head_guidance_notes).trim();
+        }
+        s.specifications_updated_by = user.name;
+        s.specifications_updated_at = new Date().toISOString();
+        break;
+      }
+    }
+  }
+
+  await db.prepare('UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .bind(JSON.stringify(addData), request.id)
+    .run();
+
+  const displayService = service_label || addData.unit_assignments?.[targetKey]?.service_name || targetKey || 'Service';
+  const roleLabel = user.role === 'admin' ? 'Admin' : 'Head of Unit';
+  const logComment = `${user.name} (${roleLabel}) updated project deliverables & specifications for [${displayService}]`;
+  await db.prepare(`
+    INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, comment)
+    VALUES (?, 'UPDATE_SPECIFICATIONS', ?, ?, ?)
+  `).bind(request.id, user.id, user.name, logComment).run();
+
+  return c.json({ success: true, message: 'Specifications updated successfully.' });
+});
+
 // POST /api/job-requests/:id/report - Staff submit note/report
 jobRequestsRouter.post('/:id/report', async (c) => {
   const db = c.env.DB;

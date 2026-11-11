@@ -31,6 +31,8 @@ import {
   Layers,
   User,
   RotateCcw,
+  Eye,
+  ArrowRight,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
@@ -88,6 +90,16 @@ export const JobRequestDetail: React.FC = () => {
   const [milestoneDeadline, setMilestoneDeadline] = useState('');
   const [milestoneNote, setMilestoneNote] = useState('');
   const [milestoneSaving, setMilestoneSaving] = useState(false);
+
+  // Specifications Modal State (View & Edit by Head of Unit / Staff)
+  const [showSpecModal, setShowSpecModal] = useState(false);
+  const [activeSpecService, setActiveSpecService] = useState<any>(null);
+  const [isEditingSpec, setIsEditingSpec] = useState(false);
+  const [specScope, setSpecScope] = useState('');
+  const [specFields, setSpecFields] = useState<Record<string, string>>({});
+  const [specGuidanceNotes, setSpecGuidanceNotes] = useState('');
+  const [savingSpec, setSavingSpec] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Status Change Modal State (Pending / Cancel / Reopen)
   const [showStatusModal, setShowStatusModal] = useState<'on_hold' | 'cancelled' | 'staff_processing' | null>(null);
@@ -1163,6 +1175,78 @@ export const JobRequestDetail: React.FC = () => {
     }
   }
 
+  // Specifications View & Edit permissions
+  const canEditServiceSpec = (srv: any) => {
+    if (user?.role === 'admin' || user?.role === 'director') return true;
+    if (!user?.is_unit_head) return false;
+    const unitName = (srv?.target_unit_name || srv?.name || '').toLowerCase().trim();
+    const userUnitClean = (userUnit || '').toLowerCase().trim();
+    return Boolean(
+      (userUnitClean && userUnitClean === unitName) ||
+      managedUnits.some((mu) => mu.toLowerCase().trim() === unitName) ||
+      (user?.unit_id && srv?.target_unit_id && Number(user.unit_id) === Number(srv.target_unit_id)) ||
+      (srv?.target_unit_id && managedUnitIds.includes(Number(srv.target_unit_id)))
+    );
+  };
+
+  const handleOpenSpecModal = (srv: any, startInEditMode: boolean = false) => {
+    setActiveSpecService(srv);
+    setSpecScope(srv.scope || '');
+    setSpecFields(srv.fields ? { ...srv.fields } : {});
+    const targetUnit = srv.target_unit_name || srv.name;
+    const srvLabel = srv.display_label || srv.name;
+    const uMeta = request?.additional_data?.unit_assignments?.[`${targetUnit} — ${srvLabel}`]
+      || request?.additional_data?.unit_assignments?.[targetUnit]
+      || request?.additional_data?.unit_assignments?.[srv.name]
+      || Object.entries(request?.additional_data?.unit_assignments || {}).find(([k, m]: [string, any]) => 
+           m?.service_name === srv.name || m?.service_name === srv.display_label || k.includes(srv.name) || k.includes(srv.display_label)
+         )?.[1];
+    setSpecGuidanceNotes(srv.head_guidance_notes || uMeta?.head_guidance_notes || '');
+    setIsEditingSpec(startInEditMode && canEditServiceSpec(srv));
+    setShowSpecModal(true);
+  };
+
+  const handleSaveSpec = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeSpecService) return;
+    setSavingSpec(true);
+    try {
+      const res = await fetch(`/api/job-requests/${id}/update-specifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          unit_name: activeSpecService.target_unit_name || activeSpecService.name,
+          service_label: activeSpecService.display_label || activeSpecService.name,
+          scope: specScope,
+          custom_fields: specFields,
+          head_guidance_notes: specGuidanceNotes,
+        }),
+      });
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        setIsEditingSpec(false);
+        setShowSpecModal(false);
+        fetchDetail();
+      } else {
+        alert(resData.error || 'Failed to update specifications.');
+      }
+    } catch (err: any) {
+      console.error('Error updating specifications:', err);
+      alert('Error updating specifications: ' + err.message);
+    } finally {
+      setSavingSpec(false);
+    }
+  };
+
+  const copyToClipboard = (key: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
   const getAstRequesterBadge = (ast: any) => {
     if (!ast) return 'Staff';
     if (ast.requester_role === 'manager' || ast.requester_name?.toLowerCase().includes('faizal') || ast.requester_unit?.toLowerCase().trim() === 'manager') {
@@ -2210,51 +2294,122 @@ export const JobRequestDetail: React.FC = () => {
                                 Unit: {srv.target_unit_name || srv.name}
                               </span>
                             </div>
-                            <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider shrink-0 ${
-                              isRejected
-                                ? 'bg-rose-100 text-rose-800'
-                                : isAccepted
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : isAwaitingHead
-                                ? 'bg-teal-100 text-teal-800'
-                                : 'bg-amber-100 text-amber-800'
-                            }`}>
-                              {isRejected
-                                ? '✖ Ditolak'
-                                : isAccepted
-                                ? '✓ In Progress'
-                                : isAwaitingHead
-                                ? 'Menunggu Ketua Unit'
-                                : 'Menunggu Kelulusan'}
-                            </span>
+
+                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                              {canEditServiceSpec(srv) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSpecModal(srv, true)}
+                                  className="btn btn-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl font-bold flex items-center gap-1 h-7 px-2.5 shadow-xs transition-all"
+                                  title="Lihat & Sunting Keperluan Klien (Mod Ketua Unit)"
+                                >
+                                  <Edit3 className="w-3 h-3 text-indigo-600" />
+                                  <span>View & Edit Specs</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSpecModal(srv, false)}
+                                  className="btn btn-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold flex items-center gap-1 h-7 px-2.5 shadow-xs transition-all"
+                                  title="Lihat Spesifikasi Penuh (Modal Window)"
+                                >
+                                  <Eye className="w-3 h-3 text-slate-600" />
+                                  <span>View Full Specs</span>
+                                </button>
+                              )}
+
+                              <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider shrink-0 ${
+                                isRejected
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : isAccepted
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : isAwaitingHead
+                                  ? 'bg-teal-100 text-teal-800'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {isRejected
+                                  ? '✖ Ditolak'
+                                  : isAccepted
+                                  ? '✓ In Progress'
+                                  : isAwaitingHead
+                                  ? 'Menunggu Ketua Unit'
+                                  : 'Menunggu Kelulusan'}
+                              </span>
+                            </div>
                           </div>
 
                           <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                              Deliverable Scope & Brief
-                            </span>
-                            <p className="text-xs font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Deliverable Scope & Brief
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
+                                className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
+                              >
+                                <Eye className="w-2.5 h-2.5" />
+                                <span>Buka Penuh</span>
+                              </button>
+                            </div>
+                            <p 
+                              onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
+                              className="text-xs font-medium text-slate-700 bg-slate-50 hover:bg-indigo-50/30 p-3 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer leading-relaxed whitespace-pre-wrap"
+                              title="Klik untuk lihat paparan penuh"
+                            >
                               {srv.scope || 'No specific deliverable brief specified.'}
                             </p>
                           </div>
 
                           {srv.fields && Object.keys(srv.fields).length > 0 && (
                             <div className="space-y-1.5 pt-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                Unit Specifications
-                              </span>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                  Unit Specifications ({Object.keys(srv.fields).length})
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
+                                  className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
+                                >
+                                  <span>Lihat Penuh</span>
+                                  <ArrowRight className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
                               <div className={`grid gap-2 ${isSingleUnit ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2'}`}>
                                 {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => (
-                                  <div key={fk} className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 min-w-0">
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase block truncate" title={fk.replace(/_/g, ' ')}>
+                                  <div 
+                                    key={fk} 
+                                    onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
+                                    className="bg-slate-50/80 hover:bg-indigo-50/50 p-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer min-w-0 group"
+                                    title="Klik untuk membuka tetingkap spesifikasi penuh"
+                                  >
+                                    <span className="text-[9px] font-bold text-slate-400 group-hover:text-indigo-600 uppercase block truncate">
                                       {fk.replace(/_/g, ' ')}
                                     </span>
-                                    <span className="text-xs font-bold text-slate-800 block truncate mt-0.5" title={String(fv)}>
+                                    <span className="text-xs font-bold text-slate-800 block truncate mt-0.5">
                                       {String(fv)}
                                     </span>
                                   </div>
                                 ))}
                               </div>
+                            </div>
+                          )}
+
+                          {/* Head of Unit Guidance Notes for Staff (if present) */}
+                          {(srv.head_guidance_notes || uMeta?.head_guidance_notes) && (
+                            <div 
+                              onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
+                              className="p-3 bg-amber-50/80 hover:bg-amber-50 border border-amber-200 rounded-xl space-y-1 cursor-pointer transition-all"
+                              title="Klik untuk kemaskini atau lihat arahan"
+                            >
+                              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800">
+                                <Crown className="w-3 h-3 text-amber-600" />
+                                <span>Arahan Khas Ketua Unit untuk Staf</span>
+                              </div>
+                              <p className="text-xs font-semibold text-amber-950 leading-relaxed whitespace-pre-wrap">
+                                {srv.head_guidance_notes || uMeta?.head_guidance_notes}
+                              </p>
                             </div>
                           )}
 
@@ -5001,6 +5156,238 @@ export const JobRequestDetail: React.FC = () => {
               >
                 {milestoneSaving ? <span className="loading loading-spinner"></span> : 'Save Milestone'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* UNIT DELIVERABLES & SPECIFICATIONS MODAL (VIEW & EDIT) */}
+      {showSpecModal && activeSpecService && (
+        <div className="fixed inset-0 z-[9999] !mt-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full p-6 md:p-8 space-y-6 relative overflow-hidden max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4 shrink-0">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 mb-1.5">
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Keperluan Klien & Spesifikasi Unit</span>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>{activeSpecService.display_label || activeSpecService.name}</span>
+                  {activeSpecService.department_tag && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                      {activeSpecService.department_tag}
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Unit Pelaksana: <strong className="text-slate-800">{activeSpecService.target_unit_name || activeSpecService.name}</strong>
+                  {canEditServiceSpec(activeSpecService) && (
+                    <span className="ml-2 text-indigo-600 font-bold">• Kuasa Ketua Unit / Admin Aktif</span>
+                  )}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {canEditServiceSpec(activeSpecService) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingSpec(!isEditingSpec)}
+                    className={`btn btn-xs rounded-xl font-bold h-8 px-3 border transition-all ${
+                      isEditingSpec
+                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                        : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                    }`}
+                  >
+                    {isEditingSpec ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Mod Lihat Sahaja</span>
+                      </>
+                    ) : (
+                      <>
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Sunting Maklumat</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowSpecModal(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body (Scrollable) */}
+            <div className="flex-1 overflow-y-auto space-y-5 pr-1 text-slate-800">
+              {isEditingSpec && (
+                <div className="p-3.5 bg-indigo-50/80 border border-indigo-200/80 rounded-2xl text-xs text-indigo-900 font-medium flex items-start gap-2.5">
+                  <Edit3 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-extrabold block">Mod Suntingan Ketua Unit Aktif</strong>
+                    <span>
+                      Anda boleh menambah baik, membetulkan, atau melengkapkan skop kerja dan jawapan spesifikasi di bawah. Sebarang perubahan akan disimpan untuk rujukan staf pelaksana unit.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Scope & Brief */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    Deliverable Scope & Brief
+                  </label>
+                  {!isEditingSpec && specScope && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard('scope', specScope)}
+                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                    >
+                      {copiedKey === 'scope' ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedKey === 'scope' ? 'Disalin!' : 'Salin Skop'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {isEditingSpec ? (
+                  <textarea
+                    rows={3}
+                    value={specScope}
+                    onChange={(e) => setSpecScope(e.target.value)}
+                    placeholder="Masukkan skop ringkas permohonan untuk unit ini..."
+                    className="textarea textarea-bordered w-full rounded-2xl text-xs font-medium bg-white p-3.5 focus:border-indigo-600 focus:outline-none leading-relaxed"
+                  />
+                ) : (
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 text-xs font-medium text-slate-700 leading-relaxed whitespace-pre-wrap select-text">
+                    {specScope || <span className="text-slate-400 italic">Tiada arahan skop khusus dinyatakan oleh klien.</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* Dynamic Specifications & Intake Questions */}
+              {Object.keys(specFields).length > 0 && (
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                      Spesifikasi Unit ({Object.keys(specFields).length} Butiran Intake)
+                    </label>
+                  </div>
+
+                  <div className="space-y-3">
+                    {Object.entries(specFields).map(([fk, fv]) => {
+                      const fieldLabel = fk.replace(/_/g, ' ').toUpperCase();
+                      return (
+                        <div key={fk} className="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/70 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                              {fieldLabel}
+                            </span>
+                            {!isEditingSpec && fv && (
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(fk, String(fv))}
+                                className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 flex items-center gap-1"
+                              >
+                                {copiedKey === fk ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedKey === fk ? 'Disalin' : 'Salin'}</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {isEditingSpec ? (
+                            String(fv).length > 80 || String(fv).includes('\n') ? (
+                              <textarea
+                                rows={2}
+                                value={String(fv)}
+                                onChange={(e) => setSpecFields({ ...specFields, [fk]: e.target.value })}
+                                className="textarea textarea-bordered w-full rounded-xl text-xs font-medium bg-white p-2.5 focus:border-indigo-600 focus:outline-none"
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                value={String(fv)}
+                                onChange={(e) => setSpecFields({ ...specFields, [fk]: e.target.value })}
+                                className="input input-sm input-bordered w-full rounded-xl text-xs font-semibold bg-white px-3 focus:border-indigo-600 focus:outline-none"
+                              />
+                            )
+                          ) : (
+                            <p className="text-xs font-bold text-slate-800 break-words leading-relaxed select-text">
+                              {String(fv) || <span className="text-slate-400 italic font-normal">Tiada maklumat diisi</span>}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Head of Unit Guidance Notes for Staff */}
+              <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-800">
+                  <Crown className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Arahan & Nota Khas Ketua Unit untuk Staf</span>
+                </div>
+
+                {isEditingSpec ? (
+                  <div className="space-y-1">
+                    <textarea
+                      rows={3}
+                      value={specGuidanceNotes}
+                      onChange={(e) => setSpecGuidanceNotes(e.target.value)}
+                      placeholder="Masukkan nota panduan khas untuk staf pelaksana unit anda (cth: saiz kanvas, garis panduan warna, penekanan utama)..."
+                      className="textarea textarea-bordered w-full rounded-2xl text-xs font-medium bg-amber-50/40 border-amber-200 focus:border-amber-400 p-3.5 focus:outline-none leading-relaxed"
+                    />
+                    <span className="text-[10px] text-slate-400 block italic">
+                      Nota ini akan dipaparkan secara khusus di atas kad tugasan staf unit.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-3.5 bg-amber-50/60 border border-amber-200/80 rounded-2xl text-xs font-medium text-amber-900 leading-relaxed whitespace-pre-wrap select-text">
+                    {specGuidanceNotes || (
+                      <span className="text-amber-700/60 italic">
+                        Tiada arahan tambahan khusus daripada Ketua Unit buat masa ini.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 shrink-0">
+              <span className="text-[11px] text-slate-400">
+                {activeSpecService.specifications_updated_by ? (
+                  <span>Dikemaskini oleh: <strong className="text-slate-600">{activeSpecService.specifications_updated_by}</strong></span>
+                ) : (
+                  <span>Input asal daripada borang awam pelanggan.</span>
+                )}
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSpecModal(false)}
+                  className="btn btn-sm btn-ghost text-slate-600 font-extrabold text-xs rounded-xl h-10 px-4"
+                >
+                  Tutup
+                </button>
+                {isEditingSpec && (
+                  <button
+                    type="button"
+                    onClick={handleSaveSpec}
+                    disabled={savingSpec}
+                    className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl h-10 px-5 shadow-md shadow-indigo-600/25 border-none"
+                  >
+                    {savingSpec ? <span className="loading loading-spinner loading-xs"></span> : 'Simpan Spesifikasi'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
