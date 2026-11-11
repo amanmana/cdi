@@ -139,6 +139,10 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
   const [expandedStaffList, setExpandedStaffList] = useState<Record<number, boolean>>({});
 
+  // Chart visual presentation: 'clustered' (Excel replica) vs 'stacked'
+  const [chartStyle, setChartStyle] = useState<'clustered' | 'stacked'>('clustered');
+  const [hoveredChartPoint, setHoveredChartPoint] = useState<{ pillar: string; month: string; val: number; x: number; y: number } | null>(null);
+
   // 1. Extract Years available in the dataset
   const availableYears = useMemo(() => {
     const yearsSet = new Set<number>([currentCalendarYear]);
@@ -339,16 +343,35 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
     };
   }, [yearlyJobs, allPlatforms]);
 
-  // 6. Max Value for Chart Normalization
-  const maxPillarMonthlyValue = useMemo(() => {
+  // 6. Dynamic Y-Axis scale calculation for executive chart
+  const yAxisConfig = useMemo(() => {
     let max = 0;
-    allPillars.forEach((p) => {
-      (pillarsMatrix.matrix[p] || []).forEach((val) => {
-        if (val > max) max = val;
+    if (chartStyle === 'stacked') {
+      pillarsMatrix.monthlyTotals.forEach((tot) => {
+        if (tot > max) max = tot;
       });
-    });
-    return Math.max(max, 10);
-  }, [allPillars, pillarsMatrix]);
+    } else {
+      allPillars.forEach((p) => {
+        (pillarsMatrix.matrix[p] || []).forEach((val) => {
+          if (val > max) max = val;
+        });
+      });
+    }
+
+    if (max <= 5) return { yMax: 5, ticks: [0, 1, 2, 3, 4, 5] };
+    if (max <= 10) return { yMax: 10, ticks: [0, 2, 4, 6, 8, 10] };
+    if (max <= 20) return { yMax: 20, ticks: [0, 5, 10, 15, 20] };
+    if (max <= 50) return { yMax: 50, ticks: [0, 10, 20, 30, 40, 50] };
+    if (max <= 100) return { yMax: 100, ticks: [0, 20, 40, 60, 80, 100] };
+    if (max <= 200) return { yMax: 200, ticks: [0, 40, 80, 120, 160, 200] };
+
+    const step = Math.ceil(max / 5 / 10) * 10;
+    const yMax = step * 5;
+    return {
+      yMax,
+      ticks: [0, step, step * 2, step * 3, step * 4, yMax],
+    };
+  }, [allPillars, pillarsMatrix, chartStyle]);
 
   // 7. Individual Staff KPI Computations
   const isRegularStaff = user?.role === 'staff' && !user?.is_unit_head && !user?.is_acting_manager;
@@ -1045,99 +1068,411 @@ export const SocialMediaReports: React.FC<SocialMediaReportsProps> = ({
             </div>
           </div>
 
-          {/* 3. GROUPED BAR CHART: PILLARS BY MONTH (EXACT IMAGE 2 REPLICA) */}
-          <div id="chart-pillars" className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 md:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          {/* 3. GROUPED BAR CHART: PILLARS BY MONTH (EXECUTIVE EXCEL REPLICA) */}
+          <div id="chart-pillars" className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 md:p-8 space-y-6">
+            {/* Top Bar: Title, Chart Mode Switcher, and Export Action */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div>
                 <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight italic">
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight italic">
                     Pillars by Month ({selectedYear})
                   </h3>
-                  <button
-                    type="button"
-                    onClick={() => handlePrintSection('chart-pillars', `Pillars by Month Comparative Chart (${selectedYear})`)}
-                    className="btn btn-xs bg-white hover:bg-slate-100 text-slate-700 font-extrabold rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1 transition-all h-7 px-2"
-                    title="Export this chart as PDF"
-                  >
-                    <Printer className="w-3 h-3 text-slate-500" />
-                    <span>Export PDF</span>
-                  </button>
+                  <span className="badge badge-sm font-bold bg-slate-100 text-slate-700 border-slate-200">
+                    {pillarsMatrix.grandTotal} Total Publications
+                  </span>
                 </div>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">
-                  Grouped comparative visualization of strategic focus across each calendar month.
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Standard grouped column distribution of strategic content pillars across 12 calendar months.
                 </p>
               </div>
 
-              {/* Chart Legend */}
-              <div className="flex flex-wrap items-center gap-3">
-                {allPillars.map((p, pIdx) => {
-                  const color = PILLAR_COLORS[p.toLowerCase()] || COLOR_PALETTE[pIdx % COLOR_PALETTE.length];
-                  return (
-                    <div key={p} className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                      <span className={`w-3 h-3 rounded-sm ${color.bg}`} />
-                      <span>{p}</span>
-                    </div>
-                  );
-                })}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Switcher: Clustered vs Stacked */}
+                <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200/60">
+                  <button
+                    type="button"
+                    onClick={() => setChartStyle('clustered')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                      chartStyle === 'clustered'
+                        ? 'bg-white text-blue-700 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>📊</span>
+                    <span>Clustered</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartStyle('stacked')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                      chartStyle === 'stacked'
+                        ? 'bg-white text-blue-700 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>📈</span>
+                    <span>Stacked</span>
+                  </button>
+                </div>
+
+                {/* Export PDF Button */}
+                <button
+                  type="button"
+                  onClick={() => handlePrintSection('chart-pillars', `Pillars by Month Chart (${selectedYear})`)}
+                  className="btn btn-sm bg-white hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1.5 transition-all"
+                  title="Export this chart as PDF"
+                >
+                  <Printer className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Export PDF</span>
+                </button>
               </div>
             </div>
 
-            {/* Visual Grouped Bars Container */}
-            <div className="pt-4 overflow-x-auto">
-              <div className="min-w-[800px] h-72 flex items-end gap-3 pb-8 border-b border-slate-200 relative">
-                {/* Background grid lines */}
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-                  <div className="border-b border-slate-400 w-full" />
-                  <div className="border-b border-slate-400 w-full" />
-                  <div className="border-b border-slate-400 w-full" />
-                  <div className="border-b border-slate-400 w-full" />
-                </div>
+            {/* SVG Chart Canvas */}
+            <div className="w-full overflow-x-auto relative pt-2">
+              <div className="min-w-[850px] w-full">
+                {(() => {
+                  // Coordinate specifications for 1000 x 430 viewBox
+                  const svgWidth = 1000;
+                  const svgHeight = 430;
+                  const plotX = 65;
+                  const plotRight = 780;
+                  const plotWidth = plotRight - plotX; // 715px
+                  const plotTop = 35;
+                  const plotBottom = 370;
+                  const plotHeight = plotBottom - plotTop; // 335px
+                  const monthSlotWidth = plotWidth / 12; // ~59.58px per month
 
-                {/* 12 Months Bars Group */}
-                {MONTH_SHORT.map((m, mIdx) => {
+                  const { yMax, ticks } = yAxisConfig;
+
                   return (
-                    <div key={m} className="flex-1 flex flex-col items-center h-full justify-end relative group">
-                      <div className="flex items-end justify-center gap-1 w-full h-[85%] px-0.5">
+                    <svg
+                      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                      className="w-full h-auto select-none font-sans"
+                      style={{ maxHeight: '460px' }}
+                    >
+                      {/* 1. Horizontal Grid Lines & Y-Axis Labels */}
+                      {ticks.map((tickVal) => {
+                        const yPos = plotBottom - (tickVal / yMax) * plotHeight;
+                        const isZero = tickVal === 0;
+
+                        return (
+                          <g key={`tick-${tickVal}`}>
+                            {/* Horizontal Line */}
+                            <line
+                              x1={plotX}
+                              y1={yPos}
+                              x2={plotRight}
+                              y2={yPos}
+                              stroke={isZero ? '#94a3b8' : '#e2e8f0'}
+                              strokeWidth={isZero ? 1.5 : 1}
+                              strokeDasharray={isZero ? 'none' : '3,3'}
+                            />
+                            {/* Tick Label */}
+                            <text
+                              x={plotX - 12}
+                              y={yPos + 4}
+                              textAnchor="end"
+                              className="text-[11px] font-semibold fill-slate-500"
+                            >
+                              {tickVal}
+                            </text>
+                          </g>
+                        );
+                      })}
+
+                      {/* 2. Left Y-Axis Vertical Line */}
+                      <line
+                        x1={plotX}
+                        y1={plotTop - 5}
+                        x2={plotX}
+                        y2={plotBottom}
+                        stroke="#94a3b8"
+                        strokeWidth={1.5}
+                      />
+
+                      {/* 3. Monthly Columns & Bars */}
+                      {MONTH_NAMES.map((mName, mIdx) => {
+                        const slotCenterX = plotX + mIdx * monthSlotWidth + monthSlotWidth / 2;
+                        const shortMonth = MONTH_SHORT[mIdx].toUpperCase();
+
+                        // Ticks on baseline
+                        const tickX = plotX + (mIdx + 1) * monthSlotWidth;
+
+                        return (
+                          <g key={mName}>
+                            {/* Baseline month separator tick */}
+                            {mIdx < 11 && (
+                              <line
+                                x1={tickX}
+                                y1={plotBottom}
+                                x2={tickX}
+                                y2={plotBottom + 4}
+                                stroke="#cbd5e1"
+                                strokeWidth={1}
+                              />
+                            )}
+
+                            {/* Month Label below baseline */}
+                            <text
+                              x={slotCenterX}
+                              y={plotBottom + 22}
+                              textAnchor="middle"
+                              className="text-[9px] font-black fill-slate-600 tracking-wider uppercase"
+                            >
+                              {shortMonth}
+                            </text>
+
+                            {/* Month sub-label (Full name on hover or small) */}
+                            <text
+                              x={slotCenterX}
+                              y={plotBottom + 35}
+                              textAnchor="middle"
+                              className="text-[7.5px] font-bold fill-slate-400 uppercase tracking-tighter"
+                            >
+                              {mName.slice(0, 4)}
+                            </text>
+
+                            {/* --- BARS RENDERING: CLUSTERED MODE --- */}
+                            {chartStyle === 'clustered' && (() => {
+                              const numPillars = allPillars.length;
+                              const clusterWidth = Math.min(monthSlotWidth * 0.88, 52);
+                              const barWidth = Math.max(clusterWidth / numPillars, 5);
+                              const groupStartX = slotCenterX - (numPillars * barWidth) / 2;
+
+                              return allPillars.map((p, pIdx) => {
+                                const val = (pillarsMatrix.matrix[p] || [])[mIdx] || 0;
+                                const color = PILLAR_COLORS[p.toLowerCase()] || COLOR_PALETTE[pIdx % COLOR_PALETTE.length];
+                                const barX = groupStartX + pIdx * barWidth;
+                                const barHeight = val > 0 ? (val / yMax) * plotHeight : 0;
+                                const barY = plotBottom - barHeight;
+
+                                if (val === 0) return null;
+
+                                return (
+                                  <g
+                                    key={p}
+                                    className="cursor-pointer transition-opacity hover:opacity-85"
+                                    onMouseEnter={(e) => {
+                                      setHoveredChartPoint({
+                                        pillar: p,
+                                        month: mName,
+                                        val,
+                                        x: barX + barWidth / 2,
+                                        y: barY,
+                                      });
+                                    }}
+                                    onMouseLeave={() => setHoveredChartPoint(null)}
+                                  >
+                                    {/* Bar Rectangle with rounded top */}
+                                    <rect
+                                      x={barX + 0.5}
+                                      y={barY}
+                                      width={Math.max(barWidth - 1, 3)}
+                                      height={barHeight}
+                                      fill={color.fill}
+                                      rx={2}
+                                      className="transition-all"
+                                    />
+
+                                    {/* Value Number above bar */}
+                                    <text
+                                      x={barX + (barWidth - 1) / 2}
+                                      y={barY - 4}
+                                      textAnchor="middle"
+                                      className="text-[9px] font-black fill-slate-800"
+                                    >
+                                      {val}
+                                    </text>
+                                  </g>
+                                );
+                              });
+                            })()}
+
+                            {/* --- BARS RENDERING: STACKED MODE --- */}
+                            {chartStyle === 'stacked' && (() => {
+                              const stackColWidth = 28;
+                              const stackColX = slotCenterX - stackColWidth / 2;
+                              let accumY = plotBottom;
+                              const monthTotal = pillarsMatrix.monthlyTotals[mIdx] || 0;
+
+                              return (
+                                <g key={`stacked-${mIdx}`}>
+                                  {allPillars.map((p, pIdx) => {
+                                    const val = (pillarsMatrix.matrix[p] || [])[mIdx] || 0;
+                                    if (val === 0) return null;
+
+                                    const color = PILLAR_COLORS[p.toLowerCase()] || COLOR_PALETTE[pIdx % COLOR_PALETTE.length];
+                                    const segHeight = (val / yMax) * plotHeight;
+                                    const segY = accumY - segHeight;
+                                    accumY = segY;
+
+                                    return (
+                                      <g
+                                        key={p}
+                                        className="cursor-pointer transition-opacity hover:opacity-85"
+                                        onMouseEnter={() => {
+                                          setHoveredChartPoint({
+                                            pillar: p,
+                                            month: mName,
+                                            val,
+                                            x: slotCenterX,
+                                            y: segY,
+                                          });
+                                        }}
+                                        onMouseLeave={() => setHoveredChartPoint(null)}
+                                      >
+                                        <rect
+                                          x={stackColX}
+                                          y={segY}
+                                          width={stackColWidth}
+                                          height={segHeight}
+                                          fill={color.fill}
+                                          rx={segY === plotBottom - segHeight ? 2 : 0}
+                                        />
+                                        {segHeight >= 14 && (
+                                          <text
+                                            x={slotCenterX}
+                                            y={segY + segHeight / 2 + 3}
+                                            textAnchor="middle"
+                                            className="text-[9px] font-black fill-white pointer-events-none"
+                                          >
+                                            {val}
+                                          </text>
+                                        )}
+                                      </g>
+                                    );
+                                  })}
+
+                                  {/* Total on top of stacked bar */}
+                                  {monthTotal > 0 && (
+                                    <text
+                                      x={slotCenterX}
+                                      y={accumY - 5}
+                                      textAnchor="middle"
+                                      className="text-[10px] font-black fill-slate-800"
+                                    >
+                                      {monthTotal}
+                                    </text>
+                                  )}
+                                </g>
+                              );
+                            })()}
+                          </g>
+                        );
+                      })}
+
+                      {/* 4. Bottom Baseline Axis */}
+                      <line
+                        x1={plotX}
+                        y1={plotBottom}
+                        x2={plotRight}
+                        y2={plotBottom}
+                        stroke="#94a3b8"
+                        strokeWidth={1.5}
+                      />
+
+                      {/* 5. Right-Side Vertical Legend (Exact Excel Replica) */}
+                      <g transform={`translate(${plotRight + 25}, ${plotTop})`}>
+                        {/* Legend Background Box */}
+                        <rect
+                          x={0}
+                          y={-10}
+                          width={180}
+                          height={Math.max(allPillars.length * 28 + 35, 140)}
+                          fill="#f8fafc"
+                          stroke="#e2e8f0"
+                          strokeWidth={1}
+                          rx={8}
+                        />
+
+                        {/* Legend Header */}
+                        <text
+                          x={12}
+                          y={12}
+                          className="text-[10px] font-black fill-slate-500 uppercase tracking-wider"
+                        >
+                          Strategic Pillars
+                        </text>
+
+                        {/* Legend Items */}
                         {allPillars.map((p, pIdx) => {
-                          const val = (pillarsMatrix.matrix[p] || [])[mIdx] || 0;
-                          const heightPct = maxPillarMonthlyValue > 0 ? (val / maxPillarMonthlyValue) * 100 : 0;
                           const color = PILLAR_COLORS[p.toLowerCase()] || COLOR_PALETTE[pIdx % COLOR_PALETTE.length];
+                          const itemY = 32 + pIdx * 25;
+                          const totalForPillar = pillarsMatrix.rowTotals[p] || 0;
 
                           return (
-                            <div
-                              key={p}
-                              className="relative flex-1 max-w-[14px] h-full flex flex-col justify-end items-center group/bar"
-                            >
-                              {/* Hover Tooltip */}
-                              {val > 0 && (
-                                <div className="absolute -top-7 z-20 hidden group-hover/bar:block bg-slate-900 text-white text-[10px] font-black px-2 py-0.5 rounded-md whitespace-nowrap shadow-lg">
-                                  {p}: {val}
-                                </div>
-                              )}
-
-                              {/* Value Label above bar */}
-                              {val > 0 && (
-                                <span className="text-[9px] font-black text-slate-700 mb-0.5 leading-none">
-                                  {val}
-                                </span>
-                              )}
-
-                              <div
-                                style={{ height: val > 0 ? `${Math.max(heightPct, 6)}%` : '0px' }}
-                                className={`w-full rounded-t-xs transition-all ${color.bg} hover:opacity-90 shadow-2xs`}
+                            <g key={p} className="select-none cursor-default">
+                              {/* Color Box */}
+                              <rect
+                                x={12}
+                                y={itemY - 9}
+                                width={11}
+                                height={11}
+                                rx={2}
+                                fill={color.fill}
                               />
-                            </div>
+                              {/* Pillar Label (truncated if long) */}
+                              <text
+                                x={30}
+                                y={itemY}
+                                className="text-[10.5px] font-semibold fill-slate-700"
+                              >
+                                {p.length > 18 ? `${p.slice(0, 17)}…` : p}
+                              </text>
+                              {/* Pillar Total Count */}
+                              <text
+                                x={168}
+                                y={itemY}
+                                textAnchor="end"
+                                className="text-[10px] font-black fill-slate-400"
+                              >
+                                {totalForPillar}
+                              </text>
+                            </g>
                           );
                         })}
-                      </div>
+                      </g>
 
-                      {/* Month Label */}
-                      <span className="text-[10px] font-black uppercase text-slate-500 mt-3 block">
-                        {m}
-                      </span>
-                    </div>
+                      {/* 6. Hover Tooltip Overlay */}
+                      {hoveredChartPoint && (
+                        <g
+                          transform={`translate(${Math.min(
+                            Math.max(hoveredChartPoint.x, 80),
+                            plotRight - 70
+                          )}, ${Math.max(hoveredChartPoint.y - 45, 15)})`}
+                          className="pointer-events-none"
+                        >
+                          <rect
+                            x={-75}
+                            y={0}
+                            width={150}
+                            height={38}
+                            rx={6}
+                            fill="#0f172a"
+                            className="shadow-xl"
+                          />
+                          <text
+                            x={0}
+                            y={15}
+                            textAnchor="middle"
+                            className="text-[9.5px] font-bold fill-slate-300"
+                          >
+                            {hoveredChartPoint.month} • {hoveredChartPoint.pillar}
+                          </text>
+                          <text
+                            x={0}
+                            y={29}
+                            textAnchor="middle"
+                            className="text-[11px] font-black fill-emerald-400"
+                          >
+                            {hoveredChartPoint.val} {hoveredChartPoint.val === 1 ? 'publication' : 'publications'}
+                          </text>
+                        </g>
+                      )}
+                    </svg>
                   );
-                })}
+                })()}
               </div>
             </div>
           </div>
