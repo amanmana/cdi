@@ -33,6 +33,7 @@ import {
   RotateCcw,
   Eye,
   ArrowRight,
+  Crown,
 } from 'lucide-react';
 
 export const JobRequestDetail: React.FC = () => {
