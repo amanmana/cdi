@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ReportsPage } from './ReportsPage';
+import { SocialMediaReports } from '../components/SocialMediaReports';
 import {
   FolderKanban,
   Calendar as CalendarIcon,
@@ -1433,7 +1434,7 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
           }`}
         >
           <FileText className="w-4 h-4" />
-          <span>Weekly Reports</span>
+          <span>Reports Hub</span>
         </button>
       </div>
 
@@ -3134,10 +3135,16 @@ export const UnitWorkspacePage: React.FC<{ defaultTab?: string }> = ({ defaultTa
         </div>
       )}
 
-      {/* 6. TAB 4: WEEKLY REPORTS */}
+      {/* 6. TAB 4: REPORTS HUB */}
       {activeTab === 'reports' && (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
-          <ReportsPage embedded={true} overrideUnit={currentUnit} />
+        <div>
+          {currentUnit.toLowerCase().includes('social') || currentUnit.toLowerCase().includes('socmed') ? (
+            <SocialMediaReports jobs={unitJobs} user={user} currentUnit={currentUnit} />
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
+              <ReportsPage embedded={true} overrideUnit={currentUnit} />
+            </div>
+          )}
         </div>
       )}
 
