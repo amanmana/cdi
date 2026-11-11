@@ -1130,7 +1130,7 @@ export const UnitsManagement: React.FC = () => {
                   href="/"
                   target="_blank"
                   rel="noreferrer"
-                  className="btn btn-outline border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs rounded-xl h-10 px-3.5 flex items-center gap-1.5"
+                  className="btn bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 font-extrabold text-xs rounded-xl h-10 px-3.5 flex items-center gap-1.5 shadow-xs transition-all"
                   title="Lihat borang awam sebenar di tab baharu"
                 >
                   <ExternalLink className="w-4 h-4" />
