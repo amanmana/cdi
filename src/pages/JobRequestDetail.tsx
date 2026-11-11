@@ -215,6 +215,101 @@ export const JobRequestDetail: React.FC = () => {
     return accessibleTeamMembers.filter((m) => m.unit?.trim().toLowerCase() === staffUnitFilter.trim().toLowerCase());
   }, [accessibleTeamMembers, staffUnitFilter]);
 
+  const getServiceSchema = (srv: any) => {
+    if (!srv) return [];
+    if (Array.isArray(srv.form_schema) && srv.form_schema.length > 0) {
+      return srv.form_schema;
+    }
+    const srvName = (srv.name || '').toLowerCase().trim();
+    const srvLabel = (srv.display_label || '').toLowerCase().trim();
+    const targetUnit = (srv.target_unit_name || '').toLowerCase().trim();
+
+    // 1. Match custom service
+    const matchedCs = customServicesList.find((cs: any) => {
+      const csName = (cs.name || '').toLowerCase().trim();
+      const csLabel = (cs.display_label || '').toLowerCase().trim();
+      return (
+        (srv.id && cs.id === srv.id) ||
+        (srvName && (csName === srvName || csLabel === srvName)) ||
+        (srvLabel && (csName === srvLabel || csLabel === srvLabel))
+      );
+    });
+    if (matchedCs && Array.isArray(matchedCs.form_schema) && matchedCs.form_schema.length > 0) {
+      return matchedCs.form_schema;
+    }
+
+    // 2. Match unit
+    const matchedUnit = unitsList.find((u: any) => {
+      const uName = (u.name || '').toLowerCase().trim();
+      const uLabel = (u.display_label || u.public_label || '').toLowerCase().trim();
+      return (
+        (srv.target_unit_id && u.id === srv.target_unit_id) ||
+        (targetUnit && (uName === targetUnit || uLabel === targetUnit)) ||
+        (srvName && (uName === srvName || uLabel === srvName))
+      );
+    });
+    if (matchedUnit && Array.isArray(matchedUnit.form_schema) && matchedUnit.form_schema.length > 0) {
+      return matchedUnit.form_schema;
+    }
+
+    return [];
+  };
+
+  const currentServiceSchema = useMemo(() => {
+    return getServiceSchema(activeSpecService);
+  }, [activeSpecService, customServicesList, unitsList]);
+
+  const allDisplayFields = useMemo(() => {
+    if (!activeSpecService) return [];
+
+    // 1. Map fields defined in the schema
+    const schemaMapped = currentServiceSchema.map((field: any) => {
+      const matchedKey = Object.keys(specFields || {}).find(
+        (k) => k.toLowerCase() === field.id.toLowerCase()
+      );
+      const val = matchedKey !== undefined ? (specFields as any)[matchedKey] : '';
+      return {
+        id: field.id,
+        matchedKey: matchedKey || field.id,
+        label: field.label || field.id.replace(/_/g, ' '),
+        type: field.type || 'text',
+        options: Array.isArray(field.options)
+          ? field.options
+          : typeof field.options === 'string'
+          ? field.options.split(',').map((o: string) => o.trim()).filter(Boolean)
+          : [],
+        placeholder: field.placeholder,
+        required: field.required,
+        value: val,
+      };
+    });
+
+    // 2. Map any extra intake fields from specFields that are not in schema
+    const schemaKeySet = new Set(schemaMapped.map((f: any) => f.id.toLowerCase()));
+    const extraMapped = Object.entries(specFields || {})
+      .filter(([k]) => !schemaKeySet.has(k.toLowerCase()))
+      .map(([k, v]) => ({
+        id: k,
+        matchedKey: k,
+        label: k.replace(/_/g, ' ').toUpperCase(),
+        type: String(v).length > 80 || String(v).includes('\n') ? 'textarea' : 'text',
+        options: [],
+        placeholder: '',
+        required: false,
+        value: v,
+      }));
+
+    return [...schemaMapped, ...extraMapped];
+  }, [activeSpecService, currentServiceSchema, specFields]);
+
+  const handleUpdateSpecField = (fieldId: string, matchedKey: string, newVal: any) => {
+    setSpecFields((prev) => ({
+      ...prev,
+      [matchedKey]: newVal,
+      [fieldId]: newVal,
+    }));
+  };
+
   const fetchDetail = () => {
     fetch(`/api/job-requests/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -1256,101 +1351,6 @@ export const JobRequestDetail: React.FC = () => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
-  };
-
-  const getServiceSchema = (srv: any) => {
-    if (!srv) return [];
-    if (Array.isArray(srv.form_schema) && srv.form_schema.length > 0) {
-      return srv.form_schema;
-    }
-    const srvName = (srv.name || '').toLowerCase().trim();
-    const srvLabel = (srv.display_label || '').toLowerCase().trim();
-    const targetUnit = (srv.target_unit_name || '').toLowerCase().trim();
-
-    // 1. Match custom service
-    const matchedCs = customServicesList.find((cs: any) => {
-      const csName = (cs.name || '').toLowerCase().trim();
-      const csLabel = (cs.display_label || '').toLowerCase().trim();
-      return (
-        (srv.id && cs.id === srv.id) ||
-        (srvName && (csName === srvName || csLabel === srvName)) ||
-        (srvLabel && (csName === srvLabel || csLabel === srvLabel))
-      );
-    });
-    if (matchedCs && Array.isArray(matchedCs.form_schema) && matchedCs.form_schema.length > 0) {
-      return matchedCs.form_schema;
-    }
-
-    // 2. Match unit
-    const matchedUnit = unitsList.find((u: any) => {
-      const uName = (u.name || '').toLowerCase().trim();
-      const uLabel = (u.display_label || u.public_label || '').toLowerCase().trim();
-      return (
-        (srv.target_unit_id && u.id === srv.target_unit_id) ||
-        (targetUnit && (uName === targetUnit || uLabel === targetUnit)) ||
-        (srvName && (uName === srvName || uLabel === srvName))
-      );
-    });
-    if (matchedUnit && Array.isArray(matchedUnit.form_schema) && matchedUnit.form_schema.length > 0) {
-      return matchedUnit.form_schema;
-    }
-
-    return [];
-  };
-
-  const currentServiceSchema = useMemo(() => {
-    return getServiceSchema(activeSpecService);
-  }, [activeSpecService, customServicesList, unitsList]);
-
-  const allDisplayFields = useMemo(() => {
-    if (!activeSpecService) return [];
-
-    // 1. Map fields defined in the schema
-    const schemaMapped = currentServiceSchema.map((field: any) => {
-      const matchedKey = Object.keys(specFields).find(
-        (k) => k.toLowerCase() === field.id.toLowerCase()
-      );
-      const val = matchedKey !== undefined ? specFields[matchedKey] : '';
-      return {
-        id: field.id,
-        matchedKey: matchedKey || field.id,
-        label: field.label || field.id.replace(/_/g, ' '),
-        type: field.type || 'text',
-        options: Array.isArray(field.options)
-          ? field.options
-          : typeof field.options === 'string'
-          ? field.options.split(',').map((o: string) => o.trim()).filter(Boolean)
-          : [],
-        placeholder: field.placeholder,
-        required: field.required,
-        value: val,
-      };
-    });
-
-    // 2. Map any extra intake fields from specFields that are not in schema
-    const schemaKeySet = new Set(schemaMapped.map((f: any) => f.id.toLowerCase()));
-    const extraMapped = Object.entries(specFields)
-      .filter(([k]) => !schemaKeySet.has(k.toLowerCase()))
-      .map(([k, v]) => ({
-        id: k,
-        matchedKey: k,
-        label: k.replace(/_/g, ' ').toUpperCase(),
-        type: String(v).length > 80 || String(v).includes('\n') ? 'textarea' : 'text',
-        options: [],
-        placeholder: '',
-        required: false,
-        value: v,
-      }));
-
-    return [...schemaMapped, ...extraMapped];
-  }, [activeSpecService, currentServiceSchema, specFields]);
-
-  const handleUpdateSpecField = (fieldId: string, matchedKey: string, newVal: any) => {
-    setSpecFields((prev) => ({
-      ...prev,
-      [matchedKey]: newVal,
-      [fieldId]: newVal,
-    }));
   };
 
   const getAstRequesterBadge = (ast: any) => {
