@@ -2302,7 +2302,7 @@ export const JobRequestDetail: React.FC = () => {
                                   type="button"
                                   onClick={() => handleOpenSpecModal(srv, true)}
                                   className="btn btn-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl font-bold flex items-center gap-1 h-7 px-2.5 shadow-xs transition-all"
-                                  title="View & Edit Client Requirements (Head of Unit Mode)"
+                                  title="View & Edit Specifications (Head of Unit Mode)"
                                 >
                                   <Edit3 className="w-3 h-3 text-indigo-600" />
                                   <span>View & Edit Specs</span>
@@ -2312,10 +2312,10 @@ export const JobRequestDetail: React.FC = () => {
                                   type="button"
                                   onClick={() => handleOpenSpecModal(srv, false)}
                                   className="btn btn-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold flex items-center gap-1 h-7 px-2.5 shadow-xs transition-all"
-                                  title="View Full Specifications (Modal Window)"
+                                  title="View Specifications"
                                 >
                                   <Eye className="w-3 h-3 text-slate-600" />
-                                  <span>View Full Specs</span>
+                                  <span>View Specs</span>
                                 </button>
                               )}
 
@@ -2340,52 +2340,26 @@ export const JobRequestDetail: React.FC = () => {
                           </div>
 
                           <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                Deliverable Scope & Brief
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
-                                className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
-                              >
-                                <Eye className="w-2.5 h-2.5" />
-                                <span>View Full</span>
-                              </button>
-                            </div>
-                            <p 
-                              onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
-                              className="text-xs font-medium text-slate-700 bg-slate-50 hover:bg-indigo-50/30 p-3 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer leading-relaxed whitespace-pre-wrap"
-                              title="Click to view full specifications"
-                            >
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                              Deliverable Scope & Brief
+                            </span>
+                            <p className="text-xs font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
                               {srv.scope || 'No specific deliverable brief specified.'}
                             </p>
                           </div>
 
                           {srv.fields && Object.keys(srv.fields).length > 0 && (
                             <div className="space-y-1.5 pt-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                  Unit Specifications ({Object.keys(srv.fields).length})
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
-                                  className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
-                                >
-                                  <span>View Full</span>
-                                  <ArrowRight className="w-2.5 h-2.5" />
-                                </button>
-                              </div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Unit Specifications ({Object.keys(srv.fields).length})
+                              </span>
                               <div className={`grid gap-2 ${isSingleUnit ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2'}`}>
                                 {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => (
                                   <div 
                                     key={fk} 
-                                    onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
-                                    className="bg-slate-50/80 hover:bg-indigo-50/50 p-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer min-w-0 group"
-                                    title="Click to open full specifications modal"
+                                    className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 min-w-0"
                                   >
-                                    <span className="text-[9px] font-bold text-slate-400 group-hover:text-indigo-600 uppercase block truncate">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase block truncate">
                                       {fk.replace(/_/g, ' ')}
                                     </span>
                                     <span className="text-xs font-bold text-slate-800 block truncate mt-0.5">
@@ -2399,11 +2373,7 @@ export const JobRequestDetail: React.FC = () => {
 
                           {/* Head of Unit Guidance Notes for Staff (if present) */}
                           {(srv.head_guidance_notes || uMeta?.head_guidance_notes) && (
-                            <div 
-                              onClick={() => handleOpenSpecModal(srv, canEditServiceSpec(srv))}
-                              className="p-3 bg-amber-50/80 hover:bg-amber-50 border border-amber-200 rounded-xl space-y-1 cursor-pointer transition-all"
-                              title="Click to view or edit instructions"
-                            >
+                            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1">
                               <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800">
                                 <Crown className="w-3 h-3 text-amber-600" />
                                 <span>Head of Unit Guidance Notes for Staff</span>
