@@ -118,9 +118,17 @@ export const JobRequestsList: React.FC = () => {
       (userUnitId && Number(u.id) === Number(userUnitId)) ||
       (userUnitName && u.name?.toLowerCase().trim() === userUnitName.toLowerCase().trim())
   );
-  const unitInternalFields = (myUnitObj?.form_schema || []).filter(
-    (f: any) => f.scope === 'internal' || f.scope === 'both'
-  );
+  const unitInternalFields = useMemo(() => {
+    const seen = new Set<string>();
+    return (myUnitObj?.form_schema || []).filter((f: any) => {
+      const isEligible = f.scope === 'internal' || f.scope === 'both';
+      if (!isEligible) return false;
+      const key = (f.label || f.id || '').toLowerCase().trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [myUnitObj]);
   const userDeptId = (user as any)?.managed_department_id || user?.department_id || (user as any)?.acting_manager_department_id;
   const managedUnits: string[] = (user as any)?.managed_units || [];
   const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
@@ -257,17 +265,6 @@ export const JobRequestsList: React.FC = () => {
       alert('Work title is required.');
       return;
     }
-
-    const userUnitName = (user as any)?.acting_manager_unit || user?.unit;
-    const userUnitId = (user as any)?.acting_manager_unit_id || user?.unit_id;
-    const myUnitObj = unitsList.find(
-      (u: any) =>
-        (userUnitId && Number(u.id) === Number(userUnitId)) ||
-        (userUnitName && u.name?.toLowerCase().trim() === userUnitName.toLowerCase().trim())
-    );
-    const unitInternalFields = (myUnitObj?.form_schema || []).filter(
-      (f: any) => f.scope === 'internal' || f.scope === 'both'
-    );
 
     for (const field of unitInternalFields) {
       if (field.required) {
