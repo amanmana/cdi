@@ -1285,15 +1285,69 @@ export const JobRequestDetail: React.FC = () => {
   const canEditServiceSpec = (srv: any) => {
     if (user?.role === 'admin' || user?.role === 'director') return true;
     if (!user?.is_unit_head) return false;
-    const unitName = (srv?.target_unit_name || srv?.name || '').toLowerCase().trim();
+    const unitName = (srv?.target_unit_name || srv?.name || request?.unit || '').toLowerCase().trim();
     const userUnitClean = (userUnit || '').toLowerCase().trim();
     return Boolean(
       (userUnitClean && userUnitClean === unitName) ||
       managedUnits.some((mu) => mu.toLowerCase().trim() === unitName) ||
       (user?.unit_id && srv?.target_unit_id && Number(user.unit_id) === Number(srv.target_unit_id)) ||
-      (srv?.target_unit_id && managedUnitIds.includes(Number(srv.target_unit_id)))
+      (srv?.target_unit_id && managedUnitIds.includes(Number(srv.target_unit_id))) ||
+      (request?.unit && (userUnitClean === request.unit.toLowerCase().trim() || managedUnits.some((mu) => mu.toLowerCase().trim() === request.unit.toLowerCase().trim())))
     );
   };
+
+  // Primary project requirements & client intake specifications representation
+  const primaryProjectService = useMemo(() => {
+    if (!request) return null;
+
+    const firstSrv = (Array.isArray(request.additional_data?.selected_services) && request.additional_data.selected_services.length > 0)
+      ? request.additional_data.selected_services[0]
+      : null;
+
+    const firstAssignment = Object.entries(request.additional_data?.unit_assignments || {})[0];
+
+    const unitName = firstSrv?.target_unit_name || firstAssignment?.[0] || request.unit || request.department_name || 'General';
+    const srvLabel = firstSrv?.display_label || firstSrv?.name || (firstAssignment?.[1] as any)?.service_name || request.additional_data?.service_name || request.title || 'Project Specifications';
+
+    // Collect all intake / custom fields
+    const combinedFields: Record<string, any> = {};
+
+    // 1. From custom_fields
+    if (request.additional_data?.custom_fields && typeof request.additional_data.custom_fields === 'object') {
+      Object.assign(combinedFields, request.additional_data.custom_fields);
+    }
+
+    // 2. From first service / assignment
+    if (firstSrv?.fields && typeof firstSrv.fields === 'object') {
+      Object.assign(combinedFields, firstSrv.fields);
+    } else if (firstAssignment?.[1] && typeof (firstAssignment[1] as any).custom_fields === 'object') {
+      Object.assign(combinedFields, (firstAssignment[1] as any).custom_fields);
+    }
+
+    // 3. From direct top-level fields in additional_data
+    if (request.additional_data && typeof request.additional_data === 'object') {
+      Object.entries(request.additional_data).forEach(([k, v]) => {
+        if (v === null || v === undefined || v === '' || typeof v === 'object') return;
+        const lower = k.toLowerCase();
+        if (lower.endsWith('_id') || lower === 'id' || lower.endsWith('_ids')) return;
+        if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target', 'assistance_requests'].includes(lower)) return;
+        if (lower.includes('kanban')) return;
+        if (combinedFields[k] === undefined) {
+          combinedFields[k] = v;
+        }
+      });
+    }
+
+    return {
+      name: srvLabel,
+      display_label: srvLabel,
+      target_unit_name: unitName,
+      target_unit_id: request.unit_id || null,
+      scope: firstSrv?.scope || (firstAssignment?.[1] as any)?.scope || request.description || '',
+      fields: combinedFields,
+      head_guidance_notes: firstSrv?.head_guidance_notes || (firstAssignment?.[1] as any)?.head_guidance_notes || request.additional_data?.head_guidance_notes || '',
+    };
+  }, [request]);
 
   const handleOpenSpecModal = (srv: any, startInEditMode: boolean = false) => {
     setActiveSpecService(srv);
@@ -1307,7 +1361,7 @@ export const JobRequestDetail: React.FC = () => {
       || Object.entries(request?.additional_data?.unit_assignments || {}).find(([k, m]: [string, any]) => 
            m?.service_name === srv.name || m?.service_name === srv.display_label || k.includes(srv.name) || k.includes(srv.display_label)
          )?.[1];
-    setSpecGuidanceNotes(srv.head_guidance_notes || uMeta?.head_guidance_notes || '');
+    setSpecGuidanceNotes(srv.head_guidance_notes || uMeta?.head_guidance_notes || request?.additional_data?.head_guidance_notes || '');
     setIsEditingSpec(startInEditMode && canEditServiceSpec(srv));
     setShowSpecModal(true);
   };
@@ -2259,9 +2313,37 @@ export const JobRequestDetail: React.FC = () => {
 
             {/* Project Requirements & Client Details Combined Box */}
             <div className="bg-blue-50/30 p-6 rounded-2xl border border-blue-100/70 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-black text-blue-700 uppercase tracking-wider">
-                <FileText className="w-4 h-4 text-blue-600" />
-                <span>PROJECT REQUIREMENTS & CLIENT DETAILS</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100/70 pb-3">
+                <div className="flex items-center gap-2 text-xs font-black text-blue-700 uppercase tracking-wider">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span>PROJECT REQUIREMENTS & CLIENT DETAILS</span>
+                </div>
+
+                {primaryProjectService && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {canEditServiceSpec(primaryProjectService) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenSpecModal(primaryProjectService, true)}
+                        className="btn btn-xs bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3.5 shadow-2xs transition-all"
+                        title="View & Edit Specifications (Head of Unit Mode)"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>View & Edit Specs</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenSpecModal(primaryProjectService, false)}
+                        className="btn btn-xs bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3.5 shadow-2xs transition-all"
+                        title="View Specifications"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-slate-600" />
+                        <span>View Specs</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

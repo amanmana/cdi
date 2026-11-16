@@ -3329,8 +3329,32 @@ jobRequestsRouter.post('/:id/update-specifications', async (c) => {
     }
   }
 
-  await db.prepare('UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .bind(JSON.stringify(addData), request.id)
+  // Also sync top-level additional_data & additional_data.custom_fields
+  if (custom_fields && typeof custom_fields === 'object') {
+    if (!addData.custom_fields || typeof addData.custom_fields !== 'object') {
+      addData.custom_fields = {};
+    }
+    Object.assign(addData.custom_fields, custom_fields);
+
+    // Also update any matching top-level keys in additional_data
+    for (const [k, v] of Object.entries(custom_fields)) {
+      if (addData[k] !== undefined) {
+        addData[k] = v;
+      }
+    }
+  }
+
+  if (scope !== undefined && String(scope).trim()) {
+    addData.scope = String(scope).trim();
+  }
+  if (head_guidance_notes !== undefined) {
+    addData.head_guidance_notes = String(head_guidance_notes).trim();
+  }
+
+  const newDescription = (scope !== undefined && String(scope).trim()) ? String(scope).trim() : request.description;
+
+  await db.prepare('UPDATE job_requests SET description = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .bind(newDescription, JSON.stringify(addData), request.id)
     .run();
 
   const displayService = service_label || addData.unit_assignments?.[targetKey]?.service_name || targetKey || 'Service';
