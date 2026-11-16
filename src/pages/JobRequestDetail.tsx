@@ -1297,7 +1297,7 @@ export const JobRequestDetail: React.FC = () => {
   };
 
   // Primary project requirements & client intake specifications representation
-  const primaryProjectService = useMemo(() => {
+  const primaryProjectService = (() => {
     if (!request) return null;
 
     const firstSrv = (Array.isArray(request.additional_data?.selected_services) && request.additional_data.selected_services.length > 0)
@@ -1347,7 +1347,7 @@ export const JobRequestDetail: React.FC = () => {
       fields: combinedFields,
       head_guidance_notes: firstSrv?.head_guidance_notes || (firstAssignment?.[1] as any)?.head_guidance_notes || request.additional_data?.head_guidance_notes || '',
     };
-  }, [request]);
+  })();
 
   const handleOpenSpecModal = (srv: any, startInEditMode: boolean = false) => {
     setActiveSpecService(srv);
