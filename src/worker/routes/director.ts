@@ -89,7 +89,9 @@ directorRouter.get('/stats', async (c) => {
             COUNT(DISTINCT id) as total_projects,
             COUNT(DISTINCT CASE WHEN status = 'completed' THEN id END) as completed_projects,
             COUNT(DISTINCT CASE WHEN status = 'staff_processing' THEN id END) as active_projects,
-            COUNT(DISTINCT CASE WHEN status IN ('manager_approval', 'pending') THEN id END) as pending_projects
+            COUNT(DISTINCT CASE WHEN status IN ('manager_approval', 'pending') THEN id END) as pending_projects,
+            COUNT(DISTINCT CASE WHEN status = 'on_hold' THEN id END) as on_hold_projects,
+            COUNT(DISTINCT CASE WHEN status IN ('cancelled', 'rejected') THEN id END) as cancelled_projects
           FROM job_requests
           WHERE 1=1 ${unitFilterSql} ${dateFilter}
         `;
@@ -99,12 +101,17 @@ directorRouter.get('/stats', async (c) => {
           completed_projects: number;
           active_projects: number;
           pending_projects: number;
+          on_hold_projects: number;
+          cancelled_projects: number;
         }>();
 
         const tot = row?.total_projects || 0;
         const dn = row?.completed_projects || 0;
         const active = row?.active_projects || 0;
         const pend = row?.pending_projects || 0;
+        const onHold = row?.on_hold_projects || 0;
+        const canc = row?.cancelled_projects || 0;
+        const holdOrRejected = onHold + canc;
 
         const uStaff = await db.prepare(`
           SELECT COUNT(DISTINCT id) as count FROM users 
@@ -121,6 +128,9 @@ directorRouter.get('/stats', async (c) => {
           completed_projects: dn,
           active_projects: active,
           pending_projects: pend,
+          on_hold_projects: onHold,
+          cancelled_projects: canc,
+          hold_rejected_projects: holdOrRejected,
           staff_count: uStaff?.count || 0,
           completion_rate: tot > 0 ? Math.round((dn / tot) * 100) : 0,
         };

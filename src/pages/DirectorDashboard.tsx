@@ -49,6 +49,9 @@ interface UnitBreakdown {
   completed_projects: number;
   active_projects: number;
   pending_projects: number;
+  on_hold_projects?: number;
+  cancelled_projects?: number;
+  hold_rejected_projects?: number;
   staff_count: number;
   completion_rate: number;
 }
@@ -829,30 +832,47 @@ export const DirectorDashboard: React.FC = () => {
               .filter((u) => !['administrator', 'admin', 'it support', 'executive management'].includes(u.unit_name.toLowerCase().trim()))
               .map((u) => (
               <div key={u.unit_id} className="space-y-1.5">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-800">{formatUnitDisplayName(u.unit_name)}</span>
-                  <span className="text-slate-500">
-                    <span className="text-blue-600 font-extrabold">{u.active_projects} active</span> / {u.total_projects} total
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                  <span className="text-slate-800 font-extrabold">{formatUnitDisplayName(u.unit_name)}</span>
+                  <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-semibold text-slate-500">
+                    <span className="text-emerald-700 font-bold">{u.completed_projects} Completed</span>
+                    <span className="text-slate-300">,</span>
+                    <span className="text-blue-700 font-bold">{u.active_projects} Active</span>
+                    <span className="text-slate-300">,</span>
+                    <span className="text-amber-600 font-bold">{u.pending_projects} Pending</span>
+                    <span className="text-slate-300">,</span>
+                    <span className={`${(u.hold_rejected_projects || 0) > 0 ? 'text-rose-600 font-black' : 'text-slate-400 font-medium'}`}>
+                      {u.hold_rejected_projects || 0} Hold/Rejected
+                    </span>
+                    <span className="text-slate-400 font-extrabold ml-1">/ {u.total_projects} total</span>
+                  </div>
                 </div>
 
-                <div className="w-full bg-slate-100 rounded-2xl h-4 overflow-hidden flex">
-                  <div
-                    className="bg-emerald-500 h-full transition-all duration-500"
-                    style={{ width: `${u.total_projects > 0 ? (u.completed_projects / u.total_projects) * 100 : 0}%` }}
-                    title={`Completed: ${u.completed_projects}`}
-                  ></div>
-                  <div
-                    className="bg-blue-500 h-full transition-all duration-500"
-                    style={{ width: `${u.total_projects > 0 ? (u.active_projects / u.total_projects) * 100 : 0}%` }}
-                    title={`Active: ${u.active_projects}`}
-                  ></div>
-                  <div
-                    className="bg-amber-400 h-full transition-all duration-500"
-                    style={{ width: `${u.total_projects > 0 ? (u.pending_projects / u.total_projects) * 100 : 0}%` }}
-                    title={`Pending: ${u.pending_projects}`}
-                  ></div>
-                </div>
+                {(() => {
+                  // Option B: Active Workload scale (excludes hold/cancelled so active pipeline fills 100% cleanly)
+                  const activeWorkloadTotal = u.completed_projects + u.active_projects + u.pending_projects;
+                  const baseTotal = activeWorkloadTotal > 0 ? activeWorkloadTotal : u.total_projects;
+
+                  return (
+                    <div className="w-full bg-slate-100 rounded-2xl h-4 overflow-hidden flex">
+                      <div
+                        className="bg-emerald-500 h-full transition-all duration-500"
+                        style={{ width: `${baseTotal > 0 ? (u.completed_projects / baseTotal) * 100 : 0}%` }}
+                        title={`Completed: ${u.completed_projects} (${baseTotal > 0 ? Math.round((u.completed_projects / baseTotal) * 100) : 0}% of active workload)`}
+                      ></div>
+                      <div
+                        className="bg-blue-500 h-full transition-all duration-500"
+                        style={{ width: `${baseTotal > 0 ? (u.active_projects / baseTotal) * 100 : 0}%` }}
+                        title={`Active Processing: ${u.active_projects} (${baseTotal > 0 ? Math.round((u.active_projects / baseTotal) * 100) : 0}% of active workload)`}
+                      ></div>
+                      <div
+                        className="bg-amber-400 h-full transition-all duration-500"
+                        style={{ width: `${baseTotal > 0 ? (u.pending_projects / baseTotal) * 100 : 0}%` }}
+                        title={`Pending Approval: ${u.pending_projects} (${baseTotal > 0 ? Math.round((u.pending_projects / baseTotal) * 100) : 0}% of active workload)`}
+                      ></div>
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
