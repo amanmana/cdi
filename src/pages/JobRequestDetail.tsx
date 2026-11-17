@@ -33,6 +33,7 @@ import {
   RotateCcw,
   Eye,
   ArrowRight,
+  ArrowUpRight,
   Crown,
 } from 'lucide-react';
 
@@ -2231,70 +2232,98 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {data.staffDetails && data.staffDetails.length > 0 ? (
-                <div className="space-y-2.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-1">
                   {data.staffDetails.map((s: any) => {
                     const tText = staffTasks[s.id];
                     const isSelf = Number(s.id) === Number(user?.id);
                     return (
                       <div
                         key={s.id}
-                        className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                        className={`group relative flex flex-col justify-between p-5 rounded-3xl border transition-all duration-200 ${
                           isSelf
-                            ? 'bg-blue-50/80 border-blue-300 ring-2 ring-blue-500/15 shadow-sm'
-                            : 'bg-slate-50/80 border-slate-200/70 shadow-xs'
+                            ? 'bg-gradient-to-b from-blue-50/40 via-white to-white border-blue-200 ring-2 ring-blue-500/15 shadow-sm hover:shadow-md'
+                            : 'bg-white border-slate-200/80 shadow-xs hover:border-slate-300 hover:shadow-md'
                         }`}
                       >
-                        {/* Staff Profile & Task */}
-                        <div className="flex items-start gap-3 min-w-0 flex-1">
-                          <div
-                            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl font-black text-xs flex items-center justify-center shrink-0 overflow-hidden shadow-inner ${
-                              isSelf ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-800 border border-slate-200'
-                            }`}
-                          >
-                            {s.avatar_url ? (
-                              <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
-                            ) : (
-                              s.name.charAt(0).toUpperCase()
-                            )}
+                        <div>
+                          {/* Top Row: Avatar & Arrow Action */}
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="relative">
+                              <div
+                                className={`w-12 h-12 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
+                                  isSelf
+                                    ? 'bg-blue-600 text-white ring-2 ring-blue-500/30'
+                                    : 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700 border border-slate-200/80'
+                                }`}
+                              >
+                                {s.avatar_url ? (
+                                  <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span>{s.name.charAt(0).toUpperCase()}</span>
+                                )}
+                              </div>
+                              {s.is_done && (
+                                <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                </span>
+                              )}
+                            </div>
+
+                            <a
+                              href={s.email ? `mailto:${s.email}` : undefined}
+                              title={s.email ? `Contact ${s.name} (${s.email})` : s.name}
+                              className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 border border-slate-200/80 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-all shadow-2xs"
+                            >
+                              <ArrowUpRight className="w-4 h-4" />
+                            </a>
                           </div>
 
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-xs font-black text-slate-900 truncate">{s.name}</span>
+                          {/* Staff Info: Name & Unit */}
+                          <div className="mt-3.5 space-y-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-sm font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                                {s.name}
+                              </h4>
                               {isSelf && (
-                                <span className="bg-blue-600 text-white font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-md tracking-wider">
+                                <span className="bg-blue-600 text-white font-extrabold text-[9px] uppercase px-1.5 py-0.5 rounded-md tracking-wider">
                                   YOU
                                 </span>
                               )}
-                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                • {s.unit || 'General'}
-                              </span>
                             </div>
 
+                            <p className="text-xs text-slate-500 font-medium">
+                              {s.unit ? `${s.unit} Unit` : 'Creative Specialist'}
+                            </p>
+
                             {/* Task Description */}
-                            <div className="text-xs leading-relaxed">
+                            <div className="pt-2 text-xs leading-relaxed">
                               {tText ? (
-                                <span className={`font-semibold ${isSelf ? 'text-blue-950 font-bold' : 'text-slate-700'}`}>
-                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mr-1.5">Task:</span>
-                                  {tText}
-                                </span>
+                                <div className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 text-slate-700">
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
+                                    Assigned Task
+                                  </span>
+                                  <p className="font-semibold text-slate-800 line-clamp-3">
+                                    {tText}
+                                  </p>
+                                </div>
                               ) : (
-                                <span className="text-[11px] font-medium text-slate-400 italic">
+                                <p className="text-[11px] text-slate-400 font-medium italic">
                                   No specific task assigned
-                                </span>
+                                </p>
                               )}
                             </div>
                           </div>
                         </div>
 
-                        {/* Status Badge */}
-                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60">
+                        {/* Bottom Row: Status Badge */}
+                        <div className="pt-4 mt-3 border-t border-slate-100/80 flex items-center justify-between">
                           {s.is_done ? (
-                            <span className="badge bg-emerald-500 text-white font-extrabold text-[10px] uppercase px-3 py-2.5 rounded-xl border-none tracking-wider gap-1 shadow-xs">
-                              ✓ DONE
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase tracking-wider shadow-2xs">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              DONE
                             </span>
                           ) : (
-                            <span className="badge bg-white text-slate-500 font-extrabold text-[10px] uppercase px-3 py-2.5 border border-slate-200/80 tracking-wider">
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200/90 bg-white text-slate-500 text-[10px] font-extrabold uppercase tracking-wider shadow-2xs">
                               PENDING
                             </span>
                           )}
@@ -2304,8 +2333,12 @@ export const JobRequestDetail: React.FC = () => {
                   })}
                 </div>
               ) : (
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-center text-xs text-slate-400 font-semibold italic">
-                  ● No staff assigned yet
+                <div className="p-8 bg-slate-50/70 rounded-3xl border border-dashed border-slate-200 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200/80 text-slate-400 flex items-center justify-center mx-auto shadow-xs">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-bold">No staff assigned yet</p>
+                  <p className="text-[11px] text-slate-400">Head of Unit or Manager will assign team members for this project.</p>
                 </div>
               )}
             </div>
