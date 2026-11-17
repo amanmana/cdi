@@ -2231,88 +2231,130 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {data.staffDetails && data.staffDetails.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 pt-1">
                   {data.staffDetails.map((s: any) => {
                     const tText = staffTasks[s.id];
                     const isSelf = Number(s.id) === Number(user?.id);
+
+                    // Semantic subtle pastel theme by staff unit
+                    const u = (s.unit || '').toLowerCase().trim();
+                    let theme = {
+                      cardBg: 'bg-slate-50/50 hover:bg-slate-50/80',
+                      border: isSelf ? 'border-blue-300 ring-2 ring-blue-500/20 shadow-sm' : 'border-slate-200/80 hover:border-slate-300 shadow-2xs',
+                      avatarBg: isSelf ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200/70',
+                      taskBoxBg: 'bg-white/80 border-slate-200/70 text-slate-800',
+                    };
+
+                    if (u.includes('social') || u.includes('socmed')) {
+                      theme = {
+                        cardBg: 'bg-emerald-50/40 hover:bg-emerald-50/70',
+                        border: isSelf ? 'border-emerald-300 ring-2 ring-emerald-500/20 shadow-sm' : 'border-emerald-100/90 hover:border-emerald-200 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800 border border-emerald-200/60',
+                        taskBoxBg: 'bg-white/80 border-emerald-100 text-emerald-950',
+                      };
+                    } else if (u.includes('graphic') || u.includes('web') || u.includes('design')) {
+                      theme = {
+                        cardBg: 'bg-indigo-50/40 hover:bg-indigo-50/70',
+                        border: isSelf ? 'border-indigo-300 ring-2 ring-indigo-500/20 shadow-sm' : 'border-indigo-100/90 hover:border-indigo-200 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-800 border border-indigo-200/60',
+                        taskBoxBg: 'bg-white/80 border-indigo-100 text-indigo-950',
+                      };
+                    } else if (u.includes('event')) {
+                      theme = {
+                        cardBg: 'bg-amber-50/40 hover:bg-amber-50/70',
+                        border: isSelf ? 'border-amber-300 ring-2 ring-amber-500/20 shadow-sm' : 'border-amber-100/90 hover:border-amber-200 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-800 border border-amber-200/60',
+                        taskBoxBg: 'bg-white/80 border-amber-100 text-amber-950',
+                      };
+                    } else if (u.includes('video') || u.includes('media') || u.includes('photo') || u.includes('audio') || u.includes('multimedia')) {
+                      theme = {
+                        cardBg: 'bg-rose-50/40 hover:bg-rose-50/70',
+                        border: isSelf ? 'border-rose-300 ring-2 ring-rose-500/20 shadow-sm' : 'border-rose-100/90 hover:border-rose-200 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-rose-600 text-white' : 'bg-rose-100 text-rose-800 border border-rose-200/60',
+                        taskBoxBg: 'bg-white/80 border-rose-100 text-rose-950',
+                      };
+                    } else if (u.includes('writer') || u.includes('content') || u.includes('comm') || u.includes('corporate')) {
+                      theme = {
+                        cardBg: 'bg-sky-50/40 hover:bg-sky-50/70',
+                        border: isSelf ? 'border-sky-300 ring-2 ring-sky-500/20 shadow-sm' : 'border-sky-100/90 hover:border-sky-200 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-sky-600 text-white' : 'bg-sky-100 text-sky-800 border border-sky-200/60',
+                        taskBoxBg: 'bg-white/80 border-sky-100 text-sky-950',
+                      };
+                    }
+
                     return (
                       <div
                         key={s.id}
-                        className={`group relative flex flex-col justify-between p-5 rounded-3xl border transition-all duration-200 ${
-                          isSelf
-                            ? 'bg-gradient-to-b from-blue-50/40 via-white to-white border-blue-200 ring-2 ring-blue-500/15 shadow-sm hover:shadow-md'
-                            : 'bg-white border-slate-200/80 shadow-xs hover:border-slate-300 hover:shadow-md'
-                        }`}
+                        className={`group relative flex flex-col justify-between p-4 sm:p-4.5 rounded-2xl border transition-all duration-200 ${theme.cardBg} ${theme.border}`}
                       >
                         <div>
-                          {/* Avatar */}
-                          <div className="relative inline-block">
-                            <div
-                              className={`w-12 h-12 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
-                                isSelf
-                                  ? 'bg-blue-600 text-white ring-2 ring-blue-500/30'
-                                  : 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700 border border-slate-200/80'
-                              }`}
-                            >
-                              {s.avatar_url ? (
-                                <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <span>{s.name.charAt(0).toUpperCase()}</span>
-                              )}
-                            </div>
-                            {s.is_done && (
-                              <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
-                                <CheckCircle2 className="w-3 h-3" />
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Staff Info: Name & Unit */}
-                          <div className="mt-3.5 space-y-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h4 className="text-sm font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
-                                {s.name}
-                              </h4>
-                              {isSelf && (
-                                <span className="bg-blue-600 text-white font-extrabold text-[9px] uppercase px-1.5 py-0.5 rounded-md tracking-wider">
-                                  YOU
+                          {/* Top Row: Horizontal Header (Avatar + Name & Unit) */}
+                          <div className="flex items-center gap-3">
+                            <div className="relative shrink-0">
+                              <div
+                                className={`w-11 h-11 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
+                              >
+                                {s.avatar_url ? (
+                                  <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span>{s.name.charAt(0).toUpperCase()}</span>
+                                )}
+                              </div>
+                              {s.is_done && (
+                                <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
+                                  <CheckCircle2 className="w-2.5 h-2.5" />
                                 </span>
                               )}
                             </div>
 
-                            <p className="text-xs text-slate-500 font-medium">
-                              {s.unit ? `${s.unit} Unit` : 'Creative Specialist'}
-                            </p>
-
-                            {/* Task Description */}
-                            <div className="pt-2 text-xs leading-relaxed">
-                              {tText ? (
-                                <div className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 text-slate-700">
-                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
-                                    Assigned Task
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h4 className="text-sm font-bold text-slate-900 tracking-tight truncate group-hover:text-blue-600 transition-colors">
+                                  {s.name}
+                                </h4>
+                                {isSelf && (
+                                  <span className="bg-blue-600 text-white font-extrabold text-[8.5px] uppercase px-1.5 py-0.5 rounded-md tracking-wider shrink-0">
+                                    YOU
                                   </span>
-                                  <p className="font-semibold text-slate-800 line-clamp-3">
-                                    {tText}
-                                  </p>
-                                </div>
-                              ) : (
-                                <p className="text-[11px] text-slate-400 font-medium italic">
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                                {s.unit ? `${s.unit} Unit` : 'Creative Specialist'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Middle: Task Section */}
+                          <div className="mt-3 text-xs leading-relaxed">
+                            {tText ? (
+                              <div className={`p-2.5 rounded-xl border ${theme.taskBoxBg}`}>
+                                <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
+                                  Assigned Task
+                                </span>
+                                <p className="font-semibold line-clamp-2">
+                                  {tText}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="p-2.5 rounded-xl border border-dashed border-slate-200/70 bg-white/40">
+                                <p className="text-[10.5px] text-slate-400 font-medium italic">
                                   No specific task assigned
                                 </p>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
                         {/* Bottom Row: Status Badge */}
-                        <div className="pt-4 mt-3 border-t border-slate-100/80 flex items-center justify-between">
+                        <div className="pt-3 mt-3 border-t border-slate-200/50 flex items-center justify-between">
                           {s.is_done ? (
-                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase tracking-wider shadow-2xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-emerald-300/80 bg-emerald-50 text-emerald-700 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               DONE
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200/90 bg-white text-slate-500 text-[10px] font-extrabold uppercase tracking-wider shadow-2xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs">
                               PENDING
                             </span>
                           )}
