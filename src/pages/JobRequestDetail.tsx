@@ -2526,46 +2526,12 @@ export const JobRequestDetail: React.FC = () => {
                       const isAwaitingHead = uMeta?.status === 'awaiting_head_assignment';
 
                       return (
-                        <div key={idx} className="bg-white rounded-xl p-5 border border-indigo-100/70 shadow-sm space-y-3.5">
-                          <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-slate-900 text-sm">{srv.display_label || srv.name}</span>
-                                {srv.department_tag && (
-                                  <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                                    {srv.department_tag}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[11px] font-semibold text-slate-400 block mt-0.5">
-                                Unit: {srv.target_unit_name || srv.name}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                              {canEditServiceSpec(srv) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenSpecModal(srv, true)}
-                                  className="btn btn-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl font-bold flex items-center gap-1 h-7 px-2.5 shadow-xs transition-all"
-                                  title="View & Edit Specifications (Head of Unit Mode)"
-                                >
-                                  <Edit3 className="w-3 h-3 text-indigo-600" />
-                                  <span>View & Edit Specs</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenSpecModal(srv, false)}
-                                  className="btn btn-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold flex items-center gap-1 h-7 px-2.5 shadow-xs transition-all"
-                                  title="View Specifications"
-                                >
-                                  <Eye className="w-3 h-3 text-slate-600" />
-                                  <span>View Specs</span>
-                                </button>
-                              )}
-
-                              <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider shrink-0 ${
+                        <div key={idx} className="bg-white rounded-2xl p-5 border border-indigo-100/70 shadow-sm space-y-3.5">
+                          {/* Card Header matching reference: Status on Left, Action Button on Right, Service & Unit below */}
+                          <div className="border-b border-slate-100 pb-3 space-y-2.5">
+                            {/* Top Row: Status Badge (Left) + View & Edit Specs Button (Right) */}
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shrink-0 ${
                                 isRejected
                                   ? 'bg-rose-100 text-rose-800'
                                   : isAccepted
@@ -2581,6 +2547,47 @@ export const JobRequestDetail: React.FC = () => {
                                   : isAwaitingHead
                                   ? 'Awaiting Unit Head'
                                   : 'Awaiting Approval'}
+                              </span>
+
+                              <div>
+                                {canEditServiceSpec(srv) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenSpecModal(srv, true)}
+                                    className="btn btn-xs bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
+                                    title="View & Edit Specifications (Head of Unit Mode)"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                                    <span>View & Edit Specs</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenSpecModal(srv, false)}
+                                    className="btn btn-xs bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
+                                    title="View Specifications"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-slate-600" />
+                                    <span>View Specs</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Second Row: Service Name & Fulfillment Unit */}
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-extrabold text-slate-900 text-base tracking-tight">
+                                  {srv.display_label || srv.name}
+                                </h4>
+                                {srv.department_tag && (
+                                  <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                                    {srv.department_tag}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs font-semibold text-slate-400 block mt-0.5">
+                                Unit: {srv.target_unit_name || srv.name}
                               </span>
                             </div>
                           </div>
