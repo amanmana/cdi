@@ -2231,130 +2231,131 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {data.staffDetails && data.staffDetails.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-1">
                   {data.staffDetails.map((s: any) => {
                     const tText = staffTasks[s.id];
                     const isSelf = Number(s.id) === Number(user?.id);
 
-                    // Semantic subtle pastel theme by staff unit
+                    // Semantic subtle gradient theme with darker top
                     const u = (s.unit || '').toLowerCase().trim();
                     let theme = {
-                      cardBg: 'bg-slate-50/50 hover:bg-slate-50/80',
-                      border: isSelf ? 'border-blue-300 ring-2 ring-blue-500/20 shadow-sm' : 'border-slate-200/80 hover:border-slate-300 shadow-2xs',
-                      avatarBg: isSelf ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200/70',
-                      taskBoxBg: 'bg-white/80 border-slate-200/70 text-slate-800',
+                      cardBg: 'bg-gradient-to-b from-slate-200/80 via-slate-50/50 to-white hover:from-slate-200',
+                      border: isSelf ? 'border-blue-400 ring-2 ring-blue-500/25 shadow-sm' : 'border-slate-200/90 hover:border-slate-300 shadow-2xs',
+                      avatarBg: isSelf ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-200 text-slate-700 border border-slate-300/80 shadow-2xs',
+                      taskBoxBg: 'bg-white/90 border-slate-200/70 text-slate-800 shadow-2xs',
                     };
 
                     if (u.includes('social') || u.includes('socmed')) {
                       theme = {
-                        cardBg: 'bg-emerald-50/40 hover:bg-emerald-50/70',
-                        border: isSelf ? 'border-emerald-300 ring-2 ring-emerald-500/20 shadow-sm' : 'border-emerald-100/90 hover:border-emerald-200 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800 border border-emerald-200/60',
-                        taskBoxBg: 'bg-white/80 border-emerald-100 text-emerald-950',
+                        cardBg: 'bg-gradient-to-b from-emerald-100/90 via-emerald-50/50 to-white hover:from-emerald-100',
+                        border: isSelf ? 'border-emerald-400 ring-2 ring-emerald-500/25 shadow-sm' : 'border-emerald-200/90 hover:border-emerald-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-500/15 text-emerald-800 border border-emerald-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-emerald-100 text-emerald-950 shadow-2xs',
                       };
                     } else if (u.includes('graphic') || u.includes('web') || u.includes('design')) {
                       theme = {
-                        cardBg: 'bg-indigo-50/40 hover:bg-indigo-50/70',
-                        border: isSelf ? 'border-indigo-300 ring-2 ring-indigo-500/20 shadow-sm' : 'border-indigo-100/90 hover:border-indigo-200 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-800 border border-indigo-200/60',
-                        taskBoxBg: 'bg-white/80 border-indigo-100 text-indigo-950',
+                        cardBg: 'bg-gradient-to-b from-indigo-100/90 via-indigo-50/50 to-white hover:from-indigo-100',
+                        border: isSelf ? 'border-indigo-400 ring-2 ring-indigo-500/25 shadow-sm' : 'border-indigo-200/90 hover:border-indigo-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-500/15 text-indigo-800 border border-indigo-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-indigo-100 text-indigo-950 shadow-2xs',
                       };
                     } else if (u.includes('event')) {
                       theme = {
-                        cardBg: 'bg-amber-50/40 hover:bg-amber-50/70',
-                        border: isSelf ? 'border-amber-300 ring-2 ring-amber-500/20 shadow-sm' : 'border-amber-100/90 hover:border-amber-200 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-800 border border-amber-200/60',
-                        taskBoxBg: 'bg-white/80 border-amber-100 text-amber-950',
+                        cardBg: 'bg-gradient-to-b from-amber-100/90 via-amber-50/50 to-white hover:from-amber-100',
+                        border: isSelf ? 'border-amber-400 ring-2 ring-amber-500/25 shadow-sm' : 'border-amber-200/90 hover:border-amber-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-500/15 text-amber-800 border border-amber-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-amber-100 text-amber-950 shadow-2xs',
                       };
                     } else if (u.includes('video') || u.includes('media') || u.includes('photo') || u.includes('audio') || u.includes('multimedia')) {
                       theme = {
-                        cardBg: 'bg-rose-50/40 hover:bg-rose-50/70',
-                        border: isSelf ? 'border-rose-300 ring-2 ring-rose-500/20 shadow-sm' : 'border-rose-100/90 hover:border-rose-200 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-rose-600 text-white' : 'bg-rose-100 text-rose-800 border border-rose-200/60',
-                        taskBoxBg: 'bg-white/80 border-rose-100 text-rose-950',
+                        cardBg: 'bg-gradient-to-b from-rose-100/90 via-rose-50/50 to-white hover:from-rose-100',
+                        border: isSelf ? 'border-rose-400 ring-2 ring-rose-500/25 shadow-sm' : 'border-rose-200/90 hover:border-rose-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-rose-600 text-white shadow-xs' : 'bg-rose-500/15 text-rose-800 border border-rose-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-rose-100 text-rose-950 shadow-2xs',
                       };
                     } else if (u.includes('writer') || u.includes('content') || u.includes('comm') || u.includes('corporate')) {
                       theme = {
-                        cardBg: 'bg-sky-50/40 hover:bg-sky-50/70',
-                        border: isSelf ? 'border-sky-300 ring-2 ring-sky-500/20 shadow-sm' : 'border-sky-100/90 hover:border-sky-200 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-sky-600 text-white' : 'bg-sky-100 text-sky-800 border border-sky-200/60',
-                        taskBoxBg: 'bg-white/80 border-sky-100 text-sky-950',
+                        cardBg: 'bg-gradient-to-b from-sky-100/90 via-sky-50/50 to-white hover:from-sky-100',
+                        border: isSelf ? 'border-sky-400 ring-2 ring-sky-500/25 shadow-sm' : 'border-sky-200/90 hover:border-sky-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-sky-600 text-white shadow-xs' : 'bg-sky-500/15 text-sky-800 border border-sky-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-sky-100 text-sky-950 shadow-2xs',
                       };
                     }
 
                     return (
                       <div
                         key={s.id}
-                        className={`group relative aspect-square flex flex-col justify-between p-4 sm:p-5 rounded-3xl border transition-all duration-200 overflow-hidden ${theme.cardBg} ${theme.border}`}
+                        className={`group relative flex flex-col justify-between p-4.5 sm:p-5 rounded-3xl border transition-all duration-200 min-h-[225px] hover:shadow-md ${theme.cardBg} ${theme.border}`}
                       >
-                        {/* Top Section: Avatar + Name & Unit */}
-                        <div className="flex items-center gap-2.5 sm:gap-3">
-                          <div className="relative shrink-0">
-                            <div
-                              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full font-black text-xs sm:text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
-                            >
-                              {s.avatar_url ? (
-                                <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <span>{s.name.charAt(0).toUpperCase()}</span>
+                        <div>
+                          {/* Top Row: Avatar on Left + Status Badge on Right */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="relative shrink-0">
+                              <div
+                                className={`w-11 h-11 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
+                              >
+                                {s.avatar_url ? (
+                                  <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span>{s.name.charAt(0).toUpperCase()}</span>
+                                )}
+                              </div>
+                              {s.is_done && (
+                                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
+                                  <CheckCircle2 className="w-2.5 h-2.5" />
+                                </span>
                               )}
                             </div>
-                            {s.is_done && (
-                              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
-                                <CheckCircle2 className="w-2.5 h-2.5" />
+
+                            {/* Status Badge in Top Right */}
+                            {s.is_done ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-emerald-300/90 bg-emerald-50/95 text-emerald-700 text-[9.5px] font-black uppercase tracking-wider shadow-2xs shrink-0">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                DONE
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-300/90 bg-white/95 text-slate-600 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs shrink-0">
+                                PENDING
                               </span>
                             )}
                           </div>
 
-                          <div className="min-w-0 flex-1">
+                          {/* Middle: Name & Unit */}
+                          <div className="mt-3 space-y-0.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight truncate group-hover:text-blue-600 transition-colors">
+                              <h4 className="text-sm font-bold text-slate-900 tracking-tight truncate group-hover:text-blue-600 transition-colors">
                                 {s.name}
                               </h4>
                               {isSelf && (
-                                <span className="bg-blue-600 text-white font-extrabold text-[8px] sm:text-[8.5px] uppercase px-1.5 py-0.5 rounded-md tracking-wider shrink-0">
+                                <span className="bg-blue-600 text-white font-extrabold text-[8.5px] uppercase px-1.5 py-0.5 rounded-md tracking-wider shrink-0 shadow-2xs">
                                   YOU
                                 </span>
                               )}
                             </div>
 
-                            <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                            <p className="text-[11px] text-slate-500 font-semibold truncate">
                               {s.unit ? `${s.unit} Unit` : 'Creative Specialist'}
                             </p>
                           </div>
                         </div>
 
-                        {/* Middle Section: Task Details */}
-                        <div className="my-auto py-1">
+                        {/* Bottom: Task Details */}
+                        <div className="mt-auto pt-3">
                           {tText ? (
-                            <div className={`p-2 sm:p-2.5 rounded-xl border text-xs leading-relaxed ${theme.taskBoxBg}`}>
-                              <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
+                            <div className={`p-2.5 rounded-2xl border text-xs leading-relaxed ${theme.taskBoxBg}`}>
+                              <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
                                 Assigned Task
                               </span>
-                              <p className="font-semibold text-slate-800 line-clamp-2 text-[10.5px] sm:text-xs">
+                              <p className="font-semibold text-slate-800 line-clamp-2 text-[11px]">
                                 {tText}
                               </p>
                             </div>
                           ) : (
-                            <div className="p-2 sm:p-2.5 rounded-xl border border-dashed border-slate-200/70 bg-white/40">
-                              <p className="text-[10px] sm:text-[10.5px] text-slate-400 font-medium italic">
+                            <div className="p-2.5 rounded-2xl border border-dashed border-slate-200/90 bg-white/60">
+                              <p className="text-[10.5px] text-slate-400 font-medium italic">
                                 No specific task assigned
                               </p>
                             </div>
-                          )}
-                        </div>
-
-                        {/* Bottom Section: Status Badge */}
-                        <div className="pt-2 sm:pt-2.5 border-t border-slate-200/50 flex items-center justify-between mt-auto">
-                          {s.is_done ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-emerald-300/80 bg-emerald-50 text-emerald-700 text-[9px] sm:text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              DONE
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-[9px] sm:text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs">
-                              PENDING
-                            </span>
                           )}
                         </div>
                       </div>
