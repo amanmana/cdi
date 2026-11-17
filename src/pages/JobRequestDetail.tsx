@@ -2508,9 +2508,11 @@ export const JobRequestDetail: React.FC = () => {
                       const isAwaitingHead = uMeta?.status === 'awaiting_head_assignment';
 
                       return (
-                        <div key={idx} className="bg-white rounded-2xl p-5 border border-indigo-100/70 shadow-sm space-y-3.5">
-                          {/* Card Header matching reference: Status on Left, Action Button on Right, Service & Unit below */}
-                          <div className="border-b border-slate-100 pb-3 space-y-2.5">
+                        <div key={idx} className="bg-gradient-to-b from-white via-white to-slate-50/60 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between overflow-hidden">
+                          {/* Upper Card Body */}
+                          <div className="p-5 space-y-3.5 flex-1">
+                            {/* Card Header matching reference: Status on Left, Action Button on Right, Service & Unit below */}
+                            <div className="border-b border-slate-100 pb-3 space-y-2.5">
                             {/* Top Row: Status Badge (Left) + View & Edit Specs Button (Right) */}
                             <div className="flex items-center justify-between gap-2 flex-wrap">
                               <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shrink-0 ${
@@ -2636,7 +2638,9 @@ export const JobRequestDetail: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Unit Milestone Target Timeline */}
+                          </div>
+
+                          {/* Docked Milestone Target Footer: Deep Slate & Midnight Indigo */}
                           {(() => {
                             const compoundKey = `${srv.target_unit_name || srv.name} — ${srv.display_label || srv.name}`;
                             const targetUnitTrackKey = (request?.additional_data?.unit_assignments?.[compoundKey] ? compoundKey : null)
@@ -2663,38 +2667,38 @@ export const JobRequestDetail: React.FC = () => {
                             );
 
                             return (
-                              <div className="pt-2.5 border-t border-slate-100 bg-slate-50/70 p-3 rounded-xl border border-slate-200/60 space-y-2.5">
-                                <div className="flex items-start gap-2.5">
-                                  <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 text-indigo-600 mt-0.5">
-                                    <Calendar className="w-4 h-4" />
+                              <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 p-4 border-t border-indigo-500/20 space-y-3 text-white">
+                                <div className="flex items-start gap-3">
+                                  <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-indigo-300 shadow-xs mt-0.5">
+                                    <Calendar className="w-4 h-4 text-indigo-200" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-200/80">
                                         Unit Milestone Target:
                                       </span>
                                       {unitDeadline && unitDeadline !== request.deadline ? (
-                                        <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                                        <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-2xs">
                                           Internal Target
                                         </span>
                                       ) : (
-                                        <span className="text-[9px] font-bold text-slate-400">
+                                        <span className="text-[9px] font-semibold text-slate-400 bg-white/5 px-2 py-0.5 rounded-full">
                                           (Matches Master)
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-xs font-black text-slate-900 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                      <span className={unitDeadline && unitDeadline <= (request.deadline || '') ? 'text-indigo-900' : 'text-slate-800'}>
+                                    <div className="text-sm font-black text-white mt-1 flex items-center gap-2 flex-wrap tracking-tight">
+                                      <span className="text-white drop-shadow-xs">
                                         {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
                                       </span>
                                       {unitStartDate && (
-                                        <span className="text-[10px] font-medium text-slate-400">
+                                        <span className="text-[11px] font-medium text-indigo-200/70">
                                           • Starts: {formatDate(unitStartDate)}
                                         </span>
                                       )}
                                     </div>
                                     {unitMilestoneNote && (
-                                      <p className="text-[10px] font-medium text-indigo-900/80 italic mt-0.5 break-words">
+                                      <p className="text-[11px] font-medium text-indigo-100/90 italic mt-1 leading-snug break-words bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10">
                                         "{unitMilestoneNote}"
                                       </p>
                                     )}
@@ -2705,9 +2709,9 @@ export const JobRequestDetail: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenUnitMilestoneModal(targetUnitTrackKey, serviceLabel, unitStartDate, unitDeadline, unitMilestoneNote)}
-                                    className="btn btn-xs w-full bg-white hover:bg-indigo-50 text-indigo-600 hover:text-indigo-700 font-extrabold text-[10.5px] uppercase tracking-wider gap-1.5 h-7.5 rounded-lg border border-indigo-200/90 shadow-2xs transition-all flex items-center justify-center"
+                                    className="btn btn-xs w-full bg-white/10 hover:bg-white/20 text-white font-extrabold text-[10.5px] uppercase tracking-wider gap-1.5 h-8 rounded-xl border border-white/20 backdrop-blur-xs shadow-xs transition-all flex items-center justify-center hover:scale-[1.01] active:scale-[0.99]"
                                   >
-                                    <Edit3 className="w-3 h-3 text-indigo-500" />
+                                    <Edit3 className="w-3.5 h-3.5 text-indigo-300" />
                                     <span>{unitDeadline ? 'Edit Milestone' : 'Set Milestone'}</span>
                                   </button>
                                 )}
