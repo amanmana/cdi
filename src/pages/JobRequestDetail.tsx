@@ -2666,53 +2666,58 @@ export const JobRequestDetail: React.FC = () => {
                             );
 
                             return (
-                              <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 px-4 py-4 border-t border-indigo-500/20 text-white min-h-[76px] flex flex-col justify-center">
-                                <div className="flex items-center justify-between gap-3">
-                                  {/* Left: Icon + 2-Line Milestone Info */}
-                                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-indigo-300 shadow-xs">
-                                      <Calendar className="w-4 h-4 text-indigo-200" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-200/80">
-                                          UNIT MILESTONE TARGET:
-                                        </span>
-                                        {unitDeadline && unitDeadline !== request.deadline ? (
-                                          <span className="text-[8.5px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-2xs">
-                                            INTERNAL TARGET
-                                          </span>
-                                        ) : (
-                                          <span className="text-[8.5px] font-medium text-slate-400 bg-white/5 px-2 py-0.5 rounded-full">
-                                            (Matches Master)
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="text-sm font-black text-white mt-0.5 flex items-center gap-2 flex-wrap tracking-tight">
-                                        <span className="text-white drop-shadow-xs">
-                                          {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
-                                        </span>
-                                        {unitStartDate && (
-                                          <span className="text-[11px] font-medium text-indigo-200/70">
-                                            • Starts: {formatDate(unitStartDate)}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Right: Compact Edit Milestone button for Head of Unit */}
-                                  {canEditThisUnitMilestone && (
+                              <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 px-4 py-3.5 border-t border-indigo-500/20 text-white min-h-[70px] flex flex-col justify-center">
+                                <div className="flex items-center gap-3">
+                                  {/* Calendar Icon Button / Indicator */}
+                                  {canEditThisUnitMilestone ? (
                                     <button
                                       type="button"
                                       onClick={() => handleOpenUnitMilestoneModal(targetUnitTrackKey, serviceLabel, unitStartDate, unitDeadline, unitMilestoneNote)}
-                                      className="btn btn-xs bg-white/15 hover:bg-white/25 text-white font-black text-[9px] uppercase tracking-wider gap-1 h-6.5 px-2.5 rounded-lg border border-white/25 backdrop-blur-xs shadow-xs transition-all flex items-center shrink-0 hover:scale-105 active:scale-95"
-                                      title="Edit Milestone"
+                                      className="group flex flex-col items-center shrink-0 cursor-pointer focus:outline-none transition-transform"
+                                      title="Click to Edit Unit Milestone Target"
                                     >
-                                      <Edit3 className="w-3 h-3 text-indigo-300" />
-                                      <span>EDIT MILESTONE</span>
+                                      <div className="w-8 h-8 rounded-xl bg-teal-600/85 group-hover:bg-teal-500 text-white border border-teal-400/50 flex items-center justify-center shadow-xs transition-colors duration-150">
+                                        <Calendar className="w-4 h-4 text-white" />
+                                      </div>
+                                      <span className="text-[7.5px] font-black uppercase tracking-wider text-teal-300/90 group-hover:text-teal-200 mt-0.5">
+                                        EDIT
+                                      </span>
                                     </button>
+                                  ) : (
+                                    <div className="flex flex-col items-center shrink-0">
+                                      <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-indigo-300 shadow-xs">
+                                        <Calendar className="w-4 h-4 text-indigo-200" />
+                                      </div>
+                                    </div>
                                   )}
+
+                                  {/* Milestone Text Details (Full Width, No Separate Right Button) */}
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-200/80 shrink-0">
+                                        UNIT MILESTONE TARGET:
+                                      </span>
+                                      {unitDeadline && unitDeadline !== request.deadline ? (
+                                        <span className="text-[8.5px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-2xs shrink-0">
+                                          INTERNAL TARGET
+                                        </span>
+                                      ) : (
+                                        <span className="text-[8.5px] font-medium text-slate-400 bg-white/5 px-2 py-0.5 rounded-full shrink-0">
+                                          (Matches Master)
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm font-black text-white mt-0.5 flex items-center gap-2 flex-wrap tracking-tight">
+                                      <span className="text-white drop-shadow-xs">
+                                        {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
+                                      </span>
+                                      {unitStartDate && (
+                                        <span className="text-[11px] font-medium text-indigo-200/70">
+                                          • Starts: {formatDate(unitStartDate)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
 
                                 {unitMilestoneNote && (
