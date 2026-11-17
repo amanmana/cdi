@@ -1283,19 +1283,63 @@ export const JobRequestDetail: React.FC = () => {
     }
   }
 
-  // Specifications View & Edit permissions
-  const canEditServiceSpec = (srv: any) => {
-    if (user?.role === 'admin' || user?.role === 'director') return true;
-    if (!user?.is_unit_head) return false;
-    const unitName = (srv?.target_unit_name || srv?.name || request?.unit || '').toLowerCase().trim();
+  // Check if a service belongs to the user's unit
+  const isServiceUnitMatch = (srv: any, uMeta?: any) => {
+    const srvUnitName = (srv?.target_unit_name || srv?.name || uMeta?.unit_name || '').toLowerCase().trim();
+    const srvUnitId = srv?.target_unit_id ? Number(srv.target_unit_id) : (uMeta?.target_unit_id ? Number(uMeta.target_unit_id) : null);
     const userUnitClean = (userUnit || '').toLowerCase().trim();
-    return Boolean(
-      (userUnitClean && userUnitClean === unitName) ||
-      managedUnits.some((mu) => mu.toLowerCase().trim() === unitName) ||
-      (user?.unit_id && srv?.target_unit_id && Number(user.unit_id) === Number(srv.target_unit_id)) ||
-      (srv?.target_unit_id && managedUnitIds.includes(Number(srv.target_unit_id))) ||
-      (request?.unit && (userUnitClean === request.unit.toLowerCase().trim() || managedUnits.some((mu) => mu.toLowerCase().trim() === request.unit.toLowerCase().trim())))
-    );
+    const userUnitIdNum = userUnitId ? Number(userUnitId) : null;
+
+    if (userUnitClean && (userUnitClean === srvUnitName || srvUnitName.includes(userUnitClean) || userUnitClean.includes(srvUnitName))) return true;
+    if (managedUnits.some((mu) => {
+      const m = mu.toLowerCase().trim();
+      return m === srvUnitName || srvUnitName.includes(m) || m.includes(srvUnitName);
+    })) return true;
+    if (srvUnitId && userUnitIdNum && srvUnitId === userUnitIdNum) return true;
+    if (srvUnitId && managedUnitIds.includes(srvUnitId)) return true;
+
+    return false;
+  };
+
+  // Specifications Edit permissions: Only Admin, Director, or Head of THIS specific unit
+  const canEditServiceSpec = (srv: any, uMeta?: any) => {
+    if (user?.role === 'admin' || user?.role === 'director') return true;
+    if (user?.is_unit_head && isServiceUnitMatch(srv, uMeta)) return true;
+    return false;
+  };
+
+  // Specifications View permissions: Admin, Director, Department Manager of this unit, or Head/Staff of THIS unit
+  const canViewServiceSpec = (srv: any, uMeta?: any) => {
+    if (user?.role === 'admin' || user?.role === 'director') return true;
+
+    // Department Manager: can view if unit belongs to their department
+    if (user?.role === 'manager' || user?.is_acting_manager) {
+      const userDeptId = (user as any)?.managed_department_id || user?.department_id || (user as any)?.acting_manager_department_id;
+      const srvDeptId = srv?.department_id || uMeta?.department_id;
+      const srvDeptName = (srv?.department_name || '').toLowerCase().trim();
+      const userDeptName = (user?.department_name || '').toLowerCase().trim();
+
+      if (userDeptId && srvDeptId && String(userDeptId) === String(srvDeptId)) return true;
+      if (userDeptName && srvDeptName && userDeptName === srvDeptName) return true;
+      if (isServiceUnitMatch(srv, uMeta)) return true;
+      return false;
+    }
+
+    // Unit Head: strictly ONLY for their own unit (or if assigned to that unit)
+    if (user?.is_unit_head) {
+      if (isServiceUnitMatch(srv, uMeta)) return true;
+      if (uMeta && Array.isArray(uMeta.assigned_staff_ids) && uMeta.assigned_staff_ids.map(Number).includes(Number(user?.id))) return true;
+      return false;
+    }
+
+    // Regular Staff: ONLY if they belong to this unit or are assigned to this unit track
+    if (user?.role === 'staff') {
+      if (isServiceUnitMatch(srv, uMeta)) return true;
+      if (uMeta && Array.isArray(uMeta.assigned_staff_ids) && uMeta.assigned_staff_ids.map(Number).includes(Number(user?.id))) return true;
+      return false;
+    }
+
+    return false;
   };
 
   // Primary project requirements & client intake specifications representation
@@ -1364,7 +1408,7 @@ export const JobRequestDetail: React.FC = () => {
            m?.service_name === srv.name || m?.service_name === srv.display_label || k.includes(srv.name) || k.includes(srv.display_label)
          )?.[1];
     setSpecGuidanceNotes(srv.head_guidance_notes || uMeta?.head_guidance_notes || request?.additional_data?.head_guidance_notes || '');
-    setIsEditingSpec(startInEditMode && canEditServiceSpec(srv));
+    setIsEditingSpec(startInEditMode && canEditServiceSpec(srv, uMeta));
     setShowSpecModal(true);
   };
 
@@ -2539,29 +2583,31 @@ export const JobRequestDetail: React.FC = () => {
                                     : 'Awaiting Approval'}
                                 </span>
 
-                                <div>
-                                  {canEditServiceSpec(srv) ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenSpecModal(srv, true)}
-                                      className="btn btn-xs bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
-                                      title="View & Edit Specifications (Head of Unit Mode)"
-                                    >
-                                      <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-                                      <span>View & Edit Specs</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenSpecModal(srv, false)}
-                                      className="btn btn-xs bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
-                                      title="View Specifications"
-                                    >
-                                      <Eye className="w-3.5 h-3.5 text-slate-600" />
-                                      <span>View Specs</span>
-                                    </button>
-                                  )}
-                                </div>
+                                {canViewServiceSpec(srv, uMeta) && (
+                                  <div>
+                                    {canEditServiceSpec(srv, uMeta) ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenSpecModal(srv, true)}
+                                        className="btn btn-xs bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
+                                        title="View & Edit Specifications (Head of Unit Mode)"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                                        <span>View & Edit Specs</span>
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenSpecModal(srv, false)}
+                                        className="btn btn-xs bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
+                                        title="View Specifications"
+                                      >
+                                        <Eye className="w-3.5 h-3.5 text-slate-600" />
+                                        <span>View Specs</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
 
                               {/* Second Row: Service Name & Fulfillment Unit */}
