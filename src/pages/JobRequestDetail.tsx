@@ -2666,34 +2666,34 @@ export const JobRequestDetail: React.FC = () => {
                             );
 
                             return (
-                              <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 px-4 py-3 border-t border-indigo-500/20 text-white min-h-[62px] flex flex-col justify-center">
+                              <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 px-4 py-4 border-t border-indigo-500/20 text-white min-h-[76px] flex flex-col justify-center">
                                 <div className="flex items-center justify-between gap-3">
                                   {/* Left: Icon + 2-Line Milestone Info */}
-                                  <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                     <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-indigo-300 shadow-xs">
                                       <Calendar className="w-4 h-4 text-indigo-200" />
                                     </div>
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-200/80 shrink-0">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-200/80">
                                           UNIT MILESTONE TARGET:
                                         </span>
                                         {unitDeadline && unitDeadline !== request.deadline ? (
-                                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-2xs shrink-0">
+                                          <span className="text-[8.5px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-2xs">
                                             INTERNAL TARGET
                                           </span>
                                         ) : (
-                                          <span className="text-[9px] font-medium text-slate-400 bg-white/5 px-2 py-0.5 rounded-full shrink-0">
+                                          <span className="text-[8.5px] font-medium text-slate-400 bg-white/5 px-2 py-0.5 rounded-full">
                                             (Matches Master)
                                           </span>
                                         )}
                                       </div>
-                                      <div className="text-sm font-black text-white mt-0.5 flex items-center gap-2 tracking-tight">
-                                        <span className="text-white drop-shadow-xs shrink-0">
+                                      <div className="text-sm font-black text-white mt-0.5 flex items-center gap-2 flex-wrap tracking-tight">
+                                        <span className="text-white drop-shadow-xs">
                                           {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
                                         </span>
                                         {unitStartDate && (
-                                          <span className="text-[11px] font-medium text-indigo-200/70 truncate">
+                                          <span className="text-[11px] font-medium text-indigo-200/70">
                                             • Starts: {formatDate(unitStartDate)}
                                           </span>
                                         )}
@@ -2701,15 +2701,15 @@ export const JobRequestDetail: React.FC = () => {
                                     </div>
                                   </div>
 
-                                  {/* Right: ONLY Edit Milestone button for Head of Unit / authorized users */}
+                                  {/* Right: Compact Edit Milestone button for Head of Unit */}
                                   {canEditThisUnitMilestone && (
                                     <button
                                       type="button"
                                       onClick={() => handleOpenUnitMilestoneModal(targetUnitTrackKey, serviceLabel, unitStartDate, unitDeadline, unitMilestoneNote)}
-                                      className="btn btn-xs bg-white/15 hover:bg-white/25 text-white font-extrabold text-[10px] uppercase tracking-wider gap-1.5 h-7.5 px-3 rounded-xl border border-white/25 backdrop-blur-xs shadow-xs transition-all flex items-center shrink-0 hover:scale-[1.02] active:scale-[0.98]"
+                                      className="btn btn-xs bg-white/15 hover:bg-white/25 text-white font-black text-[9px] uppercase tracking-wider gap-1 h-6.5 px-2.5 rounded-lg border border-white/25 backdrop-blur-xs shadow-xs transition-all flex items-center shrink-0 hover:scale-105 active:scale-95"
                                       title="Edit Milestone"
                                     >
-                                      <Edit3 className="w-3.5 h-3.5 text-indigo-300" />
+                                      <Edit3 className="w-3 h-3 text-indigo-300" />
                                       <span>EDIT MILESTONE</span>
                                     </button>
                                   )}
