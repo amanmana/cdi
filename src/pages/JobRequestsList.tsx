@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus, ChevronDown, Sliders, MessageSquare, Camera } from 'lucide-react';
+import { Search, Trash2, Plus, X, UserCheck, Calendar, CheckCircle2, ArrowLeftRight, AlertCircle, FolderKanban, Sparkles, UserPlus, ChevronDown, Sliders, MessageSquare, Camera, Briefcase, Palette, Check } from 'lucide-react';
 
 export const JobRequestsList: React.FC = () => {
   const { token, user } = useAuth();
@@ -56,6 +56,7 @@ export const JobRequestsList: React.FC = () => {
 
   // Self-Initiated Task Modal State
   const [showSelfModal, setShowSelfModal] = useState(false);
+  const [selfWorkNature, setSelfWorkNature] = useState<'deliverable' | 'operational'>('deliverable');
   const [selfTitle, setSelfTitle] = useState('');
   const [selfClient, setSelfClient] = useState('');
   const [selfProject, setSelfProject] = useState('');
@@ -83,6 +84,7 @@ export const JobRequestsList: React.FC = () => {
   const [interUnitError, setInterUnitError] = useState('');
 
   const handleOpenDirectTaskModal = () => {
+    setSelfWorkNature('deliverable');
     setSelfTitle('');
     setSelfClient('');
     setSelfProject('');
@@ -266,18 +268,24 @@ export const JobRequestsList: React.FC = () => {
       return;
     }
 
-    for (const field of unitInternalFields) {
-      if (field.required) {
-        const val = selfCustomFields[field.id];
-        if (val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) {
-          alert(`Sila lengkapkan medan: ${field.label}`);
-          return;
+    if (selfWorkNature === 'deliverable') {
+      for (const field of unitInternalFields) {
+        if (field.required) {
+          const val = selfCustomFields[field.id];
+          if (val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) {
+            alert(`Sila lengkapkan medan: ${field.label}`);
+            return;
+          }
         }
       }
     }
 
     setSubmittingSelf(true);
     try {
+      const payloadCustomFields = selfWorkNature === 'operational'
+        ? { ...selfCustomFields, work_nature: 'operational_duty', is_operational_duty: true }
+        : { ...selfCustomFields, work_nature: 'deliverable' };
+
       const res = await fetch('/api/job-requests/self-initiated', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -289,13 +297,14 @@ export const JobRequestsList: React.FC = () => {
           project_id: selfProjectId ? Number(selfProjectId) : null,
           status: selfStatus,
           start_date: selfStartDate,
-          custom_fields_data: selfCustomFields,
+          custom_fields_data: payloadCustomFields,
           assigned_staff_ids: selfAssigneeIds.length > 0 ? selfAssigneeIds : (user?.id ? [Number(user.id)] : []),
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
         setShowSelfModal(false);
+        setSelfWorkNature('deliverable');
         setSelfTitle('');
         setSelfClient('');
         setSelfProject('');
@@ -1617,8 +1626,84 @@ export const JobRequestsList: React.FC = () => {
                 </div>
               </div>
 
+              {/* WORK NATURE / ACTIVITY CLASSIFICATION (Pilihan 1: Creative Output vs Operational & Official Duty) */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  WORK CLASSIFICATION & NATURE
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Option 1: Creative Output */}
+                  <button
+                    type="button"
+                    onClick={() => setSelfWorkNature('deliverable')}
+                    className={`flex items-start gap-3 p-3 rounded-2xl border text-left transition-all relative cursor-pointer ${
+                      selfWorkNature === 'deliverable'
+                        ? 'bg-purple-50/90 border-purple-500 ring-2 ring-purple-500/20 shadow-xs'
+                        : 'bg-slate-50/70 border-slate-200 hover:border-slate-300 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                        selfWorkNature === 'deliverable'
+                          ? 'bg-purple-600 text-white shadow-xs shadow-purple-500/30'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <Palette className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-4">
+                      <div className="text-xs font-black tracking-tight text-slate-900">
+                        Creative Output
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                        Penghasilan Bahan / Deliverable spesifik unit
+                      </p>
+                    </div>
+                    {selfWorkNature === 'deliverable' && (
+                      <div className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center absolute top-3 right-3 shadow-xs">
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Option 2: Operational & Official Duty */}
+                  <button
+                    type="button"
+                    onClick={() => setSelfWorkNature('operational')}
+                    className={`flex items-start gap-3 p-3 rounded-2xl border text-left transition-all relative cursor-pointer ${
+                      selfWorkNature === 'operational'
+                        ? 'bg-purple-50/90 border-purple-500 ring-2 ring-purple-500/20 shadow-xs'
+                        : 'bg-slate-50/70 border-slate-200 hover:border-slate-300 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                        selfWorkNature === 'operational'
+                          ? 'bg-purple-600 text-white shadow-xs shadow-purple-500/30'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <Briefcase className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-4">
+                      <div className="text-xs font-black tracking-tight text-slate-900">
+                        Operational & Official Duty
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                        Mesyuarat, Latihan & Tugas Rasmi Operasi
+                      </p>
+                    </div>
+                    {selfWorkNature === 'operational' && (
+                      <div className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center absolute top-3 right-3 shadow-xs">
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               {/* Dynamic Unit Internal Custom Fields (Universal for All Units) */}
-              {unitInternalFields.length > 0 && (
+              {selfWorkNature === 'deliverable' && unitInternalFields.length > 0 && (
                 <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-100 space-y-3">
                   <div className="flex items-center justify-between border-b border-purple-200/60 pb-2">
                     <div className="flex items-center gap-2">
@@ -1745,6 +1830,23 @@ export const JobRequestsList: React.FC = () => {
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Informational banner when Operational & Official Duty is selected */}
+              {selfWorkNature === 'operational' && (
+                <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center shrink-0 text-purple-700 mt-0.5">
+                    <Briefcase className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">
+                      Operational & Official Duty Mode
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                      Spesifikasi bahan ({myUnitObj?.name || 'Unit'}) dikecualikan bagi tugasan mesyuarat, latihan, perbincangan, atau tugasan rasmi. Sila lengkapkan perincian aktiviti di bahagian <span className="font-bold text-slate-700">Work Details & Outcome Summary</span> di bawah.
+                    </p>
                   </div>
                 </div>
               )}

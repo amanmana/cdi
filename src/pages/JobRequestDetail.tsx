@@ -1330,7 +1330,7 @@ export const JobRequestDetail: React.FC = () => {
         if (v === null || v === undefined || v === '' || typeof v === 'object') return;
         const lower = k.toLowerCase();
         if (lower.endsWith('_id') || lower === 'id' || lower.endsWith('_ids')) return;
-        if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target', 'assistance_requests'].includes(lower)) return;
+        if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'is_operational_duty', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target', 'assistance_requests'].includes(lower)) return;
         if (lower.includes('kanban')) return;
         if (combinedFields[k] === undefined) {
           combinedFields[k] = v;
@@ -2419,7 +2419,7 @@ export const JobRequestDetail: React.FC = () => {
                       // Hide raw database IDs
                       if (lower.endsWith('_id') || lower === 'id' || lower.endsWith('_ids')) return false;
                       // Hide internal routing/type flags
-                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target', 'assistance_requests', 'description', 'detailed_description'].includes(lower)) return false;
+                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'is_operational_duty', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target', 'assistance_requests', 'description', 'detailed_description'].includes(lower)) return false;
                       // Hide internal Unit Kanban operational workflow states (unit-level tracking)
                       if (lower.includes('kanban')) return false;
                       // Hide duplicate service display label if service_name exists
@@ -2433,9 +2433,13 @@ export const JobRequestDetail: React.FC = () => {
                         origin_staff_name: 'ASSIGNED ORIGIN STAFF',
                         priority: 'PRIORITY',
                         parent_ticket_no: 'PARENT JOB TICKET',
+                        work_nature: 'WORK CLASSIFICATION',
                       };
                       const displayLabel = labelMap[k] || k.replace(/_/g, ' ').toUpperCase();
-                      const valStr = k === 'priority' ? String(v).toUpperCase() : String(v);
+                      let valStr = k === 'priority' ? String(v).toUpperCase() : String(v);
+                      if (k === 'work_nature') {
+                        valStr = v === 'operational_duty' ? 'Operational & Official Duty' : 'Creative Output';
+                      }
 
                       return (
                         <div key={k} className="bg-white/90 px-3.5 py-2.5 rounded-xl border border-blue-100/70 shadow-2xs">
