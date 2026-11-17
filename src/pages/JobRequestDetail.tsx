@@ -2508,73 +2508,138 @@ export const JobRequestDetail: React.FC = () => {
                       const isAwaitingHead = uMeta?.status === 'awaiting_head_assignment';
 
                       return (
-                        <div key={idx} className="bg-white rounded-2xl p-5 border border-indigo-100/70 shadow-sm space-y-4">
-                          {/* Card Header matching reference: Status on Left, Action Button on Right, Service & Unit below */}
-                          <div className="border-b border-slate-100 pb-3 space-y-2.5">
-                            {/* Top Row: Status Badge (Left) + View & Edit Specs Button (Right) */}
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shrink-0 ${
-                                isRejected
-                                  ? 'bg-rose-100 text-rose-800'
-                                  : isAccepted
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : isAwaitingHead
-                                  ? 'bg-teal-100 text-teal-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                {isRejected
-                                  ? '✖ Rejected'
-                                  : isAccepted
-                                  ? '✓ In Progress'
-                                  : isAwaitingHead
-                                  ? 'Awaiting Unit Head'
-                                  : 'Awaiting Approval'}
-                              </span>
+                        <div key={idx} className="bg-gradient-to-b from-white via-white to-slate-50/50 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between overflow-hidden">
+                          {/* Upper Card Content */}
+                          <div className="p-5 space-y-3.5 flex-1">
+                            {/* Card Header matching reference: Status on Left, Action Button on Right, Service & Unit below */}
+                            <div className="border-b border-slate-100 pb-3 space-y-2.5">
+                              {/* Top Row: Status Badge (Left) + View & Edit Specs Button (Right) */}
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shrink-0 ${
+                                  isRejected
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : isAccepted
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : isAwaitingHead
+                                    ? 'bg-teal-100 text-teal-800'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {isRejected
+                                    ? '✖ Rejected'
+                                    : isAccepted
+                                    ? '✓ In Progress'
+                                    : isAwaitingHead
+                                    ? 'Awaiting Unit Head'
+                                    : 'Awaiting Approval'}
+                                </span>
 
+                                <div>
+                                  {canEditServiceSpec(srv) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenSpecModal(srv, true)}
+                                      className="btn btn-xs bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
+                                      title="View & Edit Specifications (Head of Unit Mode)"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                                      <span>View & Edit Specs</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenSpecModal(srv, false)}
+                                      className="btn btn-xs bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
+                                      title="View Specifications"
+                                    >
+                                      <Eye className="w-3.5 h-3.5 text-slate-600" />
+                                      <span>View Specs</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Second Row: Service Name & Fulfillment Unit */}
                               <div>
-                                {canEditServiceSpec(srv) ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenSpecModal(srv, true)}
-                                    className="btn btn-xs bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
-                                    title="View & Edit Specifications (Head of Unit Mode)"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-                                    <span>View & Edit Specs</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenSpecModal(srv, false)}
-                                    className="btn btn-xs bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold flex items-center gap-1.5 h-7 px-3 shadow-2xs transition-all"
-                                    title="View Specifications"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-slate-600" />
-                                    <span>View Specs</span>
-                                  </button>
-                                )}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="font-extrabold text-slate-900 text-base tracking-tight">
+                                    {srv.display_label || srv.name}
+                                  </h4>
+                                  {srv.department_tag && (
+                                    <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                                      {srv.department_tag}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-xs font-semibold text-slate-400 block mt-0.5">
+                                  Unit: {srv.target_unit_name || srv.name}
+                                </span>
                               </div>
                             </div>
 
-                            {/* Second Row: Service Name & Fulfillment Unit */}
                             <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="font-extrabold text-slate-900 text-base tracking-tight">
-                                  {srv.display_label || srv.name}
-                                </h4>
-                                {srv.department_tag && (
-                                  <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                                    {srv.department_tag}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-xs font-semibold text-slate-400 block mt-0.5">
-                                Unit: {srv.target_unit_name || srv.name}
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                Deliverable Scope & Brief
                               </span>
+                              <p className="text-xs font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
+                                {srv.scope || 'No specific deliverable brief specified.'}
+                              </p>
                             </div>
+
+                            {srv.fields && Object.keys(srv.fields).length > 0 && (
+                              <div className="space-y-1.5 pt-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                  Unit Specifications ({Object.keys(srv.fields).length})
+                                </span>
+                                <div className={`grid gap-2 ${isSingleUnit ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2'}`}>
+                                  {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => {
+                                    const srvSchema = getServiceSchema(srv);
+                                    const matchedField = srvSchema.find((f: any) => f.id.toLowerCase() === fk.toLowerCase());
+                                    const displayLabel = matchedField?.label || fk.replace(/_/g, ' ');
+                                    return (
+                                      <div 
+                                        key={fk} 
+                                        className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 min-w-0"
+                                      >
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase block truncate" title={displayLabel}>
+                                          {displayLabel}
+                                        </span>
+                                        <span className="text-xs font-bold text-slate-800 block truncate mt-0.5">
+                                          {String(fv)}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Head of Unit Guidance Notes for Staff (if present) */}
+                            {(srv.head_guidance_notes || uMeta?.head_guidance_notes) && (
+                              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1">
+                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800">
+                                  <Crown className="w-3 h-3 text-amber-600" />
+                                  <span>Head of Unit Guidance Notes for Staff</span>
+                                </div>
+                                <p className="text-xs font-semibold text-amber-950 leading-relaxed whitespace-pre-wrap">
+                                  {srv.head_guidance_notes || uMeta?.head_guidance_notes}
+                                </p>
+                              </div>
+                            )}
+
+                            {uMeta?.assigned_staff_names && uMeta.assigned_staff_names.length > 0 ? (
+                              <div className="pt-1 flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50/50 px-3 py-2 rounded-xl">
+                                <User className="w-3.5 h-3.5" />
+                                <span>Assigned Specialist: {uMeta.assigned_staff_names.join(', ')}</span>
+                              </div>
+                            ) : isAccepted ? null : (
+                              <div className="pt-1 flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold italic bg-slate-50 px-3 py-1.5 rounded-xl">
+                                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                                <span>{isAwaitingHead ? 'Menunggu Ketua Unit melantik staf' : 'Menunggu kelulusan Pengurus'}</span>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Unit Milestone Target Banner (Cadangan A: Boarding Pass / Ticket Header) */}
+                          {/* Docked Milestone Target Footer (Cadangan B: Single Row Symmetrical Inline Footer) */}
                           {(() => {
                             const compoundKey = `${srv.target_unit_name || srv.name} — ${srv.display_label || srv.name}`;
                             const targetUnitTrackKey = (request?.additional_data?.unit_assignments?.[compoundKey] ? compoundKey : null)
@@ -2601,34 +2666,34 @@ export const JobRequestDetail: React.FC = () => {
                             );
 
                             return (
-                              <div className="bg-gradient-to-r from-indigo-50/80 via-blue-50/40 to-slate-50/80 border border-indigo-150/70 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex items-start gap-2.5 min-w-0">
-                                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-                                      <Calendar className="w-4 h-4" />
+                              <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 px-4 py-3 border-t border-indigo-500/20 text-white min-h-[70px] flex flex-col justify-center">
+                                <div className="flex items-center justify-between gap-3">
+                                  {/* Left: Icon + Milestone Target */}
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-indigo-300 shadow-xs">
+                                      <Calendar className="w-4 h-4 text-indigo-200" />
                                     </div>
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-200/80">
                                           Unit Milestone Target:
                                         </span>
                                         {unitDeadline && unitDeadline !== request.deadline ? (
-                                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 border border-indigo-200/80">
+                                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-2xs">
                                             Internal Target
                                           </span>
                                         ) : (
-                                          <span className="text-[9px] font-bold text-slate-400">
+                                          <span className="text-[9px] font-semibold text-slate-400 bg-white/5 px-2 py-0.5 rounded-full">
                                             (Matches Master)
                                           </span>
                                         )}
                                       </div>
-
-                                      <div className="text-sm font-black text-slate-900 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                        <span className={unitDeadline && unitDeadline <= (request.deadline || '') ? 'text-indigo-900' : 'text-slate-800'}>
+                                      <div className="text-sm font-black text-white mt-0.5 flex items-center gap-2 flex-wrap tracking-tight">
+                                        <span className="text-white drop-shadow-xs">
                                           {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
                                         </span>
                                         {unitStartDate && (
-                                          <span className="text-[10px] font-medium text-slate-500">
+                                          <span className="text-[10.5px] font-medium text-indigo-200/70">
                                             • Starts: {formatDate(unitStartDate)}
                                           </span>
                                         )}
@@ -2636,89 +2701,35 @@ export const JobRequestDetail: React.FC = () => {
                                     </div>
                                   </div>
 
-                                  {canEditThisUnitMilestone && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenUnitMilestoneModal(targetUnitTrackKey, serviceLabel, unitStartDate, unitDeadline, unitMilestoneNote)}
-                                      className="btn btn-xs bg-white hover:bg-indigo-50 text-indigo-700 hover:text-indigo-800 font-extrabold text-[10px] uppercase tracking-wider gap-1 h-7.5 px-2.5 rounded-xl border border-indigo-200/90 shadow-2xs shrink-0 self-start transition-all"
-                                      title="Edit Unit Milestone Target"
-                                    >
-                                      <Edit3 className="w-3 h-3 text-indigo-600" />
-                                      <span>{unitDeadline ? 'Edit Milestone' : 'Set Milestone'}</span>
-                                    </button>
-                                  )}
+                                  {/* Right: Symmetrical Action Button or Unit Badge */}
+                                  <div className="shrink-0">
+                                    {canEditThisUnitMilestone ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenUnitMilestoneModal(targetUnitTrackKey, serviceLabel, unitStartDate, unitDeadline, unitMilestoneNote)}
+                                        className="btn btn-xs bg-white/15 hover:bg-white/25 text-white font-extrabold text-[10.5px] uppercase tracking-wider gap-1.5 h-8 px-3 rounded-xl border border-white/25 backdrop-blur-xs shadow-xs transition-all flex items-center hover:scale-[1.02] active:scale-[0.98]"
+                                        title="Edit Milestone"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5 text-indigo-300" />
+                                        <span>Edit Milestone</span>
+                                      </button>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-indigo-200/75 uppercase tracking-wider px-2.5 py-1.5 bg-white/5 rounded-xl border border-white/10">
+                                        <Clock className="w-3 h-3 text-indigo-300" />
+                                        <span>{srv.target_unit_name || srv.name}</span>
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {unitMilestoneNote && (
-                                  <p className="text-[11px] font-medium text-indigo-950/80 italic leading-snug break-words bg-white/70 px-2.5 py-1.5 rounded-xl border border-indigo-100/60">
+                                  <p className="text-[10.5px] font-medium text-indigo-100/90 italic mt-2 leading-snug break-words bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
                                     "{unitMilestoneNote}"
                                   </p>
                                 )}
                               </div>
                             );
                           })()}
-
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                              Deliverable Scope & Brief
-                            </span>
-                            <p className="text-xs font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
-                              {srv.scope || 'No specific deliverable brief specified.'}
-                            </p>
-                          </div>
-
-                          {srv.fields && Object.keys(srv.fields).length > 0 && (
-                            <div className="space-y-1.5 pt-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                Unit Specifications ({Object.keys(srv.fields).length})
-                              </span>
-                              <div className={`grid gap-2 ${isSingleUnit ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2'}`}>
-                                {Object.entries(srv.fields).map(([fk, fv]: [string, any]) => {
-                                  const srvSchema = getServiceSchema(srv);
-                                  const matchedField = srvSchema.find((f: any) => f.id.toLowerCase() === fk.toLowerCase());
-                                  const displayLabel = matchedField?.label || fk.replace(/_/g, ' ');
-                                  return (
-                                    <div 
-                                      key={fk} 
-                                      className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 min-w-0"
-                                    >
-                                      <span className="text-[9px] font-bold text-slate-400 uppercase block truncate" title={displayLabel}>
-                                        {displayLabel}
-                                      </span>
-                                      <span className="text-xs font-bold text-slate-800 block truncate mt-0.5">
-                                        {String(fv)}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Head of Unit Guidance Notes for Staff (if present) */}
-                          {(srv.head_guidance_notes || uMeta?.head_guidance_notes) && (
-                            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1">
-                              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800">
-                                <Crown className="w-3 h-3 text-amber-600" />
-                                <span>Head of Unit Guidance Notes for Staff</span>
-                              </div>
-                              <p className="text-xs font-semibold text-amber-950 leading-relaxed whitespace-pre-wrap">
-                                {srv.head_guidance_notes || uMeta?.head_guidance_notes}
-                              </p>
-                            </div>
-                          )}
-
-                          {uMeta?.assigned_staff_names && uMeta.assigned_staff_names.length > 0 ? (
-                            <div className="pt-1 flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50/50 px-3 py-2 rounded-xl">
-                              <User className="w-3.5 h-3.5" />
-                              <span>Assigned Specialist: {uMeta.assigned_staff_names.join(', ')}</span>
-                            </div>
-                          ) : isAccepted ? null : (
-                            <div className="pt-1 flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold italic bg-slate-50 px-3 py-1.5 rounded-xl">
-                              <Clock className="w-3.5 h-3.5 text-amber-500" />
-                              <span>{isAwaitingHead ? 'Menunggu Ketua Unit melantik staf' : 'Menunggu kelulusan Pengurus'}</span>
-                            </div>
-                          )}
                         </div>
                       );
                     })}
