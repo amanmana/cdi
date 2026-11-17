@@ -423,17 +423,19 @@ export const JobRequestDetail: React.FC = () => {
     }
     if (isUnitHeadActor) {
       setStaffUnitFilter(myUnitName || user?.unit || 'All');
-      if ((!selectedStaff || selectedStaff.length === 0) && myUnitMeta?.suggested_staff_id) {
+      // For Multi-Unit jobs: strictly initialize with THIS unit's assigned staff only (do not inherit other units' staff)
+      const currentUnitStaffIds = myUnitMeta?.assigned_staff_ids;
+      if (Array.isArray(currentUnitStaffIds) && currentUnitStaffIds.length > 0) {
+        setSelectedStaff(currentUnitStaffIds.map(Number).filter((sid: number) => !staffAssignedToOtherTracks[sid]));
+      } else if (myUnitMeta?.suggested_staff_id) {
         const rawSuggested = String(myUnitMeta.suggested_staff_id);
         const suggested = rawSuggested
           .split(',')
           .map((s: string) => Number(s.trim()))
           .filter((sid: number) => !isNaN(sid) && sid > 0 && !staffAssignedToOtherTracks[sid]);
-        if (suggested.length > 0) {
-          setSelectedStaff(suggested);
-        } else {
-          setSelectedStaff([]);
-        }
+        setSelectedStaff(suggested);
+      } else {
+        setSelectedStaff([]);
       }
     } else {
       setSelectedStaff([]);

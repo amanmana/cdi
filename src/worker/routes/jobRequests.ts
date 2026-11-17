@@ -2065,12 +2065,16 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
         currentUnitMeta.head_id = user.id;
         currentUnitMeta.head_name = user.name;
         if (Array.isArray(staff_ids) && staff_ids.length > 0) {
-          currentUnitMeta.assigned_staff_ids = staff_ids;
           const placeholders = staff_ids.map(() => '?').join(',');
-          const sRows = await db.prepare(`SELECT id, name FROM users WHERE id IN (${placeholders})`).bind(...staff_ids).all<any>();
-          if (sRows?.results) {
-            currentUnitMeta.assigned_staff_names = sRows.results.map((r: any) => r.name);
-          }
+          const sRows = await db.prepare(`SELECT id, name, unit, unit_id FROM users WHERE id IN (${placeholders})`).bind(...staff_ids).all<any>();
+          // Strict unit boundary check: Only accept staff whose unit matches this target unit or is managed by this Unit Head
+          const targetUnitName = (currentUnitMeta.unit_name || '').toLowerCase().trim();
+          const validStaffRows = (sRows?.results || []).filter((r: any) => {
+            const rUnit = (r.unit || '').toLowerCase().trim();
+            return rUnit === targetUnitName || userManagedUnits.some((mu: string) => mu.toLowerCase().trim() === rUnit);
+          });
+          currentUnitMeta.assigned_staff_ids = validStaffRows.map((r: any) => r.id);
+          currentUnitMeta.assigned_staff_names = validStaffRows.map((r: any) => r.name);
 
           if (staff_tasks && typeof staff_tasks === 'object') {
             additionalDataObj.staff_tasks = {
@@ -2080,7 +2084,7 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
           }
 
           // Create individual tasks in job_tasks for any assigned staff who don't have one yet
-          for (const sid of staff_ids) {
+          for (const sid of (currentUnitMeta.assigned_staff_ids || [])) {
             const taskTitle = staff_tasks?.[sid] || (currentUnitMeta.service_name ? `${currentUnitMeta.service_name} task` : 'Assigned Unit Task');
             const existingTask = await db.prepare(
               'SELECT id FROM job_tasks WHERE job_request_id = ? AND assigned_to_user_id = ?'
@@ -2106,15 +2110,18 @@ jobRequestsRouter.post('/:id/approve', async (c) => {
       const finalStatus = allAccepted ? 'staff_processing' : request.status;
       const finalStepName = allAccepted ? 'Staff Processing & Design' : request.current_step_name;
 
-      // Update assigned_staff_ids on job_requests if provided
-      let combinedAssigned = request.assigned_staff_ids
-        ? request.assigned_staff_ids.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n))
-        : [];
-      if (Array.isArray(staff_ids)) {
-        staff_ids.forEach((sid: number) => {
-          if (!combinedAssigned.includes(sid)) combinedAssigned.push(sid);
-        });
-      }
+      // Accurately compute master assigned_staff_ids across all units in Multi-Unit
+      let combinedAssigned: number[] = [];
+      const allAssignedSet = new Set<number>();
+      Object.values(additionalDataObj.unit_assignments as any).forEach((uMeta: any) => {
+        if (Array.isArray(uMeta?.assigned_staff_ids)) {
+          uMeta.assigned_staff_ids.forEach((id: any) => {
+            const num = Number(id);
+            if (!isNaN(num) && num > 0) allAssignedSet.add(num);
+          });
+        }
+      });
+      combinedAssigned = Array.from(allAssignedSet);
 
       await db.prepare(
         'UPDATE job_requests SET status = ?, current_step_name = ?, assigned_staff_ids = ?, additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
