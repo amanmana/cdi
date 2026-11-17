@@ -2285,76 +2285,74 @@ export const JobRequestDetail: React.FC = () => {
                     return (
                       <div
                         key={s.id}
-                        className={`group relative flex flex-col justify-between p-4 sm:p-4.5 rounded-2xl border transition-all duration-200 ${theme.cardBg} ${theme.border}`}
+                        className={`group relative aspect-square flex flex-col justify-between p-4 sm:p-5 rounded-3xl border transition-all duration-200 overflow-hidden ${theme.cardBg} ${theme.border}`}
                       >
-                        <div>
-                          {/* Top Row: Horizontal Header (Avatar + Name & Unit) */}
-                          <div className="flex items-center gap-3">
-                            <div className="relative shrink-0">
-                              <div
-                                className={`w-11 h-11 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
-                              >
-                                {s.avatar_url ? (
-                                  <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <span>{s.name.charAt(0).toUpperCase()}</span>
-                                )}
-                              </div>
-                              {s.is_done && (
-                                <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
-                                  <CheckCircle2 className="w-2.5 h-2.5" />
+                        {/* Top Section: Avatar + Name & Unit */}
+                        <div className="flex items-center gap-2.5 sm:gap-3">
+                          <div className="relative shrink-0">
+                            <div
+                              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full font-black text-xs sm:text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
+                            >
+                              {s.avatar_url ? (
+                                <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span>{s.name.charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                            {s.is_done && (
+                              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight truncate group-hover:text-blue-600 transition-colors">
+                                {s.name}
+                              </h4>
+                              {isSelf && (
+                                <span className="bg-blue-600 text-white font-extrabold text-[8px] sm:text-[8.5px] uppercase px-1.5 py-0.5 rounded-md tracking-wider shrink-0">
+                                  YOU
                                 </span>
                               )}
                             </div>
 
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <h4 className="text-sm font-bold text-slate-900 tracking-tight truncate group-hover:text-blue-600 transition-colors">
-                                  {s.name}
-                                </h4>
-                                {isSelf && (
-                                  <span className="bg-blue-600 text-white font-extrabold text-[8.5px] uppercase px-1.5 py-0.5 rounded-md tracking-wider shrink-0">
-                                    YOU
-                                  </span>
-                                )}
-                              </div>
-
-                              <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                                {s.unit ? `${s.unit} Unit` : 'Creative Specialist'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Middle: Task Section */}
-                          <div className="mt-3 text-xs leading-relaxed">
-                            {tText ? (
-                              <div className={`p-2.5 rounded-xl border ${theme.taskBoxBg}`}>
-                                <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
-                                  Assigned Task
-                                </span>
-                                <p className="font-semibold line-clamp-2">
-                                  {tText}
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="p-2.5 rounded-xl border border-dashed border-slate-200/70 bg-white/40">
-                                <p className="text-[10.5px] text-slate-400 font-medium italic">
-                                  No specific task assigned
-                                </p>
-                              </div>
-                            )}
+                            <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                              {s.unit ? `${s.unit} Unit` : 'Creative Specialist'}
+                            </p>
                           </div>
                         </div>
 
-                        {/* Bottom Row: Status Badge */}
-                        <div className="pt-3 mt-3 border-t border-slate-200/50 flex items-center justify-between">
+                        {/* Middle Section: Task Details */}
+                        <div className="my-auto py-1">
+                          {tText ? (
+                            <div className={`p-2 sm:p-2.5 rounded-xl border text-xs leading-relaxed ${theme.taskBoxBg}`}>
+                              <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
+                                Assigned Task
+                              </span>
+                              <p className="font-semibold text-slate-800 line-clamp-2 text-[10.5px] sm:text-xs">
+                                {tText}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="p-2 sm:p-2.5 rounded-xl border border-dashed border-slate-200/70 bg-white/40">
+                              <p className="text-[10px] sm:text-[10.5px] text-slate-400 font-medium italic">
+                                No specific task assigned
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Bottom Section: Status Badge */}
+                        <div className="pt-2 sm:pt-2.5 border-t border-slate-200/50 flex items-center justify-between mt-auto">
                           {s.is_done ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-emerald-300/80 bg-emerald-50 text-emerald-700 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-emerald-300/80 bg-emerald-50 text-emerald-700 text-[9px] sm:text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               DONE
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-[9px] sm:text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs">
                               PENDING
                             </span>
                           )}
