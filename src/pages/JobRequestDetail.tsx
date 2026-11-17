@@ -4045,11 +4045,11 @@ export const JobRequestDetail: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-4 relative pl-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-4 relative pl-8 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 pr-1">
                 {history && history.length > 0 ? (
                   history.map((h: any) => (
                     <div key={h.id} className="relative space-y-1">
-                      <div className="absolute -left-[1.35rem] top-1 w-2.5 h-2.5 rounded-full border-2 border-indigo-600 bg-white"></div>
+                      <div className="absolute -left-6 top-1 w-3 h-3 rounded-full border-2 border-indigo-600 bg-white ring-2 ring-white"></div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         {formatDateTimeMY(h.created_at)}
                       </div>
