@@ -2285,14 +2285,14 @@ export const JobRequestDetail: React.FC = () => {
                     return (
                       <div
                         key={s.id}
-                        className={`group relative flex flex-col justify-between p-4.5 sm:p-5 rounded-3xl border transition-all duration-200 min-h-[225px] hover:shadow-md ${theme.cardBg} ${theme.border}`}
+                        className={`group relative aspect-square flex flex-col justify-between p-5 rounded-3xl border transition-all duration-200 hover:shadow-md ${theme.cardBg} ${theme.border}`}
                       >
                         <div>
                           {/* Top Row: Avatar on Left + Status Badge on Right */}
                           <div className="flex items-center justify-between gap-2">
                             <div className="relative shrink-0">
                               <div
-                                className={`w-11 h-11 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
+                                className={`w-12 h-12 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
                               >
                                 {s.avatar_url ? (
                                   <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
@@ -2301,7 +2301,7 @@ export const JobRequestDetail: React.FC = () => {
                                 )}
                               </div>
                               {s.is_done && (
-                                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
+                                <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white">
                                   <CheckCircle2 className="w-2.5 h-2.5" />
                                 </span>
                               )}
@@ -2309,12 +2309,12 @@ export const JobRequestDetail: React.FC = () => {
 
                             {/* Status Badge in Top Right */}
                             {s.is_done ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-emerald-300/90 bg-emerald-50/95 text-emerald-700 text-[9.5px] font-black uppercase tracking-wider shadow-2xs shrink-0">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-emerald-300/90 bg-emerald-50/95 text-emerald-700 text-[10px] font-black uppercase tracking-wider shadow-2xs shrink-0">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                                 DONE
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-300/90 bg-white/95 text-slate-600 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs shrink-0">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-slate-300/90 bg-white/95 text-slate-600 text-[10px] font-extrabold uppercase tracking-wider shadow-2xs shrink-0">
                                 PENDING
                               </span>
                             )}
@@ -2323,7 +2323,7 @@ export const JobRequestDetail: React.FC = () => {
                           {/* Middle: Name & Unit */}
                           <div className="mt-3 space-y-0.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <h4 className="text-sm font-bold text-slate-900 tracking-tight truncate group-hover:text-blue-600 transition-colors">
+                              <h4 className="text-base font-bold text-blue-600 tracking-tight truncate group-hover:text-blue-700 transition-colors">
                                 {s.name}
                               </h4>
                               {isSelf && (
@@ -2333,29 +2333,25 @@ export const JobRequestDetail: React.FC = () => {
                               )}
                             </div>
 
-                            <p className="text-[11px] text-slate-500 font-semibold truncate">
+                            <p className="text-xs text-slate-500 font-semibold truncate">
                               {s.unit ? `${s.unit} Unit` : 'Creative Specialist'}
                             </p>
                           </div>
                         </div>
 
-                        {/* Bottom: Task Details */}
-                        <div className="mt-auto pt-3">
+                        {/* Bottom: Task Details with Divider Line */}
+                        <div className="mt-auto pt-3 border-t border-slate-200/60">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
+                            ASSIGNED TASK
+                          </span>
                           {tText ? (
-                            <div className={`p-2.5 rounded-2xl border text-xs leading-relaxed ${theme.taskBoxBg}`}>
-                              <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
-                                Assigned Task
-                              </span>
-                              <p className="font-semibold text-slate-800 line-clamp-2 text-[11px]">
-                                {tText}
-                              </p>
-                            </div>
+                            <p className="font-bold text-slate-900 line-clamp-2 text-xs sm:text-sm leading-snug">
+                              {tText}
+                            </p>
                           ) : (
-                            <div className="p-2.5 rounded-2xl border border-dashed border-slate-200/90 bg-white/60">
-                              <p className="text-[10.5px] text-slate-400 font-medium italic">
-                                No specific task assigned
-                              </p>
-                            </div>
+                            <p className="text-xs text-slate-400 font-medium italic">
+                              No specific task assigned
+                            </p>
                           )}
                         </div>
                       </div>
