@@ -2380,58 +2380,33 @@ export const JobRequestDetail: React.FC = () => {
             )}
 
             {/* Project Requirements & Client Details Combined Box */}
-            <div className="bg-blue-50/30 p-6 rounded-2xl border border-blue-100/70 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100/70 pb-3">
+            <div className="bg-blue-50/30 p-5 rounded-2xl border border-blue-100/70 space-y-3.5">
+              <div className="flex items-center justify-between border-b border-blue-100/70 pb-3">
                 <div className="flex items-center gap-2 text-xs font-black text-blue-700 uppercase tracking-wider">
                   <FileText className="w-4 h-4 text-blue-600" />
                   <span>PROJECT REQUIREMENTS & CLIENT DETAILS</span>
                 </div>
-
-                {primaryProjectService && (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {canEditServiceSpec(primaryProjectService) ? (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenSpecModal(primaryProjectService, true)}
-                        className="btn btn-xs bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3.5 shadow-2xs transition-all"
-                        title="View & Edit Specifications (Head of Unit Mode)"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>View & Edit Specs</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenSpecModal(primaryProjectService, false)}
-                        className="btn btn-xs bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 rounded-full font-bold flex items-center gap-1.5 h-7 px-3.5 shadow-2xs transition-all"
-                        title="View Specifications"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-slate-600" />
-                        <span>View Specs</span>
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Compact Key-Value Metadata Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                 {/* Client Name */}
-                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                <div className="bg-white/90 px-3.5 py-2.5 rounded-xl border border-blue-100/70 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
                     CLIENT NAME
                   </span>
-                  <span className="text-sm font-extrabold text-slate-900 block">
-                    {request.client_name}
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 block truncate" title={request.client_name}>
+                    {request.client_name || '-'}
                   </span>
                 </div>
 
                 {/* Email */}
-                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                <div className="bg-white/90 px-3.5 py-2.5 rounded-xl border border-blue-100/70 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
                     EMAIL
                   </span>
-                  <span className="text-sm font-extrabold text-slate-900 block">
-                    {request.client_email}
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 block truncate" title={request.client_email}>
+                    {request.client_email || '-'}
                   </span>
                 </div>
 
@@ -2444,7 +2419,7 @@ export const JobRequestDetail: React.FC = () => {
                       // Hide raw database IDs
                       if (lower.endsWith('_id') || lower === 'id' || lower.endsWith('_ids')) return false;
                       // Hide internal routing/type flags
-                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target', 'assistance_requests'].includes(lower)) return false;
+                      if (['is_inter_unit', 'request_type', 'staff_tasks', 'handoff', 'collaborator_completed_notice', 'is_direct_task', 'custom_fields', 'is_multi_unit', 'target_units', 'target_unit_ids', 'unit_assignments', 'selected_services', 'routing_target', 'assistance_requests', 'description', 'detailed_description'].includes(lower)) return false;
                       // Hide internal Unit Kanban operational workflow states (unit-level tracking)
                       if (lower.includes('kanban')) return false;
                       // Hide duplicate service display label if service_name exists
@@ -2460,28 +2435,29 @@ export const JobRequestDetail: React.FC = () => {
                         parent_ticket_no: 'PARENT JOB TICKET',
                       };
                       const displayLabel = labelMap[k] || k.replace(/_/g, ' ').toUpperCase();
+                      const valStr = k === 'priority' ? String(v).toUpperCase() : String(v);
 
                       return (
-                        <div key={k} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                        <div key={k} className="bg-white/90 px-3.5 py-2.5 rounded-xl border border-blue-100/70 shadow-2xs">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
                             {displayLabel}
                           </span>
-                          <span className="text-sm font-extrabold text-slate-900">
-                            {k === 'priority' ? String(v).toUpperCase() : String(v)}
+                          <span className="text-xs sm:text-sm font-extrabold text-slate-900 block truncate" title={valStr}>
+                            {valStr}
                           </span>
                         </div>
                       );
                     })}
+              </div>
 
-                {/* Detailed Description Field */}
-                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm sm:col-span-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                    DETAILED DESCRIPTION
-                  </span>
-                  <p className="text-sm font-semibold text-slate-800 leading-relaxed whitespace-pre-wrap">
-                    {request.description || 'No description provided.'}
-                  </p>
-                </div>
+              {/* Detailed Description Field */}
+              <div className="bg-white/95 p-3.5 sm:p-4 rounded-xl border border-blue-100/70 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  DETAILED DESCRIPTION
+                </span>
+                <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-relaxed whitespace-pre-wrap">
+                  {request.description || 'No description provided.'}
+                </p>
               </div>
             </div>
 
