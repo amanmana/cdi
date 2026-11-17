@@ -4235,7 +4235,7 @@ export const JobRequestDetail: React.FC = () => {
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
                                 isLocked
                                   ? 'border-slate-300 bg-slate-100 text-slate-400'
                                   : isChecked
@@ -4244,6 +4244,20 @@ export const JobRequestDetail: React.FC = () => {
                               }`}
                             >
                               {isChecked && <div className={`w-2.5 h-2.5 rounded-full ${isLocked ? 'bg-slate-400' : 'bg-blue-600'}`}></div>}
+                            </div>
+                            {/* Staff Avatar */}
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 shadow-2xs">
+                              {m.avatar_url ? (
+                                <img
+                                  src={m.avatar_url}
+                                  alt={m.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center font-black text-xs text-blue-700 bg-gradient-to-br from-blue-50 to-indigo-100 uppercase">
+                                  {m.name ? m.name.charAt(0) : '?'}
+                                </div>
+                              )}
                             </div>
                             <div>
                               <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
@@ -4749,7 +4763,7 @@ export const JobRequestDetail: React.FC = () => {
                       >
                         {/* Custom Checkbox */}
                         <div
-                          className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          className={`w-5 h-5 rounded-full flex items-center justify-center transition-all shrink-0 ${
                             isSelected 
                               ? isLocked 
                                 ? 'bg-slate-400 text-white' 
@@ -4760,10 +4774,25 @@ export const JobRequestDetail: React.FC = () => {
                           {isSelected && <span className="text-xs font-black">✓</span>}
                         </div>
 
-                        <div className="flex-1">
+                        {/* Staff Avatar */}
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 shadow-2xs">
+                          {m.avatar_url ? (
+                            <img
+                              src={m.avatar_url}
+                              alt={m.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center font-black text-xs text-blue-700 bg-gradient-to-br from-blue-50 to-indigo-100/90 uppercase">
+                              {m.name ? m.name.charAt(0) : '?'}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
                             <span className="flex items-center gap-1.5 flex-wrap">
-                              {m.name} 
+                              <span>{m.name}</span>
                               {Boolean(m.is_unit_head) && (
                                 <span className="text-[9px] bg-amber-50 text-amber-700 font-black px-1.5 py-0.2 rounded border border-amber-200">
                                   HEAD
@@ -4781,7 +4810,7 @@ export const JobRequestDetail: React.FC = () => {
                               )}
                             </span>
                             {m.unit && (
-                              <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">
+                              <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md shrink-0 ml-2">
                                 {m.unit}
                               </span>
                             )}

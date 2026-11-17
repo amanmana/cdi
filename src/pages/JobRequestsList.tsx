@@ -1586,6 +1586,15 @@ export const JobRequestsList: React.FC = () => {
                                 }}
                                 className="checkbox checkbox-xs rounded checkbox-primary"
                               />
+                              <div className={`w-5 h-5 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-[10px] font-bold ${
+                                isSelected ? 'bg-purple-700 text-white' : 'bg-slate-100 text-purple-700 border border-slate-200'
+                              }`}>
+                                {s.avatar_url ? (
+                                  <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  s.name ? s.name.charAt(0).toUpperCase() : '?'
+                                )}
+                              </div>
                               <span>
                                 {s.name} {s.unit ? `(${s.unit})` : ''} {Boolean(s.is_unit_head) ? '★' : ''}
                               </span>
