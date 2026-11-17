@@ -273,7 +273,7 @@ export const JobRequestsList: React.FC = () => {
         if (field.required) {
           const val = selfCustomFields[field.id];
           if (val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) {
-            alert(`Sila lengkapkan medan: ${field.label}`);
+            alert(`Please complete required field: ${field.label}`);
             return;
           }
         }
@@ -1665,7 +1665,7 @@ export const JobRequestsList: React.FC = () => {
                         Creative Output
                       </div>
                       <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                        Penghasilan Bahan / Deliverable spesifik unit
+                        Unit deliverables & creative work specifications
                       </p>
                     </div>
                     {selfWorkNature === 'deliverable' && (
@@ -1699,7 +1699,7 @@ export const JobRequestsList: React.FC = () => {
                         Operational & Official Duty
                       </div>
                       <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                        Mesyuarat, Latihan & Tugas Rasmi Operasi
+                        Meetings, training, discussions & official duties
                       </p>
                     </div>
                     {selfWorkNature === 'operational' && (
@@ -1854,7 +1854,7 @@ export const JobRequestsList: React.FC = () => {
                       Operational & Official Duty Mode
                     </div>
                     <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                      Spesifikasi bahan ({myUnitObj?.name || 'Unit'}) dikecualikan bagi tugasan mesyuarat, latihan, perbincangan, atau tugasan rasmi. Sila lengkapkan perincian aktiviti di bahagian <span className="font-bold text-slate-700">Work Details & Outcome Summary</span> di bawah.
+                      Unit specifications ({myUnitObj?.name || 'Unit'}) are exempted for meetings, training, discussions, or official administrative duties. Please describe activity details in the <span className="font-bold text-slate-700">Work Details & Outcome Summary</span> section below.
                     </p>
                   </div>
                 </div>
