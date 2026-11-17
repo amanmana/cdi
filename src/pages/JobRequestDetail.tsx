@@ -2321,7 +2321,7 @@ export const JobRequestDetail: React.FC = () => {
                           </div>
 
                           {/* Middle: Name & Unit */}
-                          <div className="mt-3 space-y-0.5">
+                          <div className="mt-2.5 space-y-0.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <h4 className="text-base font-bold text-blue-600 tracking-tight truncate group-hover:text-blue-700 transition-colors">
                                 {s.name}
@@ -2339,17 +2339,20 @@ export const JobRequestDetail: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Bottom: Task Details with Divider Line */}
-                        <div className="mt-auto pt-3 border-t border-slate-200/60">
+                        {/* Balanced Horizontal Divider In-Between Text Atas & Bawah */}
+                        <div className="border-t border-slate-200/70 my-3"></div>
+
+                        {/* Bottom: Task Details */}
+                        <div className="mt-auto">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
                             ASSIGNED TASK
                           </span>
                           {tText ? (
-                            <p className="font-bold text-slate-900 line-clamp-2 text-xs sm:text-sm leading-snug">
+                            <p className="text-xs text-slate-900 font-semibold truncate">
                               {tText}
                             </p>
                           ) : (
-                            <p className="text-xs text-slate-400 font-medium italic">
+                            <p className="text-xs text-slate-400 font-medium italic truncate">
                               No specific task assigned
                             </p>
                           )}
