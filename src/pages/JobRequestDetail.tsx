@@ -2508,11 +2508,9 @@ export const JobRequestDetail: React.FC = () => {
                       const isAwaitingHead = uMeta?.status === 'awaiting_head_assignment';
 
                       return (
-                        <div key={idx} className="bg-gradient-to-b from-white via-white to-slate-50/60 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between overflow-hidden">
-                          {/* Upper Card Body */}
-                          <div className="p-5 space-y-3.5 flex-1">
-                            {/* Card Header matching reference: Status on Left, Action Button on Right, Service & Unit below */}
-                            <div className="border-b border-slate-100 pb-3 space-y-2.5">
+                        <div key={idx} className="bg-white rounded-2xl p-5 border border-indigo-100/70 shadow-sm space-y-4">
+                          {/* Card Header matching reference: Status on Left, Action Button on Right, Service & Unit below */}
+                          <div className="border-b border-slate-100 pb-3 space-y-2.5">
                             {/* Top Row: Status Badge (Left) + View & Edit Specs Button (Right) */}
                             <div className="flex items-center justify-between gap-2 flex-wrap">
                               <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shrink-0 ${
@@ -2576,6 +2574,90 @@ export const JobRequestDetail: React.FC = () => {
                             </div>
                           </div>
 
+                          {/* Unit Milestone Target Banner (Cadangan A: Boarding Pass / Ticket Header) */}
+                          {(() => {
+                            const compoundKey = `${srv.target_unit_name || srv.name} — ${srv.display_label || srv.name}`;
+                            const targetUnitTrackKey = (request?.additional_data?.unit_assignments?.[compoundKey] ? compoundKey : null)
+                              || (request?.additional_data?.unit_assignments?.[srv.display_label || srv.name] ? (srv.display_label || srv.name) : null)
+                              || (request?.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name] ? (srv.target_unit_name || srv.name) : null)
+                              || compoundKey;
+                            const serviceLabel = srv.display_label || srv.name;
+                            const unitName = srv.target_unit_name || srv.name;
+                            const unitDeadline = uMeta?.deadline || srv.deadline;
+                            const unitStartDate = uMeta?.start_date || srv.start_date;
+                            const unitMilestoneNote = uMeta?.milestone_note;
+
+                            const canEditThisUnitMilestone = Boolean(
+                              user?.role === 'admin' ||
+                              user?.role === 'director' ||
+                              (isManagerActor && (
+                                (userDeptId && Number(uMeta?.department_id) === Number(userDeptId)) ||
+                                managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
+                              )) ||
+                              (user?.is_unit_head && (
+                                (userUnit && userUnit === unitName.toLowerCase().trim()) ||
+                                managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
+                              ))
+                            );
+
+                            return (
+                              <div className="bg-gradient-to-r from-indigo-50/80 via-blue-50/40 to-slate-50/80 border border-indigo-150/70 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-start gap-2.5 min-w-0">
+                                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                                      <Calendar className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                          Unit Milestone Target:
+                                        </span>
+                                        {unitDeadline && unitDeadline !== request.deadline ? (
+                                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 border border-indigo-200/80">
+                                            Internal Target
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] font-bold text-slate-400">
+                                            (Matches Master)
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <div className="text-sm font-black text-slate-900 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                        <span className={unitDeadline && unitDeadline <= (request.deadline || '') ? 'text-indigo-900' : 'text-slate-800'}>
+                                          {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
+                                        </span>
+                                        {unitStartDate && (
+                                          <span className="text-[10px] font-medium text-slate-500">
+                                            • Starts: {formatDate(unitStartDate)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {canEditThisUnitMilestone && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenUnitMilestoneModal(targetUnitTrackKey, serviceLabel, unitStartDate, unitDeadline, unitMilestoneNote)}
+                                      className="btn btn-xs bg-white hover:bg-indigo-50 text-indigo-700 hover:text-indigo-800 font-extrabold text-[10px] uppercase tracking-wider gap-1 h-7.5 px-2.5 rounded-xl border border-indigo-200/90 shadow-2xs shrink-0 self-start transition-all"
+                                      title="Edit Unit Milestone Target"
+                                    >
+                                      <Edit3 className="w-3 h-3 text-indigo-600" />
+                                      <span>{unitDeadline ? 'Edit Milestone' : 'Set Milestone'}</span>
+                                    </button>
+                                  )}
+                                </div>
+
+                                {unitMilestoneNote && (
+                                  <p className="text-[11px] font-medium text-indigo-950/80 italic leading-snug break-words bg-white/70 px-2.5 py-1.5 rounded-xl border border-indigo-100/60">
+                                    "{unitMilestoneNote}"
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
+
                           <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                               Deliverable Scope & Brief
@@ -2637,87 +2719,6 @@ export const JobRequestDetail: React.FC = () => {
                               <span>{isAwaitingHead ? 'Menunggu Ketua Unit melantik staf' : 'Menunggu kelulusan Pengurus'}</span>
                             </div>
                           )}
-
-                          </div>
-
-                          {/* Docked Milestone Target Footer: Deep Slate & Midnight Indigo */}
-                          {(() => {
-                            const compoundKey = `${srv.target_unit_name || srv.name} — ${srv.display_label || srv.name}`;
-                            const targetUnitTrackKey = (request?.additional_data?.unit_assignments?.[compoundKey] ? compoundKey : null)
-                              || (request?.additional_data?.unit_assignments?.[srv.display_label || srv.name] ? (srv.display_label || srv.name) : null)
-                              || (request?.additional_data?.unit_assignments?.[srv.target_unit_name || srv.name] ? (srv.target_unit_name || srv.name) : null)
-                              || compoundKey;
-                            const serviceLabel = srv.display_label || srv.name;
-                            const unitName = srv.target_unit_name || srv.name;
-                            const unitDeadline = uMeta?.deadline || srv.deadline;
-                            const unitStartDate = uMeta?.start_date || srv.start_date;
-                            const unitMilestoneNote = uMeta?.milestone_note;
-
-                            const canEditThisUnitMilestone = Boolean(
-                              user?.role === 'admin' ||
-                              user?.role === 'director' ||
-                              (isManagerActor && (
-                                (userDeptId && Number(uMeta?.department_id) === Number(userDeptId)) ||
-                                managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
-                              )) ||
-                              (user?.is_unit_head && (
-                                (userUnit && userUnit === unitName.toLowerCase().trim()) ||
-                                managedUnits.some((mu) => mu.toLowerCase().trim() === unitName.toLowerCase().trim())
-                              ))
-                            );
-
-                            return (
-                              <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 p-4 border-t border-indigo-500/20 space-y-3 text-white">
-                                <div className="flex items-start gap-3">
-                                  <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-indigo-300 shadow-xs mt-0.5">
-                                    <Calendar className="w-4 h-4 text-indigo-200" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-200/80">
-                                        Unit Milestone Target:
-                                      </span>
-                                      {unitDeadline && unitDeadline !== request.deadline ? (
-                                        <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-2xs">
-                                          Internal Target
-                                        </span>
-                                      ) : (
-                                        <span className="text-[9px] font-semibold text-slate-400 bg-white/5 px-2 py-0.5 rounded-full">
-                                          (Matches Master)
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-sm font-black text-white mt-1 flex items-center gap-2 flex-wrap tracking-tight">
-                                      <span className="text-white drop-shadow-xs">
-                                        {unitDeadline ? formatDate(unitDeadline) : (request.deadline ? formatDate(request.deadline) : 'Not scheduled')}
-                                      </span>
-                                      {unitStartDate && (
-                                        <span className="text-[11px] font-medium text-indigo-200/70">
-                                          • Starts: {formatDate(unitStartDate)}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {unitMilestoneNote && (
-                                      <p className="text-[11px] font-medium text-indigo-100/90 italic mt-1 leading-snug break-words bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10">
-                                        "{unitMilestoneNote}"
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {canEditThisUnitMilestone && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenUnitMilestoneModal(targetUnitTrackKey, serviceLabel, unitStartDate, unitDeadline, unitMilestoneNote)}
-                                    className="btn btn-xs w-full bg-white/10 hover:bg-white/20 text-white font-extrabold text-[10.5px] uppercase tracking-wider gap-1.5 h-8 rounded-xl border border-white/20 backdrop-blur-xs shadow-xs transition-all flex items-center justify-center hover:scale-[1.01] active:scale-[0.99]"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5 text-indigo-300" />
-                                    <span>{unitDeadline ? 'Edit Milestone' : 'Set Milestone'}</span>
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
                         </div>
                       );
                     })}
