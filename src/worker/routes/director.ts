@@ -53,30 +53,70 @@ directorRouter.get('/stats', async (c) => {
     const cancelledProjects = await countQuery(`AND status IN ('cancelled', 'rejected')`);
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    // 2. Units list & breakdown
-    const { results: units } = await db.prepare(`SELECT id, name FROM units ORDER BY name ASC`).all<{ id: number; name: string }>();
-    let unitList = (units || []).filter(u => !['administrator', 'admin', 'it support', 'executive management'].includes(u.name.toLowerCase().trim()));
+    // 2. Canonical Operational Units list & breakdown (strictly from units table)
+    const { results: canonicalUnits } = await db.prepare(`
+      SELECT u.id, u.name, u.department_id, d.name as department_name 
+      FROM units u
+      LEFT JOIN departments d ON u.department_id = d.id
+      WHERE u.name NOT IN ('Administrator', 'Admin', 'IT Support', 'Executive Management')
+      ORDER BY u.name ASC
+    `).all<{ id: number; name: string; department_id: number | null; department_name: string | null }>();
 
-    // Also include units present in job_requests but not in units table
-    const { results: extraUnits } = await db.prepare(`SELECT DISTINCT unit FROM job_requests WHERE unit IS NOT NULL AND unit != ''`).all<{ unit: string }>();
-    const existingNames = unitList.map(u => u.name);
-    (extraUnits || []).forEach(e => {
-      if (e.unit && !existingNames.includes(e.unit) && !['administrator', 'admin', 'it support', 'executive management'].includes(e.unit.toLowerCase().trim())) {
-        unitList.push({ id: 999, name: e.unit });
-      }
-    });
+    const unitList = canonicalUnits || [];
 
     const unitBreakdown = await Promise.all(
       unitList.map(async (u) => {
-        const tot = await countQuery(`AND (unit_id = ? OR unit = ?)`, [u.id, u.name]);
-        const dn = await countQuery(`AND (unit_id = ? OR unit = ?) AND status = 'completed'`, [u.id, u.name]);
-        const active = await countQuery(`AND (unit_id = ? OR unit = ?) AND status = 'staff_processing'`, [u.id, u.name]);
-        const pend = await countQuery(`AND (unit_id = ? OR unit = ?) AND status IN ('manager_approval', 'pending')`, [u.id, u.name]);
-        const uStaff = await db.prepare(`SELECT COUNT(*) as count FROM users WHERE (unit_id = ? OR unit = ?) AND role = 'staff'`).bind(u.id, u.name).first<{ count: number }>();
+        // Build unit matching condition for single-unit and multi-unit projects
+        const isGraphicWeb = u.id === 5 || u.name.toLowerCase().includes('graphic');
+        const patternUnit = `%${u.name}%`;
+        const patternTargetId = `%"target_unit_id":${u.id}%`;
+        const patternTargetIdStr = `%"target_unit_id":"${u.id}"%`;
+        const patternTargetName = `%"target_unit_name":"${u.name}"%`;
+
+        const unitFilterSql = ` AND (
+          unit_id = ? 
+          OR unit = ? 
+          OR unit LIKE ? 
+          OR additional_data LIKE ? 
+          OR additional_data LIKE ? 
+          OR additional_data LIKE ?
+          ${isGraphicWeb ? "OR unit = 'Graphic' OR unit LIKE '%Graphic%'" : ''}
+        )`;
+        const unitBinds = [u.id, u.name, patternUnit, patternTargetId, patternTargetIdStr, patternTargetName];
+
+        const statsSql = `
+          SELECT 
+            COUNT(DISTINCT id) as total_projects,
+            COUNT(DISTINCT CASE WHEN status = 'completed' THEN id END) as completed_projects,
+            COUNT(DISTINCT CASE WHEN status = 'staff_processing' THEN id END) as active_projects,
+            COUNT(DISTINCT CASE WHEN status IN ('manager_approval', 'pending') THEN id END) as pending_projects
+          FROM job_requests
+          WHERE 1=1 ${unitFilterSql} ${dateFilter}
+        `;
+        const allBinds = [...unitBinds, ...dateParams];
+        const row = await db.prepare(statsSql).bind(...allBinds).first<{
+          total_projects: number;
+          completed_projects: number;
+          active_projects: number;
+          pending_projects: number;
+        }>();
+
+        const tot = row?.total_projects || 0;
+        const dn = row?.completed_projects || 0;
+        const active = row?.active_projects || 0;
+        const pend = row?.pending_projects || 0;
+
+        const uStaff = await db.prepare(`
+          SELECT COUNT(DISTINCT id) as count FROM users 
+          WHERE (unit_id = ? OR unit = ? ${isGraphicWeb ? "OR unit = 'Graphic' OR unit LIKE '%Graphic%'" : ''}) 
+            AND role = 'staff'
+        `).bind(u.id, u.name).first<{ count: number }>();
 
         return {
           unit_id: u.id,
           unit_name: u.name,
+          department_id: u.department_id,
+          department_name: u.department_name,
           total_projects: tot,
           completed_projects: dn,
           active_projects: active,
@@ -167,10 +207,11 @@ directorRouter.get('/projects', async (c) => {
   const year = c.req.query('year');
   const month = c.req.query('month');
   const client = c.req.query('client');
+  const scope = c.req.query('scope'); // 'all', 'single', 'multi'
 
   let query = `
     SELECT j.id, j.ticket_no, j.title, j.client_name, j.client_email, j.status, j.current_step_name,
-           j.unit_id, COALESCE(un.name, j.unit) as unit_name, j.start_date, j.deadline, j.assigned_staff_ids, j.created_at
+           j.unit_id, COALESCE(un.name, j.unit) as unit_name, j.unit as raw_unit, j.additional_data, j.start_date, j.deadline, j.assigned_staff_ids, j.created_at
     FROM job_requests j
     LEFT JOIN units un ON (j.unit_id = un.id OR j.unit = un.name)
     WHERE 1=1
@@ -178,8 +219,39 @@ directorRouter.get('/projects', async (c) => {
   const params: any[] = [];
 
   if (unit && unit !== 'all') {
-    query += ` AND (j.unit = ? OR un.name = ?)`;
-    params.push(unit, unit);
+    const unitRow = await db.prepare(`
+      SELECT id, name FROM units 
+      WHERE id = ? OR LOWER(TRIM(name)) = LOWER(TRIM(?))
+      LIMIT 1
+    `).bind(Number(unit) || 0, unit).first<{ id: number; name: string }>();
+
+    if (unitRow) {
+      const isGraphicWeb = unitRow.id === 5 || unitRow.name.toLowerCase().includes('graphic');
+      const patternUnit = `%${unitRow.name}%`;
+      const patternTargetId = `%"target_unit_id":${unitRow.id}%`;
+      const patternTargetIdStr = `%"target_unit_id":"${unitRow.id}"%`;
+      const patternTargetName = `%"target_unit_name":"${unitRow.name}"%`;
+
+      query += ` AND (
+        j.unit_id = ? 
+        OR j.unit = ? 
+        OR j.unit LIKE ? 
+        OR j.additional_data LIKE ? 
+        OR j.additional_data LIKE ? 
+        OR j.additional_data LIKE ?
+        ${isGraphicWeb ? "OR j.unit = 'Graphic' OR j.unit LIKE '%Graphic%'" : ''}
+      )`;
+      params.push(unitRow.id, unitRow.name, patternUnit, patternTargetId, patternTargetIdStr, patternTargetName);
+    } else {
+      query += ` AND (j.unit = ? OR un.name = ? OR j.unit LIKE ?)`;
+      params.push(unit, unit, `%${unit}%`);
+    }
+  }
+
+  if (scope === 'single') {
+    query += ` AND (j.ticket_no NOT LIKE 'MU%' AND (j.unit NOT LIKE '%,%' OR j.unit IS NULL))`;
+  } else if (scope === 'multi') {
+    query += ` AND (j.ticket_no LIKE 'MU%' OR j.unit LIKE '%,%' OR j.additional_data LIKE '%"selected_services":%' OR j.additional_data LIKE '%"unit_assignments":%')`;
   }
 
   if (client && client !== 'all') {
@@ -236,8 +308,17 @@ directorRouter.get('/projects', async (c) => {
           staffNames = (staffRows || []).map(r => r.name);
         }
       }
+
+      let parsedAdditionalData: any = {};
+      try {
+        if (p.additional_data) parsedAdditionalData = typeof p.additional_data === 'string' ? JSON.parse(p.additional_data) : p.additional_data;
+      } catch (e) {}
+
+      const isMultiUnit = p.ticket_no?.startsWith('MU') || (p.raw_unit && p.raw_unit.includes(',')) || Boolean(parsedAdditionalData?.unit_assignments && Object.keys(parsedAdditionalData.unit_assignments).length > 1);
+
       return {
         ...p,
+        is_multi_unit: isMultiUnit,
         assigned_staff_names: staffNames,
       };
     })

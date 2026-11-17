@@ -43,6 +43,8 @@ interface ExecutiveKPIs {
 interface UnitBreakdown {
   unit_id: number;
   unit_name: string;
+  department_id?: number | null;
+  department_name?: string | null;
   total_projects: number;
   completed_projects: number;
   active_projects: number;
@@ -89,11 +91,20 @@ interface ProjectItem {
   status: string;
   current_step_name: string;
   unit_name: string;
+  raw_unit?: string;
+  is_multi_unit?: boolean;
   start_date: string;
   deadline: string;
   assigned_staff_names: string[];
   created_at: string;
+  additional_data?: any;
 }
+
+export const formatUnitDisplayName = (name: string) => {
+  if (!name) return '';
+  const clean = name.trim();
+  return clean.toLowerCase().endsWith('unit') ? clean : `${clean} Unit`;
+};
 
 export const DirectorDashboard: React.FC = () => {
   const { token } = useAuth();
@@ -144,6 +155,7 @@ export const DirectorDashboard: React.FC = () => {
   const [drillSearch, setDrillSearch] = useState('');
   const [drillUnitFilter, setDrillUnitFilter] = useState('all');
   const [drillStatusFilter, setDrillStatusFilter] = useState('all');
+  const [drillScopeFilter, setDrillScopeFilter] = useState<'all' | 'single' | 'multi'>('all');
   const [drillClientFilter, setDrillClientFilter] = useState('all');
   const [drillClientProfile, setDrillClientProfile] = useState<ClientProfile | null>(null);
 
@@ -180,33 +192,36 @@ export const DirectorDashboard: React.FC = () => {
     fetchStats();
   }, [token, selectedYear, selectedMonth]);
 
-  const openDrillModal = async (title: string, unitFilter = 'all', statusFilter = 'all') => {
+  const openDrillModal = async (title: string, unitFilter = 'all', statusFilter = 'all', scopeFilter: 'all' | 'single' | 'multi' = 'all') => {
     setDrillTitle(title);
     setDrillUnitFilter(unitFilter);
     setDrillStatusFilter(statusFilter);
+    setDrillScopeFilter(scopeFilter);
     setDrillClientFilter('all');
     setDrillSearch('');
     setDrillModalOpen(true);
-    fetchDrillProjects(unitFilter, statusFilter, '', 'all');
+    fetchDrillProjects(unitFilter, statusFilter, '', 'all', scopeFilter);
   };
 
   const openDrillModalClient = async (title: string, clientName: string) => {
     setDrillTitle(title);
     setDrillUnitFilter('all');
     setDrillStatusFilter('all');
+    setDrillScopeFilter('all');
     setDrillClientFilter(clientName);
     setDrillSearch('');
     setDrillModalOpen(true);
-    fetchDrillProjects('all', 'all', '', clientName);
+    fetchDrillProjects('all', 'all', '', clientName, 'all');
   };
 
-  const fetchDrillProjects = async (unit: string, status: string, search: string, client = drillClientFilter) => {
+  const fetchDrillProjects = async (unit: string, status: string, search: string, client = drillClientFilter, scope = drillScopeFilter) => {
     setDrillLoading(true);
     try {
       const params = new URLSearchParams();
       if (unit && unit !== 'all') params.append('unit', unit);
       if (status && status !== 'all') params.append('status', status);
       if (client && client !== 'all') params.append('client', client);
+      if (scope && scope !== 'all') params.append('scope', scope);
       if (selectedYear && selectedYear !== 'all') params.append('year', selectedYear);
       if (selectedMonth && selectedMonth !== 'all') params.append('month', selectedMonth);
       if (search) params.append('search', search);
@@ -694,7 +709,7 @@ export const DirectorDashboard: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900 group-hover:text-purple-600 transition-colors">
-                      {u.unit_name} Unit
+                      {formatUnitDisplayName(u.unit_name)}
                     </h3>
                     <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                       <Users className="w-3 h-3" /> {u.staff_count} Staff Assigned
@@ -815,7 +830,7 @@ export const DirectorDashboard: React.FC = () => {
               .map((u) => (
               <div key={u.unit_id} className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-800">{u.unit_name} Unit</span>
+                  <span className="text-slate-800">{formatUnitDisplayName(u.unit_name)}</span>
                   <span className="text-slate-500">
                     <span className="text-blue-600 font-extrabold">{u.active_projects} active</span> / {u.total_projects} total
                   </span>
@@ -1020,7 +1035,7 @@ export const DirectorDashboard: React.FC = () => {
             )}
 
             {/* Filter Bar */}
-            <div className="p-4 bg-slate-50 border-b border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+            <div className="p-4 bg-slate-50 border-b border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
@@ -1029,7 +1044,7 @@ export const DirectorDashboard: React.FC = () => {
                   value={drillSearch}
                   onChange={(e) => {
                     setDrillSearch(e.target.value);
-                    fetchDrillProjects(drillUnitFilter, drillStatusFilter, e.target.value, drillClientFilter);
+                    fetchDrillProjects(drillUnitFilter, drillStatusFilter, e.target.value, drillClientFilter, drillScopeFilter);
                   }}
                   className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:border-purple-600 focus:outline-none"
                 />
@@ -1040,13 +1055,13 @@ export const DirectorDashboard: React.FC = () => {
                   value={drillUnitFilter}
                   onChange={(e) => {
                     setDrillUnitFilter(e.target.value);
-                    fetchDrillProjects(e.target.value, drillStatusFilter, drillSearch, drillClientFilter);
+                    fetchDrillProjects(e.target.value, drillStatusFilter, drillSearch, drillClientFilter, drillScopeFilter);
                   }}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:border-purple-600 focus:outline-none"
                 >
                   <option value="all">All Service Units</option>
                   {units.map((u) => (
-                    <option key={u.unit_id} value={u.unit_name}>{u.unit_name} Unit</option>
+                    <option key={u.unit_id} value={u.unit_name}>{formatUnitDisplayName(u.unit_name)}</option>
                   ))}
                 </select>
               </div>
@@ -1056,7 +1071,7 @@ export const DirectorDashboard: React.FC = () => {
                   value={drillStatusFilter}
                   onChange={(e) => {
                     setDrillStatusFilter(e.target.value);
-                    fetchDrillProjects(drillUnitFilter, e.target.value, drillSearch, drillClientFilter);
+                    fetchDrillProjects(drillUnitFilter, e.target.value, drillSearch, drillClientFilter, drillScopeFilter);
                   }}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:border-purple-600 focus:outline-none"
                 >
@@ -1066,6 +1081,22 @@ export const DirectorDashboard: React.FC = () => {
                   <option value="pending">Pending Approval</option>
                   <option value="on_hold">Pending / On Hold</option>
                   <option value="cancelled">Cancel / Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={drillScopeFilter}
+                  onChange={(e) => {
+                    const val = e.target.value as 'all' | 'single' | 'multi';
+                    setDrillScopeFilter(val);
+                    fetchDrillProjects(drillUnitFilter, drillStatusFilter, drillSearch, drillClientFilter, val);
+                  }}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:border-purple-600 focus:outline-none"
+                >
+                  <option value="all">All Project Types</option>
+                  <option value="single">Single-Unit Only</option>
+                  <option value="multi">Multi-Unit Collaboration</option>
                 </select>
               </div>
             </div>
@@ -1083,11 +1114,16 @@ export const DirectorDashboard: React.FC = () => {
                     className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                   >
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
                           #{p.ticket_no}
                         </span>
-                        <span className="text-xs font-bold text-slate-400">{p.unit_name} Unit</span>
+                        <span className="text-xs font-bold text-slate-400">{formatUnitDisplayName(p.unit_name)}</span>
+                        {p.is_multi_unit && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            Multi-Unit
+                          </span>
+                        )}
                         {getStatusBadge(p.status, p.ticket_no?.startsWith('IU') || p.additional_data?.is_inter_unit)}
                       </div>
                       <h4 className="text-sm font-extrabold text-slate-900">{p.title}</h4>
