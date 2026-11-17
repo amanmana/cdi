@@ -2826,9 +2826,6 @@ jobRequestsRouter.post('/:id/request-assistance', async (c) => {
 
   addData.assistance_requests.push(newAssistanceReq);
 
-  // Also flag that the job has collaboration requests
-  addData.is_inter_unit = true;
-
   await db.prepare(
     `UPDATE job_requests SET additional_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
   ).bind(JSON.stringify(addData), request.id).run();

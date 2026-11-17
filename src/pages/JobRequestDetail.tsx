@@ -1036,7 +1036,7 @@ export const JobRequestDetail: React.FC = () => {
   const isInterUnitJob = Boolean(
     request?.ticket_no?.startsWith('IU') ||
     request?.request_type === 'inter_unit' ||
-    request?.additional_data?.is_inter_unit
+    (request?.additional_data?.is_inter_unit && (Boolean(request?.additional_data?.requester_unit) || Boolean(request?.additional_data?.requester_name)))
   );
 
   const isMultiUnitJob = Boolean(
@@ -1736,7 +1736,7 @@ export const JobRequestDetail: React.FC = () => {
         {/* LEFT COLUMN (2 Columns Wide) */}
         <div className="lg:col-span-2 space-y-6">
           {/* INTER-UNIT REQUEST HIGHLIGHT BANNER */}
-          {(request.additional_data?.is_inter_unit || request.ticket_no?.startsWith('IU')) && (
+          {(request.ticket_no?.startsWith('IU') || (request.additional_data?.is_inter_unit && (Boolean(request.additional_data?.requester_unit) || Boolean(request.additional_data?.requester_name)))) && (
             <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 rounded-3xl p-5 md:p-6 text-white shadow-xl shadow-indigo-500/20 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
@@ -1767,10 +1767,10 @@ export const JobRequestDetail: React.FC = () => {
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
                   <span className="text-[10px] font-black text-blue-200 uppercase tracking-wider block">Requested By</span>
                   <div className="font-extrabold text-white mt-0.5">
-                    {request.additional_data?.requester_name || request.client_name}
+                    {request.additional_data?.requester_name || 'Unit Head'}
                   </div>
                   <div className="text-[11px] text-blue-200">
-                    Unit: <strong>{request.additional_data?.requester_unit || 'Head'}</strong>
+                    Unit: <strong>{request.additional_data?.requester_unit || 'Origin Unit'}</strong>
                   </div>
                 </div>
 
