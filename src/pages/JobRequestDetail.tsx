@@ -2200,6 +2200,8 @@ export const JobRequestDetail: React.FC = () => {
                         }
                         if (isInterUnitJob && isCollaboratingUnitHead && user?.unit) {
                           setStaffUnitFilter(user.unit);
+                        } else if (myUnitName) {
+                          setStaffUnitFilter(myUnitName);
                         } else if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'director' || user?.is_acting_manager) {
                           setStaffUnitFilter('Head');
                         } else {
@@ -2215,6 +2217,10 @@ export const JobRequestDetail: React.FC = () => {
                           {isUserUnitPending
                             ? `ASSIGN ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`
                             : `MANAGE ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`}
+                        </>
+                      ) : Boolean(user?.is_unit_head) && myUnitName ? (
+                        <>
+                          <Users className="w-3.5 h-3.5" /> MANAGE {myUnitName.toUpperCase()} STAFF
                         </>
                       ) : Boolean(user?.is_unit_head) || user?.role === 'manager' || user?.role === 'admin' ? (
                         <>
@@ -3043,9 +3049,9 @@ export const JobRequestDetail: React.FC = () => {
                   </>
                 )}
 
-                {/* Unit Head assigned team status card & manage button */}
+                {/* Unit Head assigned team status confirmation card */}
                 {isUnitHeadActor && hasMyUnitCompletedAssignment && (request.status === 'manager_approval' || request.status === 'staff_processing') && (
-                  <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 space-y-2.5 shadow-xs mb-2">
+                  <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 space-y-1.5 shadow-xs mb-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
@@ -3060,23 +3066,6 @@ export const JobRequestDetail: React.FC = () => {
                     <p className="text-[11px] text-emerald-800 font-medium leading-relaxed">
                       Staff team for {myUnitName || 'your unit'} has been assigned and is ready to work.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (request.assigned_staff_ids) {
-                          setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
-                        }
-                        if (myUnitName) {
-                          setStaffUnitFilter(myUnitName);
-                        } else if (user?.unit) {
-                          setStaffUnitFilter(user.unit);
-                        }
-                        setShowManageTeamModal(true);
-                      }}
-                      className="btn w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl h-10 uppercase tracking-wider gap-2 flex items-center justify-center transition-all shadow-xs"
-                    >
-                      <Users className="w-4 h-4 text-emerald-600" /> MANAGE {myUnitName ? myUnitName.toUpperCase() : 'UNIT'} TEAM
-                    </button>
                   </div>
                 )}
 
@@ -3117,44 +3106,27 @@ export const JobRequestDetail: React.FC = () => {
                       );
                     })()}
 
-                    {/* Inter-Unit Collaborating Unit Head Action (Assign staff if pending, or manage team) */}
-                    {isInterUnitJob && isCollaboratingUnitHead && (
+                    {/* Inter-Unit Collaborating Unit Head Action (Assign staff if pending) */}
+                    {isInterUnitJob && isCollaboratingUnitHead && isUserUnitPending && (
                       <div className="space-y-2 mb-3">
-                        {isUserUnitPending ? (
-                          <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 space-y-3 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                              <span className="text-xs font-black text-amber-900 uppercase tracking-wider">
-                                {user?.unit ? `${user.unit.toUpperCase()} UNIT ASSIGNMENT PENDING` : 'UNIT ASSIGNMENT PENDING'}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                              This inter-unit collaboration has been activated. Please assign your {user?.unit || ''} staff to participate in this project.
-                            </p>
-                            <button
-                              onClick={handleOpenApproveModal}
-                              disabled={actionLoading}
-                              className="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-600/20 uppercase tracking-wider gap-2 flex items-center justify-center transition-all"
-                            >
-                              <UserPlus className="w-4 h-4" /> ASSIGN {user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF
-                            </button>
+                        <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 space-y-3 shadow-xs">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                            <span className="text-xs font-black text-amber-900 uppercase tracking-wider">
+                              {user?.unit ? `${user.unit.toUpperCase()} UNIT ASSIGNMENT PENDING` : 'UNIT ASSIGNMENT PENDING'}
+                            </span>
                           </div>
-                        ) : (
+                          <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                            This inter-unit collaboration has been activated. Please assign your {user?.unit || ''} staff to participate in this project.
+                          </p>
                           <button
-                            onClick={() => {
-                              if (request.assigned_staff_ids) {
-                                setSelectedStaff(request.assigned_staff_ids.split(',').map((s: string) => parseInt(s)));
-                              }
-                              if (user?.unit) {
-                                setStaffUnitFilter(user.unit);
-                              }
-                              setShowManageTeamModal(true);
-                            }}
-                            className="btn w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-2xl h-11 uppercase tracking-wider gap-2 flex items-center justify-center transition-all shadow-xs"
+                            onClick={handleOpenApproveModal}
+                            disabled={actionLoading}
+                            className="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-600/20 uppercase tracking-wider gap-2 flex items-center justify-center transition-all"
                           >
-                            <Users className="w-4 h-4 text-blue-600" /> MANAGE {user?.unit ? user.unit.toUpperCase() : 'UNIT'} TEAM
+                            <UserPlus className="w-4 h-4" /> ASSIGN {user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF
                           </button>
-                        )}
+                        </div>
                       </div>
                     )}
 
