@@ -1487,6 +1487,8 @@ export const JobRequestDetail: React.FC = () => {
     if (user?.role === 'admin' || user?.role === 'director') return true;
     if (user?.role !== 'manager' && !user?.is_acting_manager) {
       if (!isInterUnitJob && isRequestUnitHead) return true;
+      const isSelfDirectTask = Boolean(request?.ticket_no?.startsWith('SELF') || request?.additional_data?.is_direct_task);
+      if (isSelfDirectTask && isAssignedStaff) return true;
       return false;
     }
 

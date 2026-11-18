@@ -62,6 +62,7 @@ export const JobRequestsList: React.FC = () => {
   const [selfProject, setSelfProject] = useState('');
   const [selfProjectId, setSelfProjectId] = useState<string>('');
   const [selfStartDate, setSelfStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selfDeadline, setSelfDeadline] = useState(new Date().toISOString().split('T')[0]);
   const [selfStatus, setSelfStatus] = useState('staff_processing');
   const [selfDescription, setSelfDescription] = useState('');
   const [selfCustomFields, setSelfCustomFields] = useState<Record<string, any>>({});
@@ -91,6 +92,8 @@ export const JobRequestsList: React.FC = () => {
     setSelfProjectId('');
     setSelfDescription('');
     setSelfStatus('staff_processing');
+    setSelfStartDate(new Date().toISOString().split('T')[0]);
+    setSelfDeadline(new Date().toISOString().split('T')[0]);
     setSelfCustomFields({});
     setSelfAssigneeIds(user?.id ? [Number(user.id)] : []);
     setShowSelfModal(true);
@@ -280,6 +283,11 @@ export const JobRequestsList: React.FC = () => {
       }
     }
 
+    if (selfDeadline && selfStartDate && selfDeadline < selfStartDate) {
+      alert('Dateline / Deadline cannot be earlier than Execution Date.');
+      return;
+    }
+
     setSubmittingSelf(true);
     try {
       const payloadCustomFields = selfWorkNature === 'operational'
@@ -297,6 +305,7 @@ export const JobRequestsList: React.FC = () => {
           project_id: selfProjectId ? Number(selfProjectId) : null,
           status: selfStatus,
           start_date: selfStartDate,
+          deadline: selfDeadline || selfStartDate || null,
           custom_fields_data: payloadCustomFields,
           assigned_staff_ids: selfAssigneeIds.length > 0 ? selfAssigneeIds : (user?.id ? [Number(user.id)] : []),
         }),
@@ -311,6 +320,8 @@ export const JobRequestsList: React.FC = () => {
         setSelfProjectId('');
         setSelfDescription('');
         setSelfStatus('staff_processing');
+        setSelfStartDate(new Date().toISOString().split('T')[0]);
+        setSelfDeadline(new Date().toISOString().split('T')[0]);
         setSelfCustomFields({});
         setSelfAssigneeIds([]);
         fetchRequests();
@@ -1606,8 +1617,8 @@ export const JobRequestsList: React.FC = () => {
                 </div>
               )}
 
-              {/* 4 & 5. EXECUTION DATE & TASK STATUS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* 4, 5 & 6. EXECUTION DATE, DATELINE / DEADLINE & TASK STATUS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
                     EXECUTION DATE
@@ -1615,7 +1626,25 @@ export const JobRequestsList: React.FC = () => {
                   <input
                     type="date"
                     value={selfStartDate}
-                    onChange={(e) => setSelfStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setSelfStartDate(e.target.value);
+                      if (!selfDeadline || selfDeadline < e.target.value) {
+                        setSelfDeadline(e.target.value);
+                      }
+                    }}
+                    className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-purple-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                    DATELINE / DEADLINE
+                  </label>
+                  <input
+                    type="date"
+                    min={selfStartDate || new Date().toISOString().split('T')[0]}
+                    value={selfDeadline}
+                    onChange={(e) => setSelfDeadline(e.target.value)}
                     className="input input-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-purple-600"
                   />
                 </div>
