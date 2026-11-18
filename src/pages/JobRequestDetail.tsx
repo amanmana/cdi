@@ -1047,6 +1047,13 @@ export const JobRequestDetail: React.FC = () => {
     (Array.isArray(request?.additional_data?.target_units) && request.additional_data.target_units.length > 1)
   );
 
+  const isSelfTask = Boolean(
+    request?.ticket_no?.startsWith('SELF') ||
+    request?.additional_data?.is_direct_task ||
+    request?.additional_data?.is_self_initiated ||
+    (typeof request?.client_name === 'string' && request.client_name.startsWith('Self-Initiated'))
+  );
+
   const managedUnits: string[] = (user as any)?.managed_units || [];
   const managedUnitIds: number[] = (user as any)?.managed_unit_ids || [];
   const userDeptId = (user as any)?.managed_department_id || (user as any)?.department_id || (user as any)?.acting_manager_department_id;
@@ -1160,7 +1167,9 @@ export const JobRequestDetail: React.FC = () => {
 
   // Check if any unit under manager's department needs manager approval
   const hasUnitNeedingManagerApproval = Boolean(
-    request?.additional_data?.unit_assignments
+    !isSelfTask &&
+    (request?.status === 'manager_approval' || (isMultiUnitJob && request?.status === 'staff_processing')) &&
+    (request?.additional_data?.unit_assignments
       ? Object.entries(request.additional_data.unit_assignments).some(([uName, uMeta]: [string, any]) => {
           const targetUnit = (uMeta?.unit_name || uName).toLowerCase().trim();
           const cleanUName = uName.toLowerCase().trim();
@@ -1171,21 +1180,23 @@ export const JobRequestDetail: React.FC = () => {
           const isManagerRoute = (uMeta?.routing_target || 'manager') === 'manager';
           return belongsToMyDept && isManagerRoute && !uMeta?.manager_approved && uMeta?.status !== 'rejected';
         })
-      : !isDirectToHeadUnit && (request?.additional_data?.routing_target || 'manager') === 'manager'
+      : (request?.status === 'manager_approval' && !isDirectToHeadUnit && (request?.additional_data?.routing_target || 'manager') === 'manager')
+    )
   );
 
   // Can Manager approve?
   const canManagerAct = Boolean(
+    !isSelfTask &&
     isManagerActor &&
     (
       user?.role === 'admin' ||
       user?.role === 'director' ||
-      (isDepartmentManagerForJob && hasUnitNeedingManagerApproval)
+      (isDepartmentManagerForJob && (request?.status === 'manager_approval' || hasUnitNeedingManagerApproval))
     )
   );
 
   const canActOnManagerApproval = Boolean(
-    isManagerActor ? canManagerAct : canUnitHeadAct
+    !isSelfTask && (isManagerActor ? canManagerAct : canUnitHeadAct)
   );
 
   // Check if current manager has already approved their department's units
@@ -3072,9 +3083,9 @@ export const JobRequestDetail: React.FC = () => {
               )}
 
             {/* Action Buttons & Oversight based on Role & Status */}
-            {(canAct || user?.role === 'director' || user?.is_unit_head || hasUnitNeedingManagerApproval || isAssignedStaffInActiveMultiUnit || hasMyUnitCompletedAssignment) && (
+            {(canAct || user?.role === 'director' || user?.is_unit_head || hasUnitNeedingManagerApproval || isAssignedStaffInActiveMultiUnit || hasMyUnitCompletedAssignment || isSelfTask) && (
               <div className="space-y-2">
-                {(request.status === 'manager_approval' || hasUnitNeedingManagerApproval) && canActOnManagerApproval && (
+                {!isSelfTask && (request.status === 'manager_approval' || hasUnitNeedingManagerApproval) && canActOnManagerApproval && (
                   <>
                     <button
                       onClick={handleOpenApproveModal}
@@ -3091,6 +3102,26 @@ export const JobRequestDetail: React.FC = () => {
                       <XCircle className="w-4.5 h-4.5" /> REJECT REQUEST
                     </button>
                   </>
+                )}
+
+                {/* Self-Initiated Direct Staff Task: Informational Oversight Card for Manager/Admin/Director/Unit Head */}
+                {isSelfTask && !isAssignedStaff && (
+                  <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200/80 space-y-2 mb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-purple-600 shrink-0" />
+                        <span className="text-xs font-black text-purple-900 uppercase tracking-wider">
+                          Direct Staff Task
+                        </span>
+                      </div>
+                      <span className="badge badge-sm bg-purple-100 text-purple-800 font-bold border-purple-200">
+                        Oversight
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-purple-900/80 font-medium leading-relaxed">
+                      Tugasan ini direkod terus oleh staf ({data?.staffDetails?.map((s: any) => s.name).join(', ') || request?.client_name}) sebagai tugasan operasi / kendiri. Tidak memerlukan kelulusan (approval) pengurus.
+                    </p>
+                  </div>
                 )}
 
                 {/* Unit Head assigned team status confirmation card */}
@@ -3684,7 +3715,7 @@ export const JobRequestDetail: React.FC = () => {
                             )}
 
                             {/* Single-Unit: Standard MARK PROJECT COMPLETED button */}
-                            {!isMultiUnitJob && (
+                            {!isMultiUnitJob && !isSelfTask && (
                               <button
                                 type="button"
                                 onClick={() => handleComplete()}
