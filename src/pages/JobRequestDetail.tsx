@@ -1495,11 +1495,16 @@ export const JobRequestDetail: React.FC = () => {
 
   // Strictly origin manager or admin can update timeline (Pilihan A)
   const canEditTimeline = (() => {
+    // For Self-Initiated tasks (Pilihan C: Strictly Admin and assigned Staff owner can edit; Director, Manager, and Unit Head are Read-Only)
+    if (isSelfTask) {
+      if (user?.role === 'admin') return true;
+      if (isAssignedStaff) return true;
+      return false;
+    }
+
     if (user?.role === 'admin' || user?.role === 'director') return true;
     if (user?.role !== 'manager' && !user?.is_acting_manager) {
       if (!isInterUnitJob && isRequestUnitHead) return true;
-      const isSelfDirectTask = Boolean(request?.ticket_no?.startsWith('SELF') || request?.additional_data?.is_direct_task);
-      if (isSelfDirectTask && isAssignedStaff) return true;
       return false;
     }
 

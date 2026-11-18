@@ -3098,8 +3098,22 @@ jobRequestsRouter.post('/:id/update-timeline', async (c) => {
   const userManagedUnits: string[] = (user as any).managed_units || [];
   const userManagedUnitIds: number[] = (user as any).managed_unit_ids || [];
 
+  const isSelfTask = Boolean(
+    request.ticket_no?.startsWith('SELF') ||
+    addData.is_direct_task ||
+    addData.is_self_initiated ||
+    (typeof request.client_name === 'string' && request.client_name.startsWith('Self-Initiated'))
+  );
+
   let canEditTimeline = false;
-  if (user.role === 'admin' || user.role === 'director') {
+  if (isSelfTask) {
+    // Pilihan C: Strictly Admin and assigned Staff owner can edit; Director, Manager, and Unit Head are Read-Only
+    const assignedIds = request.assigned_staff_ids
+      ? request.assigned_staff_ids.split(',').map((id: string) => Number(id.trim()))
+      : [];
+    const isStaffOwner = assignedIds.includes(Number(user.id)) || (request.created_by && Number(request.created_by) === Number(user.id));
+    canEditTimeline = user.role === 'admin' || isStaffOwner;
+  } else if (user.role === 'admin' || user.role === 'director') {
     canEditTimeline = true;
   } else if (request.status === 'manager_approval') {
     // During review/approval stage, whoever has authority to review/assign can set the timeline
