@@ -2699,7 +2699,7 @@ export const JobRequestDetail: React.FC = () => {
                             ) : isAccepted ? null : (
                               <div className="pt-1 flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold italic bg-slate-50 px-3 py-1.5 rounded-xl">
                                 <Clock className="w-3.5 h-3.5 text-amber-500" />
-                                <span>{isAwaitingHead ? 'Menunggu Ketua Unit melantik staf' : 'Menunggu kelulusan Pengurus'}</span>
+                                <span>{isAwaitingHead ? 'Awaiting Unit Head staff assignment' : 'Awaiting Manager approval'}</span>
                               </div>
                             )}
                           </div>
@@ -3119,7 +3119,7 @@ export const JobRequestDetail: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[11px] text-purple-900/80 font-medium leading-relaxed">
-                      Tugasan ini direkod terus oleh staf ({data?.staffDetails?.map((s: any) => s.name).join(', ') || request?.client_name}) sebagai tugasan operasi / kendiri. Tidak memerlukan kelulusan (approval) pengurus.
+                      This task was recorded directly by staff ({data?.staffDetails?.map((s: any) => s.name).join(', ') || request?.client_name}) as an operational / self-initiated duty. Manager approval is not required.
                     </p>
                   </div>
                 )}
@@ -3709,7 +3709,7 @@ export const JobRequestDetail: React.FC = () => {
                               <div className="flex items-start gap-2 p-3 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-[11px] text-indigo-900 leading-relaxed mb-1">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
                                 <span>
-                                  Projek Multi-Unit diselesaikan secara automatik setelah semua staf unit menyelesaikan tugasan masing-masing ({completedStaff}/{totalStaff} staf selesai).
+                                  Multi-Unit projects are automatically completed once all unit staff finish their assigned tasks ({completedStaff}/{totalStaff} staff completed).
                                 </span>
                               </div>
                             )}
@@ -3850,13 +3850,13 @@ export const JobRequestDetail: React.FC = () => {
                           Status: Completed
                         </h4>
                         <span className="text-[10px] font-bold text-emerald-600">
-                          Projek Selesai Sepenuhnya
+                          Fully Completed Project
                         </span>
                       </div>
                     </div>
 
                     <p className="text-xs text-slate-600 font-medium leading-relaxed bg-white/80 p-3.5 rounded-2xl border border-emerald-100">
-                      Projek ini telah ditandakan selesai. Semua tugasan dan laporan telah dimuktamadkan.
+                      This project has been marked as completed. All tasks and reports have been finalized.
                     </p>
 
                     {/* Admin / Director Reopen Option */}
@@ -5083,11 +5083,11 @@ export const JobRequestDetail: React.FC = () => {
                       : 'text-indigo-600'
                   }`} />
                   <div>
-                    <span className="font-bold">Amaran Projek Multi-Unit:</span>
+                    <span className="font-bold">Multi-Unit Project Warning:</span>
                     <p className="text-[11px] mt-0.5 leading-relaxed">
                       {showStatusModal === 'staff_processing'
-                        ? `Membuka semula projek ini akan mengembalikan status kepada Staff Processing bagi SEMUA unit (${multiTargetUnits.join(', ')}).`
-                        : `Projek ini melibatkan unit (${multiTargetUnits.join(', ')}). Tindakan ini akan menangguhkan/membatalkan kerja bagi SEMUA unit yang sedang bertugas.`}
+                        ? `Reopening this project will restore the status to Staff Processing for ALL units (${multiTargetUnits.join(', ')}).`
+                        : `This project involves multiple units (${multiTargetUnits.join(', ')}). This action will pause/cancel work for ALL units currently working.`}
                     </p>
                   </div>
                 </div>
@@ -5095,20 +5095,20 @@ export const JobRequestDetail: React.FC = () => {
 
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
                 {showStatusModal === 'on_hold'
-                  ? 'Sila nyatakan sebab meletakkan projek ini dalam status Pending / On Hold:'
+                  ? 'Please state the reason for putting this project On Hold / Pending:'
                   : showStatusModal === 'cancelled'
-                  ? 'Sila nyatakan sebab membatalkan projek ini:'
-                  : 'Sila nyatakan sebab membuka semula projek ini (cth: arahan pindaan kerja klien / tersilap klik selesai):'}
+                  ? 'Please state the reason for cancelling this project:'
+                  : 'Please state the reason for reopening this project (e.g. client requested revisions / accidental completion):'}
               </p>
 
               <textarea
                 rows={3}
                 placeholder={
                   showStatusModal === 'on_hold'
-                    ? 'Contoh: Menunggu maklum balas tambahan daripada klien...'
+                    ? 'e.g. Awaiting additional feedback from client...'
                     : showStatusModal === 'cancelled'
-                    ? 'Contoh: Dibatalkan atas permintaan pelanggan...'
-                    : 'Contoh: Pindaan tambahan diperlukan oleh pihak pengurusan...'
+                    ? 'e.g. Cancelled at client request...'
+                    : 'e.g. Additional revisions required by management...'
                 }
                 value={statusReason}
                 onChange={(e) => setStatusReason(e.target.value)}
@@ -5223,23 +5223,23 @@ export const JobRequestDetail: React.FC = () => {
                     Amaran Penutupan Paksa (Force Complete)
                   </div>
                   <p className="leading-relaxed">
-                    Tindakan ini akan memintas proses biasa dan menandakan keseluruhan projek serta SEMUA unit ({multiTargetUnits.join(', ')}) sebagai SELESAI serta-merta.
+                    This action will bypass the standard workflow and immediately mark the entire project and ALL units ({multiTargetUnits.join(', ')}) as COMPLETED.
                   </p>
                   <div className="pt-1.5 flex items-center gap-3 font-bold text-[11px] text-amber-800">
-                    <span>Staf Selesai: {completedStaff} / {totalStaff}</span>
+                    <span>Staff Completed: {completedStaff} / {totalStaff}</span>
                     <span>•</span>
-                    <span>Tugasan Selesai: {completedTasksCount} / {totalTasksCount}</span>
+                    <span>Tasks Completed: {completedTasksCount} / {totalTasksCount}</span>
                   </div>
                 </div>
               </div>
 
               <div>
                 <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Sebab / Catatan Admin Override (Wajib):
+                  Admin Override Reason / Notes (Required):
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Contoh: Arahan pihak pengurusan / telah disahkan selesai di luar sistem..."
+                  placeholder="e.g. Management directive / verified completed externally..."
                   value={forceCompleteComment}
                   onChange={(e) => setForceCompleteComment(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-medium text-slate-800 focus:bg-white focus:border-rose-600 focus:outline-none transition-all resize-none shadow-inner"
@@ -5271,7 +5271,7 @@ export const JobRequestDetail: React.FC = () => {
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      <span>Sahkan Selesai (Force Complete)</span>
+                      <span>Confirm Force Complete</span>
                     </>
                   )}
                 </button>
