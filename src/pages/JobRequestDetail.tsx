@@ -2452,6 +2452,40 @@ export const JobRequestDetail: React.FC = () => {
                 </div>
               </div>
 
+              {/* Client Organization Hierarchy Path (if available) */}
+              {Boolean(request.additional_data?.client_company || request.additional_data?.applicant_organization?.company) && (
+                <div className="bg-white/95 px-4 py-2.5 rounded-xl border border-blue-200/70 shadow-2xs flex items-center gap-2.5 text-xs">
+                  <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <Building2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className="font-extrabold text-slate-900 text-xs">
+                      {request.additional_data?.client_company || request.additional_data?.applicant_organization?.company}
+                    </span>
+                    {Boolean(request.additional_data?.client_sector && request.additional_data?.client_sector !== 'n/a') && (
+                      <>
+                        <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+                        <span className="font-bold text-indigo-700 text-xs">{request.additional_data?.client_sector}</span>
+                      </>
+                    )}
+                    {Boolean(request.additional_data?.client_division) && (
+                      <>
+                        <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+                        <span className="font-bold text-slate-600 text-xs">{request.additional_data?.client_division}</span>
+                      </>
+                    )}
+                    {Boolean(request.additional_data?.client_department) && (
+                      <>
+                        <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+                        <span className="font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60 text-xs">
+                          {request.additional_data?.client_department}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Compact Key-Value Metadata Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                 {/* Client Name */}
@@ -2498,6 +2532,10 @@ export const JobRequestDetail: React.FC = () => {
                         priority: 'PRIORITY',
                         parent_ticket_no: 'PARENT JOB TICKET',
                         work_nature: 'WORK CLASSIFICATION',
+                        client_company: 'COMPANY',
+                        client_sector: 'SECTOR',
+                        client_division: 'DIVISION',
+                        client_department: 'DEPARTMENT / UNIT',
                       };
                       const displayLabel = labelMap[k] || k.replace(/_/g, ' ').toUpperCase();
                       let valStr = k === 'priority' ? String(v).toUpperCase() : String(v);

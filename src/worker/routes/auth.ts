@@ -48,6 +48,7 @@ auth.post('/login', async (c) => {
   const user = await c.env.DB
     .prepare(`
       SELECT u.id, u.name, u.email, u.password_hash, u.role, u.unit_id, u.phone, u.avatar_url,
+             u.company, u.sector, u.division, u.department,
              COALESCE(u.department_id, un.department_id, d.id) as department_id,
              u.is_unit_head,
              COALESCE(un.name, u.unit) as unit,
@@ -136,6 +137,10 @@ auth.post('/login', async (c) => {
     email: user.email,
     role: user.role,
     unit: user.unit,
+    company: user.company || null,
+    sector: user.sector || null,
+    division: user.division || null,
+    department: user.department || null,
     unit_id: user.unit_id,
     avatar_url: user.avatar_url || null,
     phone: user.phone || null,
@@ -170,7 +175,7 @@ auth.post('/login', async (c) => {
 });
 
 auth.post('/register', async (c) => {
-  const { name, email, password, role, unit, company, phone, turnstileToken, unit_id } = await c.req.json();
+  const { name, email, password, role, unit, company, sector, division, department, organization, phone, turnstileToken, unit_id } = await c.req.json();
   if (!name || !email || !password) {
     return c.json({ error: 'Please fill in name, email, and password.' }, 400);
   }
@@ -210,20 +215,28 @@ auth.post('/register', async (c) => {
 
   const pwdHash = await hashPassword(password);
   const userRole = role || 'client';
-  const companyVal = company || unit || null;
+  const resolvedCompany = company || organization?.company || unit || null;
+  const resolvedSector = sector || organization?.sector || null;
+  const resolvedDivision = division || organization?.division || null;
+  const resolvedDept = department || organization?.department || null;
+  const companyVal = resolvedCompany || null;
 
   const res = await c.env.DB
-    .prepare('INSERT INTO users (name, email, password_hash, role, unit_id, unit, phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime("now"))')
-    .bind(name, email, pwdHash, userRole, unit_id || null, companyVal, phone || null)
+    .prepare('INSERT INTO users (name, email, password_hash, role, unit_id, unit, phone, company, sector, division, department, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"))')
+    .bind(name, email, pwdHash, userRole, unit_id || null, companyVal, phone || null, resolvedCompany, resolvedSector, resolvedDivision, resolvedDept)
     .run();
 
-  const newUser: AuthUser = {
+  const newUser: AuthUser & { company?: string | null; sector?: string | null; division?: string | null; department?: string | null } = {
     id: res.meta.last_row_id as number,
     name,
     email,
     role: userRole,
     unit: companyVal,
     phone: phone || null,
+    company: resolvedCompany,
+    sector: resolvedSector,
+    division: resolvedDivision,
+    department: resolvedDept,
   };
 
   const token = await createToken(newUser);
@@ -251,6 +264,7 @@ auth.get('/me', async (c) => {
   const user = await c.env.DB
     .prepare(`
       SELECT u.id, u.name, u.email, u.role, u.unit_id, u.avatar_url,
+             u.company, u.sector, u.division, u.department,
              COALESCE(u.department_id, un.department_id, d.id) as department_id,
              u.is_unit_head, u.phone,
              COALESCE(un.name, u.unit) as unit,

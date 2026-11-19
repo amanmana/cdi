@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { DISABLE_TURNSTILE } from '../config/features';
+import { OrgSelector, OrgSelection } from '../components/OrgSelector';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -10,7 +11,12 @@ export const RegisterPage: React.FC = () => {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [company, setCompany] = useState('');
+  const [orgSelection, setOrgSelection] = useState<OrgSelection>({
+    company: '',
+    sector: '',
+    division: '',
+    department: '',
+  });
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [turnstileToken, setTurnstileToken] = useState(DISABLE_TURNSTILE ? 'demo_turnstile_pass_token' : '');
@@ -21,6 +27,11 @@ export const RegisterPage: React.FC = () => {
     e.preventDefault();
     if (!name || !email || !password) {
       setError('Please fill in all required fields.');
+      return;
+    }
+
+    if (!orgSelection.company || !orgSelection.department) {
+      setError('Please select your Organization and Department/Unit.');
       return;
     }
 
@@ -36,7 +47,20 @@ export const RegisterPage: React.FC = () => {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, company, unit: company, phone, turnstileToken, role: 'client' }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          company: orgSelection.company,
+          sector: orgSelection.sector,
+          division: orgSelection.division,
+          department: orgSelection.department,
+          organization: orgSelection,
+          unit: orgSelection.company,
+          phone,
+          turnstileToken,
+          role: 'client',
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -103,33 +127,29 @@ export const RegisterPage: React.FC = () => {
             />
           </div>
 
-          {/* 2-Column Grid on Desktop for Company and Phone Number */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1.5">
-                COMPANY
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. MIMOS Berhad"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl p-4 text-sm font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
-              />
-            </div>
+          {/* Organization & Department Selector (Company, Sector, Division, Department) */}
+          <div className="pt-1">
+            <OrgSelector
+              value={orgSelection}
+              onChange={setOrgSelection}
+              required={true}
+              title="ORGANIZATION & DEPARTMENT"
+              helperText="Select your official company, sector, division, and department/unit"
+            />
+          </div>
 
-            <div>
-              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1.5">
-                PHONE NUMBER
-              </label>
-              <input
-                type="tel"
-                placeholder="e.g. +60123456789"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl p-4 text-sm font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
-              />
-            </div>
+          {/* Phone Number */}
+          <div>
+            <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1.5">
+              PHONE NUMBER
+            </label>
+            <input
+              type="tel"
+              placeholder="e.g. +60123456789"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl p-4 text-sm font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
+            />
           </div>
 
           {/* Password */}

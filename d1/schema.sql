@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS users (
   department_id INTEGER,               -- Foreign Key to departments(id)
   is_unit_head INTEGER DEFAULT 0,      -- 1 if Unit Head, 0 otherwise
   phone TEXT,                          -- Contact Phone number
+  company TEXT,                        -- Company name (e.g. MIMOS Berhad)
+  sector TEXT,                         -- Sector name
+  division TEXT,                       -- Division name
+  department TEXT,                     -- Department / Unit name
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (unit_id) REFERENCES units(id),
   FOREIGN KEY (department_id) REFERENCES departments(id)

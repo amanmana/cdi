@@ -5,6 +5,7 @@ import { AlertCircle, Check, CheckCircle2, Calendar, AlertTriangle, Sparkles, Us
 import { Turnstile } from '@marsidev/react-turnstile';
 import { DISABLE_TURNSTILE } from '../config/features';
 import { Footer } from '../components/Footer';
+import { OrgSelector, OrgSelection } from '../components/OrgSelector';
 
 interface Unit {
   id: number;
@@ -80,6 +81,12 @@ export const PublicHome: React.FC = () => {
   const [unitScopes, setUnitScopes] = useState<Record<string, { description: string; fields: Record<string, string> }>>({});
   const [clientName, setClientName] = useState(user?.role === 'client' ? (user?.name || '') : '');
   const [clientEmail, setClientEmail] = useState(user?.role === 'client' ? (user?.email || '') : '');
+  const [orgSelection, setOrgSelection] = useState<OrgSelection>({
+    company: user?.role === 'client' && user?.company ? user.company : '',
+    sector: user?.role === 'client' && user?.sector ? user.sector : '',
+    division: user?.role === 'client' && user?.division ? user.division : '',
+    department: user?.role === 'client' && user?.department ? user.department : '',
+  });
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -101,6 +108,14 @@ export const PublicHome: React.FC = () => {
     if (user && user.role === 'client') {
       if (user.name) setClientName(user.name);
       if (user.email) setClientEmail(user.email);
+      if (user.company || user.department) {
+        setOrgSelection({
+          company: user.company || '',
+          sector: user.sector || 'n/a',
+          division: user.division || '',
+          department: user.department || '',
+        });
+      }
     }
   }, [user]);
 
@@ -305,6 +320,11 @@ export const PublicHome: React.FC = () => {
       return;
     }
 
+    if (!orgSelection.company || !orgSelection.department) {
+      setError('Please select your Company and Department / Unit under Applicant Information.');
+      return;
+    }
+
     if (!DISABLE_TURNSTILE && !turnstileToken) {
       setError('Please complete the security verification (Turnstile) before submitting.');
       return;
@@ -340,6 +360,11 @@ export const PublicHome: React.FC = () => {
         body: JSON.stringify({
           client_name: clientName,
           client_email: clientEmail,
+          client_company: orgSelection.company,
+          client_sector: orgSelection.sector,
+          client_division: orgSelection.division,
+          client_department: orgSelection.department,
+          applicant_organization: orgSelection,
           title,
           description, // General overview
           deadline,
@@ -350,6 +375,11 @@ export const PublicHome: React.FC = () => {
           is_multi_unit: selectedItems.length > 1,
           selected_services: selectedServicesPayload,
           additional_data: {
+            client_company: orgSelection.company,
+            client_sector: orgSelection.sector,
+            client_division: orgSelection.division,
+            client_department: orgSelection.department,
+            applicant_organization: orgSelection,
             is_multi_unit: selectedItems.length > 1,
             selected_services: selectedServicesPayload,
             unit_scopes: Object.fromEntries([
@@ -587,18 +617,27 @@ export const PublicHome: React.FC = () => {
                         onClick={() => {
                           if (user.name) setClientName(user.name);
                           if (user.email) setClientEmail(user.email);
+                          if (user.company || user.department) {
+                            setOrgSelection({
+                              company: user.company || '',
+                              sector: user.sector || 'n/a',
+                              division: user.division || '',
+                              department: user.department || '',
+                            });
+                          }
                         }}
                         className="btn btn-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-bold text-[11px] normal-case"
                         title="Auto-fill with my logged in CDI account details"
                       >
                         Fill My Details
                       </button>
-                      {(clientName || clientEmail) && (
+                      {(clientName || clientEmail || orgSelection.department) && (
                         <button
                           type="button"
                           onClick={() => {
                             setClientName('');
                             setClientEmail('');
+                            setOrgSelection({ company: '', sector: '', division: '', department: '' });
                           }}
                           className="btn btn-xs btn-ghost text-slate-400 hover:text-slate-600 text-[11px] font-bold"
                         >
@@ -641,6 +680,17 @@ export const PublicHome: React.FC = () => {
                       className="input input-bordered w-full h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600 transition-all rounded-xl text-sm font-medium text-slate-800"
                     />
                   </div>
+                </div>
+
+                {/* Organization Hierarchy Selector (Company, Sector, Division, Department) */}
+                <div className="pt-2">
+                  <OrgSelector
+                    value={orgSelection}
+                    onChange={setOrgSelection}
+                    required={true}
+                    title="Applicant Organization & Department"
+                    helperText="Specify your official company, sector, division, and department for administrative routing"
+                  />
                 </div>
               </div>
 

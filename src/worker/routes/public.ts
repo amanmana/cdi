@@ -135,6 +135,11 @@ publicApi.post('/job-requests', async (c) => {
     const {
       client_name,
       client_email,
+      client_company,
+      client_sector,
+      client_division,
+      client_department,
+      applicant_organization,
       title,
       description,
       deadline,
@@ -397,8 +402,23 @@ publicApi.post('/job-requests', async (c) => {
       };
     }
 
+    const resolvedCompany = client_company || applicant_organization?.company || additional_data?.client_company || null;
+    const resolvedSector = client_sector || applicant_organization?.sector || additional_data?.client_sector || null;
+    const resolvedDivision = client_division || applicant_organization?.division || additional_data?.client_division || null;
+    const resolvedDept = client_department || applicant_organization?.department || additional_data?.client_department || null;
+
     const combinedAdditionalData = {
       ...(additional_data || {}),
+      client_company: resolvedCompany,
+      client_sector: resolvedSector,
+      client_division: resolvedDivision,
+      client_department: resolvedDept,
+      applicant_organization: applicant_organization || (resolvedCompany ? {
+        company: resolvedCompany,
+        sector: resolvedSector,
+        division: resolvedDivision,
+        department: resolvedDept,
+      } : null),
       ...(isMultiUnit || targetUnitsList.length > 1
         ? {
             is_multi_unit: true,
