@@ -33,6 +33,7 @@ import {
   RotateCcw,
   Eye,
   ArrowRight,
+  ChevronRight,
   Crown,
 } from 'lucide-react';
 
