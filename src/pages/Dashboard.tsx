@@ -347,25 +347,6 @@ export const Dashboard: React.FC = () => {
                 <div className="text-[10px] font-bold text-purple-500/80">In production</div>
               </div>
             </Link>
-            <Link
-              to="/portal/job-requests?status=staff_processing"
-              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-purple-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
-            >
-              <div className="flex items-center justify-between gap-1 mb-3">
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 group-hover:text-purple-800 transition-colors">
-                  Staff Processing
-                </span>
-                <div className="w-7 h-7 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Wrench className="w-3.5 h-3.5" />
-                </div>
-              </div>
-              <div className="space-y-0.5">
-                <div className="text-2xl sm:text-3xl font-black text-purple-600 tracking-tight">
-                  {stats.processing}
-                </div>
-                <div className="text-[10px] font-bold text-purple-500/80">In production</div>
-              </div>
-            </Link>
 
             {/* 4. On Hold */}
             <Link
