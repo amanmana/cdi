@@ -133,6 +133,60 @@ export const DirectorDashboard: React.FC = () => {
   const [clientDemand, setClientDemand] = useState<ClientDemandItem[]>([]);
   const [megaProjects, setMegaProjects] = useState<any[]>([]);
 
+  // Synchronous read from localStorage to eliminate image loading flicker
+  const [bannerSettings, setBannerSettings] = useState<{
+    type: string;
+    imageUrl: string;
+    isLoaded: boolean;
+  }>(() => {
+    try {
+      const cached = localStorage.getItem('cdi_banner_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return {
+          type: parsed.type || '3d_mesh',
+          imageUrl: parsed.imageUrl || '',
+          isLoaded: true,
+        };
+      }
+    } catch {}
+    return {
+      type: 'loading',
+      imageUrl: '',
+      isLoaded: false,
+    };
+  });
+
+  // Fetch Public Banner & Theme Settings
+  useEffect(() => {
+    fetch('/api/public/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        const resolvedType = data.dashboard_banner_type || '3d_mesh';
+        const resolvedUrl = data.dashboard_banner_image_url || '';
+        const newSettings = {
+          type: resolvedType,
+          imageUrl: resolvedUrl,
+          isLoaded: true,
+        };
+        setBannerSettings(newSettings);
+        try {
+          localStorage.setItem('cdi_banner_settings', JSON.stringify(newSettings));
+        } catch {}
+      })
+      .catch(() => {
+        setBannerSettings((prev) => ({ ...prev, isLoaded: true }));
+      });
+  }, []);
+
+  // Preload custom image into browser cache
+  useEffect(() => {
+    if (bannerSettings.type === 'custom_image' && bannerSettings.imageUrl) {
+      const img = new Image();
+      img.src = bannerSettings.imageUrl;
+    }
+  }, [bannerSettings.imageUrl, bannerSettings.type]);
+
   // Timeframe Filter State (Default: Current Year / All Months)
   const currentYear = new Date().getFullYear().toString();
   const currentMonthNum = String(new Date().getMonth() + 1).padStart(2, '0');
@@ -317,271 +371,374 @@ export const DirectorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* EXECUTIVE TIMEFRAME FILTER BAR */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-md shadow-slate-200/40 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-            <Calendar className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-              Executive Timeframe Filter
-            </h3>
-            <span className="text-[10px] text-slate-400 font-medium">
-              Showing data for {selectedYear === 'all' ? 'All Years' : `Year ${selectedYear}`} {selectedMonth !== 'all' ? `(${getMonthDisplayName(selectedMonth)})` : ''}
-            </span>
-          </div>
-        </div>
+      {/* EXECUTIVE TIMEFRAME & TOP KPI CARDS WITH DYNAMIC BACKGROUND */}
+      <div
+        className={`relative overflow-hidden rounded-[2.5rem] border border-white/80 shadow-2xl shadow-indigo-900/5 p-6 sm:p-8 transition-all space-y-6 ${
+          bannerSettings.type === 'custom_image' && bannerSettings.imageUrl
+            ? 'bg-slate-900'
+            : 'bg-gradient-to-br from-[#EEF4FF] via-[#E9EFFF] to-[#F3EEFF]'
+        }`}
+        style={
+          bannerSettings.type === 'custom_image' && bannerSettings.imageUrl
+            ? {
+                backgroundImage: `url(${bannerSettings.imageUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : undefined
+        }
+      >
+        {/* Soft Frosted Tint Overlay if Custom Image is active */}
+        {bannerSettings.type === 'custom_image' && bannerSettings.imageUrl && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] pointer-events-none" />
+        )}
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Quick Presets */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => { setSelectedYear(currentYear); setSelectedMonth('all'); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                selectedYear === currentYear && selectedMonth === 'all'
-                  ? 'bg-purple-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+        {/* Layer 1: 3D Organic Wave & Mesh Glow Art (When Default 3D Mesh is active) */}
+        {bannerSettings.isLoaded && bannerSettings.type !== 'custom_image' && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
+            <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-gradient-to-br from-cyan-400/40 via-sky-400/30 to-indigo-500/25 blur-3xl animate-pulse duration-1000"></div>
+            <div className="absolute top-1/3 -right-10 w-96 h-96 rounded-full bg-gradient-to-tr from-purple-400/30 via-indigo-400/25 to-pink-300/20 blur-3xl"></div>
+            <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full bg-gradient-to-r from-blue-300/30 to-cyan-400/20 blur-2xl"></div>
+
+            <svg
+              className="absolute right-0 top-0 h-full w-full max-w-[700px] object-cover opacity-65 mix-blend-multiply pointer-events-none"
+              viewBox="0 0 700 450"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              This Year ({currentYear})
-            </button>
-            <button
-              type="button"
-              onClick={() => { setSelectedYear(currentYear); setSelectedMonth(currentMonthNum); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                selectedYear === currentYear && selectedMonth === currentMonthNum
-                  ? 'bg-purple-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              This Month ({currentMonthName})
-            </button>
-            <button
-              type="button"
-              onClick={() => { setSelectedYear('all'); setSelectedMonth('all'); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                selectedYear === 'all' && selectedMonth === 'all'
-                  ? 'bg-purple-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              All Time
-            </button>
-          </div>
+              <defs>
+                <linearGradient id="dirWaveGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.85" />
+                  <stop offset="45%" stopColor="#818CF8" stopOpacity="0.75" />
+                  <stop offset="100%" stopColor="#C084FC" stopOpacity="0.5" />
+                </linearGradient>
+                <linearGradient id="dirWaveGradB" x1="100%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.8" />
+                  <stop offset="50%" stopColor="#A855F7" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.4" />
+                </linearGradient>
+                <radialGradient id="dirSphere3D_1" cx="30%" cy="30%" r="70%">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+                  <stop offset="25%" stopColor="#7DD3FC" stopOpacity="0.8" />
+                  <stop offset="60%" stopColor="#38BDF8" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#1E40AF" stopOpacity="0.4" />
+                </radialGradient>
+                <radialGradient id="dirSphere3D_2" cx="35%" cy="35%" r="65%">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+                  <stop offset="30%" stopColor="#C4B5FD" stopOpacity="0.75" />
+                  <stop offset="70%" stopColor="#818CF8" stopOpacity="0.5" />
+                  <stop offset="100%" stopColor="#4338CA" stopOpacity="0.3" />
+                </radialGradient>
+              </defs>
 
-          {/* Year Dropdown */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-extrabold text-slate-500 hidden sm:inline">Year:</span>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-extrabold text-slate-800 focus:border-purple-600 focus:outline-none"
-            >
-              <option value="2026">2026</option>
-              <option value="2025">2025</option>
-              <option value="2024">2024</option>
-              <option value="all">All Years</option>
-            </select>
-          </div>
+              <circle cx="580" cy="110" r="120" fill="url(#dirSphere3D_1)" opacity="0.9" />
+              <circle cx="340" cy="270" r="85" fill="url(#dirSphere3D_2)" opacity="0.85" />
+              <circle cx="220" cy="140" r="45" fill="url(#dirSphere3D_1)" opacity="0.45" />
 
-          {/* Month Dropdown */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-extrabold text-slate-500 hidden sm:inline">Month:</span>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-extrabold text-slate-800 focus:border-purple-600 focus:outline-none"
-            >
-              <option value="all">All Months (Jan-Dec)</option>
-              <option value="01">January (01)</option>
-              <option value="02">February (02)</option>
-              <option value="03">March (03)</option>
-              <option value="04">April (04)</option>
-              <option value="05">May (05)</option>
-              <option value="06">June (06)</option>
-              <option value="07">July (07)</option>
-              <option value="08">August (08)</option>
-              <option value="09">September (09)</option>
-              <option value="10">October (10)</option>
-              <option value="11">November (11)</option>
-              <option value="12">December (12)</option>
-            </select>
+              <path
+                d="M80,450 C220,240 320,320 460,160 C550,70 630,90 700,40"
+                stroke="url(#dirWaveGradA)"
+                strokeWidth="32"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.45"
+              />
+              <path
+                d="M110,450 C240,260 340,335 480,180 C565,90 640,105 710,55"
+                stroke="url(#dirWaveGradB)"
+                strokeWidth="28"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.5"
+              />
+              <path
+                d="M140,450 C265,280 360,350 500,200 C580,110 655,120 720,70"
+                stroke="url(#dirWaveGradA)"
+                strokeWidth="24"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.55"
+              />
+              <path
+                d="M170,450 C290,300 380,365 520,220 C600,130 670,135 730,85"
+                stroke="#818CF8"
+                strokeWidth="20"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.45"
+              />
+            </svg>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* TOP KPI CARDS - 2 ROWS, 3 COLUMNS PER ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* ROW 1 — CARD 1: Total Projects */}
-        <div
-          onClick={() => openDrillModal('All System Projects', 'all', 'all')}
-          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                TOTAL PROJECTS
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Layers className="w-5 h-5" />
+        <div className="relative z-10 space-y-6">
+          {/* EXECUTIVE TIMEFRAME FILTER BAR */}
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-white/90 shadow-md shadow-slate-200/40 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                <Calendar className="w-4.5 h-4.5" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                  Executive Timeframe Filter
+                </h3>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  Showing data for {selectedYear === 'all' ? 'All Years' : `Year ${selectedYear}`} {selectedMonth !== 'all' ? `(${getMonthDisplayName(selectedMonth)})` : ''}
+                </span>
               </div>
             </div>
-            <div className="mt-4 flex items-baseline justify-between">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">
-                {kpis.total_projects}
-              </span>
-              <span className="text-xs font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
-                100% Total
-              </span>
-            </div>
-          </div>
-          <p className="mt-2 text-[11px] font-semibold text-slate-400">
-            Across all service departments
-          </p>
-        </div>
 
-        {/* ROW 1 — CARD 2: Staff In-Processing */}
-        <div
-          onClick={() => openDrillModal('Active In-Processing Projects', 'all', 'active')}
-          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                STAFF IN-PROCESSING
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Clock className="w-5 h-5" />
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Quick Presets */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => { setSelectedYear(currentYear); setSelectedMonth('all'); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                    selectedYear === currentYear && selectedMonth === 'all'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  This Year ({currentYear})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedYear(currentYear); setSelectedMonth(currentMonthNum); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                    selectedYear === currentYear && selectedMonth === currentMonthNum
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  This Month ({currentMonthName})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedYear('all'); setSelectedMonth('all'); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                    selectedYear === 'all' && selectedMonth === 'all'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All Time
+                </button>
+              </div>
+
+              {/* Year Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-extrabold text-slate-500 hidden sm:inline">Year:</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-extrabold text-slate-800 focus:border-purple-600 focus:outline-none"
+                >
+                  <option value="2026">2026</option>
+                  <option value="2025">2025</option>
+                  <option value="2024">2024</option>
+                  <option value="all">All Years</option>
+                </select>
+              </div>
+
+              {/* Month Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-extrabold text-slate-500 hidden sm:inline">Month:</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-extrabold text-slate-800 focus:border-purple-600 focus:outline-none"
+                >
+                  <option value="all">All Months (Jan-Dec)</option>
+                  <option value="01">January (01)</option>
+                  <option value="02">February (02)</option>
+                  <option value="03">March (03)</option>
+                  <option value="04">April (04)</option>
+                  <option value="05">May (05)</option>
+                  <option value="06">June (06)</option>
+                  <option value="07">July (07)</option>
+                  <option value="08">August (08)</option>
+                  <option value="09">September (09)</option>
+                  <option value="10">October (10)</option>
+                  <option value="11">November (11)</option>
+                  <option value="12">December (12)</option>
+                </select>
               </div>
             </div>
-            <div className="mt-4 flex items-baseline justify-between">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">
-                {kpis.active_projects}
-              </span>
-              <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
-                Active Load
-              </span>
-            </div>
           </div>
-          <p className="mt-2 text-[11px] font-semibold text-slate-400">
-            Currently worked on by staff
-          </p>
-        </div>
 
-        {/* ROW 1 — CARD 3: Pending Approval */}
-        <div
-          onClick={() => openDrillModal('Pending Approval Projects', 'all', 'pending')}
-          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                PENDING APPROVAL
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-baseline justify-between">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">
-                {kpis.pending_approval}
-              </span>
-              <span className="text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
-                Awaiting Action
-              </span>
-            </div>
-          </div>
-          <p className="mt-2 text-[11px] font-semibold text-slate-400">
-            Requests awaiting manager review
-          </p>
-        </div>
-
-        {/* ROW 2 — CARD 4: On Hold Projects */}
-        <div
-          onClick={() => openDrillModal('On Hold Projects', 'all', 'on_hold')}
-          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                ON HOLD PROJECTS
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <PauseCircle className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-baseline justify-between">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">
-                {kpis.on_hold_projects ?? 0}
-              </span>
-              <span className="text-xs font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100">
-                On Hold
-              </span>
-            </div>
-          </div>
-          <p className="mt-2 text-[11px] font-semibold text-slate-400">
-            Projects on temporary hold
-          </p>
-        </div>
-
-        {/* ROW 2 — CARD 5: Cancel Projects */}
-        <div
-          onClick={() => openDrillModal('Cancelled / Rejected Projects', 'all', 'cancelled')}
-          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                CANCEL PROJECTS
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <XCircle className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-baseline justify-between">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">
-                {kpis.cancelled_projects ?? 0}
-              </span>
-              <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">
-                Cancelled
-              </span>
-            </div>
-          </div>
-          <p className="mt-2 text-[11px] font-semibold text-slate-400">
-            Requests cancelled or rejected
-          </p>
-        </div>
-
-        {/* ROW 2 — CARD 6: Completed Projects */}
-        <div
-          onClick={() => openDrillModal('Completed Projects', 'all', 'completed')}
-          className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                COMPLETED PROJECTS
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <FolderCheck className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-baseline justify-between">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">
-                {kpis.completed_projects}
-              </span>
-              <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" /> {kpis.completion_rate}%
-              </span>
-            </div>
-          </div>
-          <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+          {/* TOP KPI CARDS - 2 ROWS, 3 COLUMNS PER ROW */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {/* ROW 1 — CARD 1: Total Projects */}
             <div
-              className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${kpis.completion_rate}%` }}
-            ></div>
+              onClick={() => openDrillModal('All System Projects', 'all', 'all')}
+              className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-white/90 shadow-md shadow-slate-200/40 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    TOTAL PROJECTS
+                  </span>
+                  <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-black text-slate-900 tracking-tight">
+                    {kpis.total_projects}
+                  </span>
+                  <span className="text-xs font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
+                    100% Total
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-slate-400">
+                Across all service departments
+              </p>
+            </div>
+
+            {/* ROW 1 — CARD 2: Staff In-Processing */}
+            <div
+              onClick={() => openDrillModal('Active In-Processing Projects', 'all', 'active')}
+              className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-white/90 shadow-md shadow-slate-200/40 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    STAFF IN-PROCESSING
+                  </span>
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-black text-slate-900 tracking-tight">
+                    {kpis.active_projects}
+                  </span>
+                  <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
+                    Active Load
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-slate-400">
+                Currently worked on by staff
+              </p>
+            </div>
+
+            {/* ROW 1 — CARD 3: Pending Approval */}
+            <div
+              onClick={() => openDrillModal('Pending Approval Projects', 'all', 'pending')}
+              className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-white/90 shadow-md shadow-slate-200/40 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    PENDING APPROVAL
+                  </span>
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-black text-slate-900 tracking-tight">
+                    {kpis.pending_approval}
+                  </span>
+                  <span className="text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
+                    Awaiting Action
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-slate-400">
+                Requests awaiting manager review
+              </p>
+            </div>
+
+            {/* ROW 2 — CARD 4: On Hold Projects */}
+            <div
+              onClick={() => openDrillModal('On Hold Projects', 'all', 'on_hold')}
+              className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-white/90 shadow-md shadow-slate-200/40 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    ON HOLD PROJECTS
+                  </span>
+                  <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <PauseCircle className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-black text-slate-900 tracking-tight">
+                    {kpis.on_hold_projects ?? 0}
+                  </span>
+                  <span className="text-xs font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100">
+                    On Hold
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-slate-400">
+                Projects on temporary hold
+              </p>
+            </div>
+
+            {/* ROW 2 — CARD 5: Cancel Projects */}
+            <div
+              onClick={() => openDrillModal('Cancelled / Rejected Projects', 'all', 'cancelled')}
+              className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-white/90 shadow-md shadow-slate-200/40 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    CANCEL PROJECTS
+                  </span>
+                  <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <XCircle className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-black text-slate-900 tracking-tight">
+                    {kpis.cancelled_projects ?? 0}
+                  </span>
+                  <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">
+                    Cancelled
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-slate-400">
+                Requests cancelled or rejected
+              </p>
+            </div>
+
+            {/* ROW 2 — CARD 6: Completed Projects */}
+            <div
+              onClick={() => openDrillModal('Completed Projects', 'all', 'completed')}
+              className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-white/90 shadow-md shadow-slate-200/40 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    COMPLETED PROJECTS
+                  </span>
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <FolderCheck className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-black text-slate-900 tracking-tight">
+                    {kpis.completed_projects}
+                  </span>
+                  <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" /> {kpis.completion_rate}%
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${kpis.completion_rate}%` }}
+                ></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
