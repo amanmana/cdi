@@ -106,8 +106,6 @@ export const Login: React.FC = () => {
         login(data.token, data.user);
         const dest = data.user.role === 'director'
           ? '/portal/director-dashboard'
-          : data.user.role === 'staff' && !data.user.is_acting_manager
-          ? '/portal/job-requests'
           : '/portal/dashboard';
         navigate(dest);
         return;
@@ -149,7 +147,7 @@ export const Login: React.FC = () => {
 
     const fallbackToken = 'demo_jwt_token_' + Date.now();
     login(fallbackToken, fallbackUser);
-    const dest = fallbackUser.role === 'staff' ? '/portal/job-requests' : '/portal/dashboard';
+    const dest = fallbackUser.role === 'director' ? '/portal/director-dashboard' : '/portal/dashboard';
     navigate(dest);
     setLoading(false);
   };
