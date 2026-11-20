@@ -111,10 +111,10 @@ publicApi.get('/custom-services', async (c) => {
   }
 });
 
-// Get public settings (Deadline Alert configuration)
+// Get public settings (Deadline Alert & Branding configuration)
 publicApi.get('/settings', async (c) => {
   const { results } = await c.env.DB
-    .prepare("SELECT key, value FROM system_settings WHERE key IN ('deadline_min_days', 'deadline_alert_message', 'deadline_alert_enabled')")
+    .prepare("SELECT key, value FROM system_settings WHERE key IN ('deadline_min_days', 'deadline_alert_message', 'deadline_alert_enabled', 'dashboard_banner_type', 'dashboard_banner_image_url')")
     .all<any>();
 
   const settings: Record<string, string> = {};
@@ -126,6 +126,8 @@ publicApi.get('/settings', async (c) => {
     deadline_min_days: parseInt(settings.deadline_min_days || '2', 10),
     deadline_alert_message: settings.deadline_alert_message || 'Notice: The selected target completion deadline is on short notice (within {days} days). Urgent requests are subject to approval and team schedule availability.',
     deadline_alert_enabled: settings.deadline_alert_enabled !== 'false',
+    dashboard_banner_type: settings.dashboard_banner_type || '3d_mesh',
+    dashboard_banner_image_url: settings.dashboard_banner_image_url || '',
   });
 });
 

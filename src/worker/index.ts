@@ -52,6 +52,23 @@ app.get('/api/media/avatar/:filename', async (c) => {
   return new Response(object.body, { headers });
 });
 
+// Serve Dashboard & System Banners from Cloudflare R2
+app.get('/api/media/banner/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  if (!filename) return c.text('Not found', 404);
+  const cleanName = filename.replace(/[^a-zA-Z0-9_.-]/g, '');
+  const object = await c.env.R2.get(`banners/${cleanName}`);
+  if (!object) {
+    return c.text('Banner not found', 404);
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('etag', object.httpEtag);
+  headers.set('cache-control', 'public, max-age=604800');
+  return new Response(object.body, { headers });
+});
+
 // Register API Endpoints
 app.route('/api/auth', authRoutes);
 app.route('/api/public', publicRoutes);

@@ -22,6 +22,11 @@ import {
   Building2,
   FolderKanban,
   Check,
+  Image as ImageIcon,
+  Upload,
+  RefreshCw,
+  Palette,
+  Eye,
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
@@ -56,6 +61,12 @@ export const SettingsPage: React.FC = () => {
     { id: 15, name: 'Events Mangements' },
   ]);
   const [enabledKanbanUnits, setEnabledKanbanUnits] = useState<string[]>(['Social Media']);
+
+  // Dashboard Banner & Theme Settings
+  const [bannerType, setBannerType] = useState<'3d_mesh' | 'custom_image'>('3d_mesh');
+  const [bannerImageUrl, setBannerImageUrl] = useState('');
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [bannerSuccess, setBannerSuccess] = useState<string | null>(null);
   
   // Database maintenance state
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -81,6 +92,12 @@ export const SettingsPage: React.FC = () => {
         }
         if (data.deadline_alert_message) {
           setDeadlineAlertMessage(data.deadline_alert_message);
+        }
+        if (data.dashboard_banner_type) {
+          setBannerType(data.dashboard_banner_type === 'custom_image' ? 'custom_image' : '3d_mesh');
+        }
+        if (data.dashboard_banner_image_url) {
+          setBannerImageUrl(data.dashboard_banner_image_url);
         }
         if (data.kanban_enabled_units) {
           try {
@@ -123,10 +140,62 @@ export const SettingsPage: React.FC = () => {
         deadline_min_days: String(deadlineMinDays),
         deadline_alert_message: deadlineAlertMessage,
         kanban_enabled_units: JSON.stringify(enabledKanbanUnits),
+        dashboard_banner_type: bannerType,
+        dashboard_banner_image_url: bannerImageUrl,
       }),
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 6 * 1024 * 1024) {
+      alert('Fail imej melebihi saiz maksimum 6MB. Sila pilih gambar yang lebih kecil.');
+      return;
+    }
+
+    setUploadingBanner(true);
+    try {
+      const formData = new FormData();
+      formData.append('banner', file);
+
+      const res = await fetch('/api/admin/dashboard-banner-upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setBannerImageUrl(data.banner_url);
+        setBannerType('custom_image');
+        setBannerSuccess('Gambar latar belakang Dashboard berjaya dimuat naik dan diaktifkan!');
+        setTimeout(() => setBannerSuccess(null), 4000);
+      } else {
+        alert(data.error || 'Gagal memuat naik gambar latar belakang.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Ralat berlaku semasa memuat naik gambar.');
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const handleResetBanner = async () => {
+    setBannerType('3d_mesh');
+    await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        dashboard_banner_type: '3d_mesh',
+      }),
+    });
+    setBannerSuccess('Latar belakang Dashboard telah diset semula kepada 3D Abstract Mesh asal!');
+    setTimeout(() => setBannerSuccess(null), 4000);
   };
 
   const handleOpenConfirmModal = () => {
@@ -176,6 +245,13 @@ export const SettingsPage: React.FC = () => {
       id: 'general',
       label: 'General Settings',
       icon: Settings,
+    },
+    {
+      id: 'banner',
+      label: 'Dashboard Banner',
+      icon: ImageIcon,
+      badge: bannerType === 'custom_image' ? 'Custom Image' : '3D Mesh',
+      badgeColor: bannerType === 'custom_image' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'bg-blue-100 text-blue-700',
     },
     {
       id: 'email',
@@ -228,6 +304,13 @@ export const SettingsPage: React.FC = () => {
         <div className="alert bg-emerald-500 text-white shadow-lg border-none rounded-2xl font-medium text-sm flex items-center gap-2">
           <CheckCircle2 className="w-5 h-5 shrink-0" />
           <span>System settings saved successfully.</span>
+        </div>
+      )}
+
+      {bannerSuccess && (
+        <div className="alert bg-blue-600 text-white shadow-lg border-none rounded-2xl font-medium text-sm flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <span>{bannerSuccess}</span>
         </div>
       )}
 
@@ -338,6 +421,238 @@ export const SettingsPage: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Tab #1.5: Dashboard Banner & Visual Style */}
+      {activeTab === 'banner' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 space-y-6">
+            <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-indigo-600" />
+                  <span>Dashboard Welcome Banner & Background Image</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Pilih gaya visual atau muat naik gambar sendiri untuk latar belakang Hero Banner di Dashboard tanpa perlu ubah kod.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleResetBanner}
+                  className="btn btn-ghost btn-xs text-slate-600 hover:bg-slate-100 gap-1.5 font-bold"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Reset to 3D Mesh</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Mode Selection Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Option A: 3D Abstract Mesh */}
+              <div
+                onClick={() => setBannerType('3d_mesh')}
+                className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-4 ${
+                  bannerType === '3d_mesh'
+                    ? 'border-blue-600 bg-blue-50/40 shadow-md ring-2 ring-blue-500/10'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 flex items-center justify-center text-white shadow-sm">
+                      <Palette className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-900">3D Fluid Mesh (Default)</h4>
+                      <p className="text-[11px] text-slate-500 font-medium">Bertenaga, vektor 3D bebola & tiub berombak</p>
+                    </div>
+                  </div>
+                  <input
+                    type="radio"
+                    name="banner_choice"
+                    checked={bannerType === '3d_mesh'}
+                    onChange={() => setBannerType('3d_mesh')}
+                    className="radio radio-primary radio-sm mt-1"
+                  />
+                </div>
+                <div className="h-16 rounded-xl bg-gradient-to-br from-[#EEF4FF] via-[#E9EFFF] to-[#F3EEFF] border border-slate-200/80 p-2 relative overflow-hidden flex items-center justify-center">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Vibrant 3D Vector Background
+                  </span>
+                </div>
+              </div>
+
+              {/* Option B: Custom Image */}
+              <div
+                onClick={() => setBannerType('custom_image')}
+                className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-4 ${
+                  bannerType === 'custom_image'
+                    ? 'border-indigo-600 bg-indigo-50/40 shadow-md ring-2 ring-indigo-500/10'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm">
+                      <ImageIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-900">Custom Uploaded Image</h4>
+                      <p className="text-[11px] text-slate-500 font-medium">Muat naik gambar sendiri atau pautan imej</p>
+                    </div>
+                  </div>
+                  <input
+                    type="radio"
+                    name="banner_choice"
+                    checked={bannerType === 'custom_image'}
+                    onChange={() => setBannerType('custom_image')}
+                    className="radio radio-secondary radio-sm mt-1"
+                  />
+                </div>
+                <div
+                  className="h-16 rounded-xl border border-slate-200/80 p-2 relative overflow-hidden flex items-center justify-center bg-slate-100 bg-cover bg-center"
+                  style={bannerImageUrl ? { backgroundImage: `url(${bannerImageUrl})` } : undefined}
+                >
+                  {!bannerImageUrl && (
+                    <span className="text-[10px] font-bold text-slate-400">Tiada gambar dimuat naik lagi</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Upload & Image URL Controls (Active when Custom Image selected) */}
+            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Upload className="w-4 h-4 text-indigo-600" />
+                <span>Muat Naik Gambar Baharu (Upload Image to Cloudflare R2)</span>
+              </h4>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <label className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-500/20 gap-2 cursor-pointer normal-case h-11 px-5 shrink-0">
+                  {uploadingBanner ? (
+                    <>
+                      <span className="loading loading-spinner loading-xs"></span>
+                      <span>Sedang Muat Naik...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Pilih Gambar dari Komputer</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={uploadingBanner}
+                    onChange={handleBannerUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex-1 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={bannerImageUrl}
+                    onChange={(e) => {
+                      setBannerImageUrl(e.target.value);
+                      setBannerType('custom_image');
+                    }}
+                    placeholder="Atau masukkan pautan URL gambar (contoh: https://... atau /api/media/...)"
+                    className="input input-bordered input-sm bg-white border-slate-200 rounded-xl w-full h-11 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                <span>Format disokong: PNG, JPG, WebP. Had saiz fail: 6MB.</span>
+                {bannerImageUrl && (
+                  <span className="text-indigo-600 font-bold truncate max-w-xs">
+                    Aktif: {bannerImageUrl}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Live Miniature Preview */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Pratonton Langsung Dashboard Hero Banner (Live Preview)</span>
+                </span>
+                <span className="text-[11px] font-bold text-slate-400">
+                  {bannerType === 'custom_image' ? 'Mod Gambar Tersuai' : 'Mod 3D Mesh Vector'}
+                </span>
+              </div>
+
+              <div
+                className={`relative overflow-hidden rounded-3xl border border-white/80 p-6 transition-all shadow-md ${
+                  bannerType === 'custom_image' && bannerImageUrl
+                    ? 'bg-slate-900 bg-cover bg-center'
+                    : 'bg-gradient-to-br from-[#EEF4FF] via-[#E9EFFF] to-[#F3EEFF]'
+                }`}
+                style={
+                  bannerType === 'custom_image' && bannerImageUrl
+                    ? { backgroundImage: `url(${bannerImageUrl})` }
+                    : undefined
+                }
+              >
+                {bannerType === 'custom_image' && bannerImageUrl && (
+                  <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] pointer-events-none" />
+                )}
+
+                <div className="relative z-10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="badge bg-blue-600 text-white font-black text-[9px] uppercase tracking-wider px-2 py-0.5 border-none mb-1">
+                        ROLE: ADMIN
+                      </span>
+                      <h4 className="text-lg font-black text-slate-900 tracking-tight">
+                        Welcome back, Admin!
+                      </h4>
+                      <p className="text-[11px] text-slate-600 font-medium">
+                        Overview of department job request status and approval workflow.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {['Total', 'Review', 'Processing', 'On Hold', 'Cancelled', 'Completed'].map((label, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white/95 backdrop-blur-md rounded-xl p-2.5 border border-white/90 shadow-sm text-center"
+                      >
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate">
+                          {label}
+                        </div>
+                        <div className="text-sm font-black text-slate-900 mt-0.5">
+                          {[26, 0, 20, 0, 0, 13][idx]}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                Pilihan banner akan terus terpapar kepada semua pengguna di Dashboard sebaik sahaja disimpan.
+              </span>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="btn btn-primary bg-blue-600 hover:bg-blue-700 border-blue-600 text-white font-bold rounded-xl h-11 px-6 shadow-md shadow-blue-500/20 gap-2 normal-case text-xs"
+              >
+                <Save className="w-4 h-4" /> Save Banner Settings
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

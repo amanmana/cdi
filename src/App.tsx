@@ -32,9 +32,6 @@ const AdminIndexRedirect: React.FC = () => {
   if (user?.role === 'director') {
     return <Navigate to="/portal/director-dashboard" replace />;
   }
-  if (user?.role === 'staff' && !user?.is_acting_manager) {
-    return <Navigate to="/portal/job-requests" replace />;
-  }
   return <Navigate to="/portal/dashboard" replace />;
 };
 

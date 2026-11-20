@@ -16,7 +16,7 @@ export const Sidebar: React.FC = () => {
 
   const links = [
     { to: '/portal/director-dashboard', label: 'Executive Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'director'] },
-    { to: '/portal/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'manager', 'client'] },
+    { to: '/portal/dashboard', label: user?.role === 'staff' ? 'My Dashboard' : 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'client'] },
     { to: '/portal/projects', label: 'Mega Projects', icon: <FolderKanban className="w-5 h-5" />, roles: ['admin', 'director', 'manager', 'staff'] },
     { to: '/portal/job-requests', label: user?.role === 'client' ? 'My Requests' : 'Job Requests', icon: <FileText className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'client', 'director'] },
     { to: '/portal/workspace', label: getWorkspaceLabel(), icon: <FolderKanban className="w-5 h-5" />, roles: ['admin', 'manager', 'staff', 'director'] },

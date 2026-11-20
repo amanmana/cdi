@@ -1169,6 +1169,61 @@ admin.post('/settings', async (c) => {
   return c.json({ success: true, message: 'Settings saved' });
 });
 
+// Upload Dashboard Banner Image to R2
+admin.post('/dashboard-banner-upload', async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'admin' && user.role !== 'director') {
+    return c.json({ error: 'Unauthorized: Only admins can upload dashboard banners.' }, 403);
+  }
+
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('banner') as File | null;
+    if (!file) {
+      return c.json({ error: 'No image file was uploaded.' }, 400);
+    }
+
+    // Safety limit: 6MB max
+    if (file.size > 6 * 1024 * 1024) {
+      return c.json({ error: 'Image file exceeds maximum limit of 6MB.' }, 400);
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const mimeType = file.type || 'image/png';
+    const ext = mimeType.includes('png') ? 'png' : mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : mimeType.includes('webp') ? 'webp' : 'png';
+    const filename = `dashboard_banner_${Date.now()}.${ext}`;
+    const r2Key = `banners/${filename}`;
+
+    await c.env.R2.put(r2Key, arrayBuffer, {
+      httpMetadata: {
+        contentType: mimeType,
+      },
+    });
+
+    const bannerUrl = `/api/media/banner/${filename}`;
+
+    // Auto-update system_settings
+    await c.env.DB
+      .prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)')
+      .bind('dashboard_banner_image_url', bannerUrl)
+      .run();
+
+    await c.env.DB
+      .prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)')
+      .bind('dashboard_banner_type', 'custom_image')
+      .run();
+
+    return c.json({
+      success: true,
+      banner_url: bannerUrl,
+      message: 'Dashboard banner image uploaded and activated successfully.',
+    });
+  } catch (err: any) {
+    console.error('Failed to upload dashboard banner to R2:', err);
+    return c.json({ error: 'Failed to upload dashboard banner image.', details: err?.message }, 500);
+  }
+});
+
 // Clear database transactions (Preserves users, units, and system_settings)
 admin.post('/clear-transactions', async (c) => {
   const db = c.env.DB;

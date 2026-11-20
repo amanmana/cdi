@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
-import { FileText, Clock, CheckCircle2, ArrowUpRight, Wrench, ShieldAlert, ListTodo, CheckSquare, PauseCircle, XCircle } from 'lucide-react';
+import { FileText, Clock, CheckCircle2, ArrowUpRight, Wrench, ShieldAlert, ListTodo, CheckSquare, PauseCircle, XCircle, FolderKanban } from 'lucide-react';
 
 interface Stats {
   totalRequests: number;
@@ -21,9 +21,15 @@ export const Dashboard: React.FC = () => {
   if (user && user.role === 'director') {
     return <Navigate to="/portal/director-dashboard" replace />;
   }
-  if (user && user.role === 'staff' && !user.is_acting_manager && !user.is_unit_head) {
-    return <Navigate to="/portal/job-requests" replace />;
-  }
+
+  const [bannerSettings, setBannerSettings] = useState<{
+    type: string;
+    imageUrl: string;
+  }>({
+    type: '3d_mesh',
+    imageUrl: '',
+  });
+
   const [stats, setStats] = useState<Stats>({
     totalRequests: 0,
     pendingApprovals: 0,
@@ -37,6 +43,21 @@ export const Dashboard: React.FC = () => {
   const [recentRequests, setRecentRequests] = useState<any[]>([]);
   const [myTasks, setMyTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Fetch Public Banner & Theme Settings
+  useEffect(() => {
+    fetch('/api/public/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.dashboard_banner_type || data.dashboard_banner_image_url) {
+          setBannerSettings({
+            type: data.dashboard_banner_type || '3d_mesh',
+            imageUrl: data.dashboard_banner_image_url || '',
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchDashboardData = () => {
     setLoading(true);
@@ -82,95 +103,117 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* 3D Abstract Vibrant Hero Section (Matching Reference Image 1) */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#EEF4FF] via-[#E9EFFF] to-[#F3EEFF] border border-white/80 shadow-2xl shadow-indigo-900/5 p-6 sm:p-8 md:p-10 transition-all space-y-8">
-        {/* Layer 1: 3D Organic Wave & Mesh Glow Art */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-          {/* Luminous Glow Spheres */}
-          <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-gradient-to-br from-cyan-400/40 via-sky-400/30 to-indigo-500/25 blur-3xl animate-pulse duration-1000"></div>
-          <div className="absolute top-1/3 -right-10 w-96 h-96 rounded-full bg-gradient-to-tr from-purple-400/30 via-indigo-400/25 to-pink-300/20 blur-3xl"></div>
-          <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full bg-gradient-to-r from-blue-300/30 to-cyan-400/20 blur-2xl"></div>
+      {/* 3D Abstract Vibrant Hero Section or Custom Admin Background */}
+      <div
+        className={`relative overflow-hidden rounded-[2.5rem] border border-white/80 shadow-2xl shadow-indigo-900/5 p-6 sm:p-8 md:p-10 transition-all space-y-8 ${
+          bannerSettings.type === 'custom_image' && bannerSettings.imageUrl
+            ? 'bg-slate-900'
+            : 'bg-gradient-to-br from-[#EEF4FF] via-[#E9EFFF] to-[#F3EEFF]'
+        }`}
+        style={
+          bannerSettings.type === 'custom_image' && bannerSettings.imageUrl
+            ? {
+                backgroundImage: `url(${bannerSettings.imageUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : undefined
+        }
+      >
+        {/* Soft Frosted Tint Overlay if Custom Image is active to keep text and white cards crisp */}
+        {bannerSettings.type === 'custom_image' && bannerSettings.imageUrl && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] pointer-events-none" />
+        )}
 
-          {/* 3D Abstract Wave & Ribbon Vectors */}
-          <svg
-            className="absolute right-0 top-0 h-full w-full max-w-[700px] object-cover opacity-65 mix-blend-multiply pointer-events-none"
-            viewBox="0 0 700 450"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <linearGradient id="waveGradA" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.85" />
-                <stop offset="45%" stopColor="#818CF8" stopOpacity="0.75" />
-                <stop offset="100%" stopColor="#C084FC" stopOpacity="0.5" />
-              </linearGradient>
-              <linearGradient id="waveGradB" x1="100%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="#A855F7" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.4" />
-              </linearGradient>
-              <radialGradient id="sphere3D_1" cx="30%" cy="30%" r="70%">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
-                <stop offset="25%" stopColor="#7DD3FC" stopOpacity="0.8" />
-                <stop offset="60%" stopColor="#38BDF8" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#1E40AF" stopOpacity="0.4" />
-              </radialGradient>
-              <radialGradient id="sphere3D_2" cx="35%" cy="35%" r="65%">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
-                <stop offset="30%" stopColor="#C4B5FD" stopOpacity="0.75" />
-                <stop offset="70%" stopColor="#818CF8" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#4338CA" stopOpacity="0.3" />
-              </radialGradient>
-            </defs>
+        {/* Layer 1: 3D Organic Wave & Mesh Glow Art (When Default 3D Mesh is active) */}
+        {(bannerSettings.type !== 'custom_image' || !bannerSettings.imageUrl) && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
+            {/* Luminous Glow Spheres */}
+            <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-gradient-to-br from-cyan-400/40 via-sky-400/30 to-indigo-500/25 blur-3xl animate-pulse duration-1000"></div>
+            <div className="absolute top-1/3 -right-10 w-96 h-96 rounded-full bg-gradient-to-tr from-purple-400/30 via-indigo-400/25 to-pink-300/20 blur-3xl"></div>
+            <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full bg-gradient-to-r from-blue-300/30 to-cyan-400/20 blur-2xl"></div>
 
-            {/* 3D Floating Glowing Spheres matching image 1 */}
-            <circle cx="580" cy="110" r="120" fill="url(#sphere3D_1)" opacity="0.9" />
-            <circle cx="340" cy="270" r="85" fill="url(#sphere3D_2)" opacity="0.85" />
-            <circle cx="220" cy="140" r="45" fill="url(#sphere3D_1)" opacity="0.45" />
+            {/* 3D Abstract Wave & Ribbon Vectors */}
+            <svg
+              className="absolute right-0 top-0 h-full w-full max-w-[700px] object-cover opacity-65 mix-blend-multiply pointer-events-none"
+              viewBox="0 0 700 450"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <linearGradient id="waveGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.85" />
+                  <stop offset="45%" stopColor="#818CF8" stopOpacity="0.75" />
+                  <stop offset="100%" stopColor="#C084FC" stopOpacity="0.5" />
+                </linearGradient>
+                <linearGradient id="waveGradB" x1="100%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.8" />
+                  <stop offset="50%" stopColor="#A855F7" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.4" />
+                </linearGradient>
+                <radialGradient id="sphere3D_1" cx="30%" cy="30%" r="70%">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+                  <stop offset="25%" stopColor="#7DD3FC" stopOpacity="0.8" />
+                  <stop offset="60%" stopColor="#38BDF8" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#1E40AF" stopOpacity="0.4" />
+                </radialGradient>
+                <radialGradient id="sphere3D_2" cx="35%" cy="35%" r="65%">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+                  <stop offset="30%" stopColor="#C4B5FD" stopOpacity="0.75" />
+                  <stop offset="70%" stopColor="#818CF8" stopOpacity="0.5" />
+                  <stop offset="100%" stopColor="#4338CA" stopOpacity="0.3" />
+                </radialGradient>
+              </defs>
 
-            {/* Dense 3D Beaded Ribbon Tubes & Waves (Multi-layered like Reference Image 1) */}
-            <path
-              d="M80,450 C220,240 320,320 460,160 C550,70 630,90 700,40"
-              stroke="url(#waveGradA)"
-              strokeWidth="32"
-              strokeLinecap="round"
-              strokeDasharray="4 16"
-              opacity="0.45"
-            />
-            <path
-              d="M110,450 C240,260 340,335 480,180 C565,90 640,105 710,55"
-              stroke="url(#waveGradB)"
-              strokeWidth="28"
-              strokeLinecap="round"
-              strokeDasharray="4 16"
-              opacity="0.5"
-            />
-            <path
-              d="M140,450 C265,280 360,350 500,200 C580,110 655,120 720,70"
-              stroke="url(#waveGradA)"
-              strokeWidth="24"
-              strokeLinecap="round"
-              strokeDasharray="4 16"
-              opacity="0.55"
-            />
-            <path
-              d="M170,450 C290,300 380,365 520,220 C600,130 670,135 730,85"
-              stroke="#818CF8"
-              strokeWidth="20"
-              strokeLinecap="round"
-              strokeDasharray="4 16"
-              opacity="0.45"
-            />
-            <path
-              d="M200,450 C315,320 400,380 540,240 C615,150 685,150 740,100"
-              stroke="#A78BFA"
-              strokeWidth="16"
-              strokeLinecap="round"
-              strokeDasharray="4 16"
-              opacity="0.35"
-            />
-          </svg>
-        </div>
+              {/* 3D Floating Glowing Spheres matching image 1 */}
+              <circle cx="580" cy="110" r="120" fill="url(#sphere3D_1)" opacity="0.9" />
+              <circle cx="340" cy="270" r="85" fill="url(#sphere3D_2)" opacity="0.85" />
+              <circle cx="220" cy="140" r="45" fill="url(#sphere3D_1)" opacity="0.45" />
+
+              {/* Dense 3D Beaded Ribbon Tubes & Waves (Multi-layered like Reference Image 1) */}
+              <path
+                d="M80,450 C220,240 320,320 460,160 C550,70 630,90 700,40"
+                stroke="url(#waveGradA)"
+                strokeWidth="32"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.45"
+              />
+              <path
+                d="M110,450 C240,260 340,335 480,180 C565,90 640,105 710,55"
+                stroke="url(#waveGradB)"
+                strokeWidth="28"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.5"
+              />
+              <path
+                d="M140,450 C265,280 360,350 500,200 C580,110 655,120 720,70"
+                stroke="url(#waveGradA)"
+                strokeWidth="24"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.55"
+              />
+              <path
+                d="M170,450 C290,300 380,365 520,220 C600,130 670,135 730,85"
+                stroke="#818CF8"
+                strokeWidth="20"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.45"
+              />
+              <path
+                d="M200,450 C315,320 400,380 540,240 C615,150 685,150 740,100"
+                stroke="#A78BFA"
+                strokeWidth="16"
+                strokeLinecap="round"
+                strokeDasharray="4 16"
+                opacity="0.35"
+              />
+            </svg>
+          </div>
+        )}
 
         {/* Content Section */}
         <div className="relative z-10 space-y-6 sm:space-y-8">
@@ -190,17 +233,30 @@ export const Dashboard: React.FC = () => {
                 Welcome back, {user?.name}!
               </h1>
               <p className="text-slate-600 text-xs sm:text-sm font-semibold max-w-xl leading-relaxed">
-                Overview of {user?.department_name || user?.acting_manager_unit || user?.unit || 'department'} job request status and approval workflow.
+                {user?.role === 'staff'
+                  ? `Overview of your assigned tasks, unit workload (${user?.unit || 'General'}), and active projects.`
+                  : `Overview of ${user?.department_name || user?.acting_manager_unit || user?.unit || 'department'} job request status and approval workflow.`}
               </p>
             </div>
 
-            <Link
-              to="/portal/job-requests"
-              className="btn bg-white hover:bg-slate-50 text-blue-700 border border-blue-200/80 font-extrabold text-xs uppercase tracking-wider px-6 h-12 rounded-2xl shadow-lg shadow-blue-500/10 gap-2 shrink-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span>View All Requests</span>
-              <ArrowUpRight className="w-4 h-4" />
-            </Link>
+            <div className="flex items-center gap-3 shrink-0 flex-wrap">
+              {user?.role === 'staff' && (
+                <Link
+                  to="/portal/workspace"
+                  className="btn bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200/80 font-extrabold text-xs uppercase tracking-wider px-5 h-12 rounded-2xl shadow-sm gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <FolderKanban className="w-4 h-4 text-indigo-600" />
+                  <span>My Workspace</span>
+                </Link>
+              )}
+              <Link
+                to="/portal/job-requests"
+                className="btn bg-white hover:bg-slate-50 text-blue-700 border border-blue-200/80 font-extrabold text-xs uppercase tracking-wider px-6 h-12 rounded-2xl shadow-lg shadow-blue-500/10 gap-2 shrink-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span>{user?.role === 'staff' ? 'View My Requests' : 'View All Requests'}</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
 
           {/* Floating Stats Tiles Grid (Integrated directly on top of 3D Canvas, like Reference Image 1) */}
@@ -212,7 +268,7 @@ export const Dashboard: React.FC = () => {
             >
               <div className="flex items-center justify-between gap-1 mb-3">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 group-hover:text-slate-700 transition-colors">
-                  Total Requests
+                  {user?.role === 'staff' ? 'My Projects' : 'Total Requests'}
                 </span>
                 <div className="w-7 h-7 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                   <FileText className="w-3.5 h-3.5" />
@@ -222,32 +278,75 @@ export const Dashboard: React.FC = () => {
                 <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                   {stats.totalRequests}
                 </div>
-                <div className="text-[10px] font-bold text-slate-400">All submissions</div>
+                <div className="text-[10px] font-bold text-slate-400">
+                  {user?.role === 'staff' ? 'Assigned to me' : 'All submissions'}
+                </div>
               </div>
             </Link>
 
-            {/* 2. Pending Review */}
+            {/* 2. Pending Review (Managers) OR My Sub-Tasks (Staff) */}
+            {user?.role === 'staff' ? (
+              <a
+                href="#my-subtasks"
+                className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-blue-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+              >
+                <div className="flex items-center justify-between gap-1 mb-3">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 group-hover:text-blue-800 transition-colors">
+                    My Sub-Tasks
+                  </span>
+                  <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <ListTodo className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="space-y-0.5">
+                  <div className="text-2xl sm:text-3xl font-black text-blue-600 tracking-tight">
+                    {pendingMyTasks.length}
+                  </div>
+                  <div className="text-[10px] font-bold text-blue-500/80">Pending action</div>
+                </div>
+              </a>
+            ) : (
+              <Link
+                to="/portal/job-requests?status=manager_approval"
+                className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-blue-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+              >
+                <div className="flex items-center justify-between gap-1 mb-3">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 group-hover:text-blue-800 transition-colors">
+                    Pending Review
+                  </span>
+                  <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <Clock className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="space-y-0.5">
+                  <div className="text-2xl sm:text-3xl font-black text-blue-600 tracking-tight">
+                    {stats.pendingApprovals}
+                  </div>
+                  <div className="text-[10px] font-bold text-blue-500/80">Needs review</div>
+                </div>
+              </Link>
+            )}
+
+            {/* 3. Staff Processing */}
             <Link
-              to="/portal/job-requests?status=manager_approval"
-              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-blue-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+              to="/portal/job-requests?status=staff_processing"
+              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-purple-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
             >
               <div className="flex items-center justify-between gap-1 mb-3">
-                <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 group-hover:text-blue-800 transition-colors">
-                  Pending Review
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 group-hover:text-purple-800 transition-colors">
+                  Staff Processing
                 </span>
-                <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Clock className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Wrench className="w-3.5 h-3.5" />
                 </div>
               </div>
               <div className="space-y-0.5">
-                <div className="text-2xl sm:text-3xl font-black text-blue-600 tracking-tight">
-                  {stats.pendingApprovals}
+                <div className="text-2xl sm:text-3xl font-black text-purple-600 tracking-tight">
+                  {stats.processing}
                 </div>
-                <div className="text-[10px] font-bold text-blue-500/80">Needs review</div>
+                <div className="text-[10px] font-bold text-purple-500/80">In production</div>
               </div>
             </Link>
-
-            {/* 3. Staff Processing */}
             <Link
               to="/portal/job-requests?status=staff_processing"
               className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-purple-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
@@ -347,7 +446,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Designer / Staff Assigned Tasks Card */}
       {user?.role === 'staff' && (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
+        <div id="my-subtasks" className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 scroll-mt-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <ListTodo className="w-5 h-5 text-blue-600" /> My Assigned Sub-Tasks ({pendingMyTasks.length} Pending)
@@ -413,7 +512,9 @@ export const Dashboard: React.FC = () => {
       {/* Recent Activity Table Card */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-slate-900">Recent Job Requests</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            {user?.role === 'staff' ? 'My Recent Assigned Projects' : 'Recent Job Requests'}
+          </h2>
           <Link to="/portal/job-requests" className="text-xs text-blue-600 font-bold hover:underline">
             View All →
           </Link>
