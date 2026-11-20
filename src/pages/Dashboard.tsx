@@ -82,23 +82,256 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Welcome Hero Banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
-          <span className="inline-block bg-white/20 backdrop-blur-md text-white font-bold text-xs uppercase px-3 py-1 rounded-full tracking-wider mb-3">
-            ROLE: {user?.role} {user?.is_acting_manager ? '(Acting Manager)' : ''}
-          </span>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Welcome back, {user?.name}!</h1>
-          <p className="text-blue-100 text-sm mt-1.5 font-medium">
-            Overview of {user?.department_name || user?.acting_manager_unit || user?.unit || 'department'} job request status and approval workflow.
-          </p>
+      {/* 3D Abstract Vibrant Hero Section (Matching Reference Image 1) */}
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#EEF4FF] via-[#E9EFFF] to-[#F3EEFF] border border-white/80 shadow-2xl shadow-indigo-900/5 p-6 sm:p-8 md:p-10 transition-all space-y-8">
+        {/* Layer 1: 3D Organic Wave & Mesh Glow Art */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
+          {/* Luminous Glow Spheres */}
+          <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-gradient-to-br from-cyan-400/40 via-sky-400/30 to-indigo-500/25 blur-3xl animate-pulse duration-1000"></div>
+          <div className="absolute top-1/3 -right-10 w-96 h-96 rounded-full bg-gradient-to-tr from-purple-400/30 via-indigo-400/25 to-pink-300/20 blur-3xl"></div>
+          <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full bg-gradient-to-r from-blue-300/30 to-cyan-400/20 blur-2xl"></div>
+
+          {/* 3D Abstract Wave & Ribbon Vectors */}
+          <svg
+            className="absolute right-0 top-0 h-full w-full max-w-[700px] object-cover opacity-65 mix-blend-multiply pointer-events-none"
+            viewBox="0 0 700 450"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <linearGradient id="waveGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.85" />
+                <stop offset="45%" stopColor="#818CF8" stopOpacity="0.75" />
+                <stop offset="100%" stopColor="#C084FC" stopOpacity="0.5" />
+              </linearGradient>
+              <linearGradient id="waveGradB" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="#A855F7" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.4" />
+              </linearGradient>
+              <radialGradient id="sphere3D_1" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+                <stop offset="25%" stopColor="#7DD3FC" stopOpacity="0.8" />
+                <stop offset="60%" stopColor="#38BDF8" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#1E40AF" stopOpacity="0.4" />
+              </radialGradient>
+              <radialGradient id="sphere3D_2" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+                <stop offset="30%" stopColor="#C4B5FD" stopOpacity="0.75" />
+                <stop offset="70%" stopColor="#818CF8" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#4338CA" stopOpacity="0.3" />
+              </radialGradient>
+            </defs>
+
+            {/* 3D Floating Glowing Spheres matching image 1 */}
+            <circle cx="580" cy="110" r="120" fill="url(#sphere3D_1)" opacity="0.9" />
+            <circle cx="340" cy="270" r="85" fill="url(#sphere3D_2)" opacity="0.85" />
+            <circle cx="220" cy="140" r="45" fill="url(#sphere3D_1)" opacity="0.45" />
+
+            {/* Dense 3D Beaded Ribbon Tubes & Waves (Multi-layered like Reference Image 1) */}
+            <path
+              d="M80,450 C220,240 320,320 460,160 C550,70 630,90 700,40"
+              stroke="url(#waveGradA)"
+              strokeWidth="32"
+              strokeLinecap="round"
+              strokeDasharray="4 16"
+              opacity="0.45"
+            />
+            <path
+              d="M110,450 C240,260 340,335 480,180 C565,90 640,105 710,55"
+              stroke="url(#waveGradB)"
+              strokeWidth="28"
+              strokeLinecap="round"
+              strokeDasharray="4 16"
+              opacity="0.5"
+            />
+            <path
+              d="M140,450 C265,280 360,350 500,200 C580,110 655,120 720,70"
+              stroke="url(#waveGradA)"
+              strokeWidth="24"
+              strokeLinecap="round"
+              strokeDasharray="4 16"
+              opacity="0.55"
+            />
+            <path
+              d="M170,450 C290,300 380,365 520,220 C600,130 670,135 730,85"
+              stroke="#818CF8"
+              strokeWidth="20"
+              strokeLinecap="round"
+              strokeDasharray="4 16"
+              opacity="0.45"
+            />
+            <path
+              d="M200,450 C315,320 400,380 540,240 C615,150 685,150 740,100"
+              stroke="#A78BFA"
+              strokeWidth="16"
+              strokeLinecap="round"
+              strokeDasharray="4 16"
+              opacity="0.35"
+            />
+          </svg>
         </div>
-        <Link
-          to="/portal/job-requests"
-          className="btn bg-white text-blue-600 hover:bg-blue-50 border-none font-bold px-6 rounded-2xl shadow-lg shadow-black/10 gap-2 shrink-0"
-        >
-          View All Requests <ArrowUpRight className="w-4 h-4" />
-        </Link>
+
+        {/* Content Section */}
+        <div className="relative z-10 space-y-6 sm:space-y-8">
+          {/* Top Bar: Title & Welcome Header */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="badge bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest px-3 py-1 border-none shadow-sm shadow-blue-500/30">
+                  ROLE: {user?.role} {user?.is_acting_manager ? '(Acting Manager)' : ''}
+                </span>
+                <span className="badge bg-white/90 text-indigo-900 border border-indigo-200/70 font-bold text-[10px] uppercase tracking-wider backdrop-blur-xs">
+                  {user?.department_name || user?.acting_manager_unit || user?.unit || 'Creative Digital Innovation'}
+                </span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                Welcome back, {user?.name}!
+              </h1>
+              <p className="text-slate-600 text-xs sm:text-sm font-semibold max-w-xl leading-relaxed">
+                Overview of {user?.department_name || user?.acting_manager_unit || user?.unit || 'department'} job request status and approval workflow.
+              </p>
+            </div>
+
+            <Link
+              to="/portal/job-requests"
+              className="btn bg-white hover:bg-slate-50 text-blue-700 border border-blue-200/80 font-extrabold text-xs uppercase tracking-wider px-6 h-12 rounded-2xl shadow-lg shadow-blue-500/10 gap-2 shrink-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span>View All Requests</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Floating Stats Tiles Grid (Integrated directly on top of 3D Canvas, like Reference Image 1) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4 pt-2">
+            {/* 1. Total Requests */}
+            <Link
+              to="/portal/job-requests?tab=all"
+              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-slate-300/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-1 mb-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 group-hover:text-slate-700 transition-colors">
+                  Total Requests
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <FileText className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  {stats.totalRequests}
+                </div>
+                <div className="text-[10px] font-bold text-slate-400">All submissions</div>
+              </div>
+            </Link>
+
+            {/* 2. Pending Review */}
+            <Link
+              to="/portal/job-requests?status=manager_approval"
+              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-blue-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-1 mb-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 group-hover:text-blue-800 transition-colors">
+                  Pending Review
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Clock className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-blue-600 tracking-tight">
+                  {stats.pendingApprovals}
+                </div>
+                <div className="text-[10px] font-bold text-blue-500/80">Needs review</div>
+              </div>
+            </Link>
+
+            {/* 3. Staff Processing */}
+            <Link
+              to="/portal/job-requests?status=staff_processing"
+              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-purple-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-1 mb-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 group-hover:text-purple-800 transition-colors">
+                  Staff Processing
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Wrench className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-purple-600 tracking-tight">
+                  {stats.processing}
+                </div>
+                <div className="text-[10px] font-bold text-purple-500/80">In production</div>
+              </div>
+            </Link>
+
+            {/* 4. On Hold */}
+            <Link
+              to="/portal/job-requests?status=on_hold"
+              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-amber-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-1 mb-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 group-hover:text-amber-800 transition-colors">
+                  On Hold
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <PauseCircle className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-amber-600 tracking-tight">
+                  {stats.onHold || 0}
+                </div>
+                <div className="text-[10px] font-bold text-amber-600/80">Paused work</div>
+              </div>
+            </Link>
+
+            {/* 5. Cancelled */}
+            <Link
+              to="/portal/job-requests?tab=history&status=cancelled"
+              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-rose-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-1 mb-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 group-hover:text-rose-800 transition-colors">
+                  Cancelled
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <XCircle className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-rose-600 tracking-tight">
+                  {stats.cancelled || 0}
+                </div>
+                <div className="text-[10px] font-bold text-rose-500/80">Terminated</div>
+              </div>
+            </Link>
+
+            {/* 6. Completed Requests */}
+            <Link
+              to="/portal/job-requests?tab=history&status=completed"
+              className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/90 shadow-md shadow-emerald-200/40 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-1 mb-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 group-hover:text-emerald-800 transition-colors">
+                  Completed
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">
+                  {stats.completed}
+                </div>
+                <div className="text-[10px] font-bold text-emerald-600/80">Delivered</div>
+              </div>
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Acting Manager Notice */}
@@ -175,86 +408,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Stats Cards Grid (Clickable to Drill Deep into Job Requests) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <Link
-          to="/portal/job-requests?tab=all"
-          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
-        >
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Requests</span>
-            <div className="text-3xl font-black text-slate-900 mt-1">{stats.totalRequests}</div>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <FileText className="w-6 h-6" />
-          </div>
-        </Link>
 
-        <Link
-          to="/portal/job-requests?status=manager_approval"
-          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
-        >
-          <div>
-            <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider block">Pending Review</span>
-            <div className="text-3xl font-black text-blue-600 mt-1">{stats.pendingApprovals}</div>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <Clock className="w-6 h-6" />
-          </div>
-        </Link>
-
-        <Link
-          to="/portal/job-requests?status=staff_processing"
-          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
-        >
-          <div>
-            <span className="text-[11px] font-bold text-purple-600 uppercase tracking-wider block">Staff Processing</span>
-            <div className="text-3xl font-black text-purple-600 mt-1">{stats.processing}</div>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <Wrench className="w-6 h-6" />
-          </div>
-        </Link>
-
-        <Link
-          to="/portal/job-requests?status=on_hold"
-          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
-        >
-          <div>
-            <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider block">On Hold</span>
-            <div className="text-3xl font-black text-amber-600 mt-1">{stats.onHold || 0}</div>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <PauseCircle className="w-6 h-6" />
-          </div>
-        </Link>
-
-        <Link
-          to="/portal/job-requests?tab=history&status=cancelled"
-          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
-        >
-          <div>
-            <span className="text-[11px] font-bold text-rose-600 uppercase tracking-wider block">Cancelled</span>
-            <div className="text-3xl font-black text-rose-600 mt-1">{stats.cancelled || 0}</div>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <XCircle className="w-6 h-6" />
-          </div>
-        </Link>
-
-        <Link
-          to="/portal/job-requests?tab=history&status=completed"
-          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
-        >
-          <div>
-            <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider block">Completed Requests</span>
-            <div className="text-3xl font-black text-emerald-500 mt-1">{stats.completed}</div>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-        </Link>
-      </div>
 
       {/* Recent Activity Table Card */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8">
