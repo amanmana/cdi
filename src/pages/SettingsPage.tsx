@@ -144,6 +144,13 @@ export const SettingsPage: React.FC = () => {
         dashboard_banner_image_url: bannerImageUrl,
       }),
     });
+    try {
+      localStorage.setItem('cdi_banner_settings', JSON.stringify({
+        type: bannerType,
+        imageUrl: bannerImageUrl,
+        isLoaded: true,
+      }));
+    } catch {}
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -172,6 +179,13 @@ export const SettingsPage: React.FC = () => {
       if (res.ok && data.success) {
         setBannerImageUrl(data.banner_url);
         setBannerType('custom_image');
+        try {
+          localStorage.setItem('cdi_banner_settings', JSON.stringify({
+            type: 'custom_image',
+            imageUrl: data.banner_url,
+            isLoaded: true,
+          }));
+        } catch {}
         setBannerSuccess('Gambar latar belakang Dashboard berjaya dimuat naik dan diaktifkan!');
         setTimeout(() => setBannerSuccess(null), 4000);
       } else {
@@ -187,11 +201,20 @@ export const SettingsPage: React.FC = () => {
 
   const handleResetBanner = async () => {
     setBannerType('3d_mesh');
+    setBannerImageUrl('');
+    try {
+      localStorage.setItem('cdi_banner_settings', JSON.stringify({
+        type: '3d_mesh',
+        imageUrl: '',
+        isLoaded: true,
+      }));
+    } catch {}
     await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         dashboard_banner_type: '3d_mesh',
+        dashboard_banner_image_url: '',
       }),
     });
     setBannerSuccess('Latar belakang Dashboard telah diset semula kepada 3D Abstract Mesh asal!');

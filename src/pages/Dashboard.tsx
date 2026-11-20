@@ -22,12 +22,28 @@ export const Dashboard: React.FC = () => {
     return <Navigate to="/portal/director-dashboard" replace />;
   }
 
+  // Synchronous read from localStorage to eliminate image loading flicker
   const [bannerSettings, setBannerSettings] = useState<{
     type: string;
     imageUrl: string;
-  }>({
-    type: '3d_mesh',
-    imageUrl: '',
+    isLoaded: boolean;
+  }>(() => {
+    try {
+      const cached = localStorage.getItem('cdi_banner_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return {
+          type: parsed.type || '3d_mesh',
+          imageUrl: parsed.imageUrl || '',
+          isLoaded: true,
+        };
+      }
+    } catch {}
+    return {
+      type: 'loading',
+      imageUrl: '',
+      isLoaded: false,
+    };
   });
 
   const [stats, setStats] = useState<Stats>({
@@ -49,15 +65,30 @@ export const Dashboard: React.FC = () => {
     fetch('/api/public/settings')
       .then((res) => res.json())
       .then((data) => {
-        if (data.dashboard_banner_type || data.dashboard_banner_image_url) {
-          setBannerSettings({
-            type: data.dashboard_banner_type || '3d_mesh',
-            imageUrl: data.dashboard_banner_image_url || '',
-          });
-        }
+        const resolvedType = data.dashboard_banner_type || '3d_mesh';
+        const resolvedUrl = data.dashboard_banner_image_url || '';
+        const newSettings = {
+          type: resolvedType,
+          imageUrl: resolvedUrl,
+          isLoaded: true,
+        };
+        setBannerSettings(newSettings);
+        try {
+          localStorage.setItem('cdi_banner_settings', JSON.stringify(newSettings));
+        } catch {}
       })
-      .catch(() => {});
+      .catch(() => {
+        setBannerSettings((prev) => ({ ...prev, isLoaded: true }));
+      });
   }, []);
+
+  // Preload custom image into browser cache
+  useEffect(() => {
+    if (bannerSettings.type === 'custom_image' && bannerSettings.imageUrl) {
+      const img = new Image();
+      img.src = bannerSettings.imageUrl;
+    }
+  }, [bannerSettings.imageUrl, bannerSettings.type]);
 
   const fetchDashboardData = () => {
     setLoading(true);
@@ -125,8 +156,8 @@ export const Dashboard: React.FC = () => {
           <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] pointer-events-none" />
         )}
 
-        {/* Layer 1: 3D Organic Wave & Mesh Glow Art (When Default 3D Mesh is active) */}
-        {(bannerSettings.type !== 'custom_image' || !bannerSettings.imageUrl) && (
+        {/* Layer 1: 3D Organic Wave & Mesh Glow Art (Render ONLY when explicitly set to 3D Mesh, eliminating loading flicker) */}
+        {bannerSettings.isLoaded && bannerSettings.type !== 'custom_image' && (
           <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
             {/* Luminous Glow Spheres */}
             <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-gradient-to-br from-cyan-400/40 via-sky-400/30 to-indigo-500/25 blur-3xl animate-pulse duration-1000"></div>
