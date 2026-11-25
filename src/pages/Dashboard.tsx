@@ -509,21 +509,12 @@ export const Dashboard: React.FC = () => {
                           <span className="badge bg-slate-100 text-slate-700 font-mono font-bold text-[10px] px-2 py-0.5 rounded-md border border-slate-200">
                             #{t.ticket_no}
                           </span>
-                          <h4 className={`font-bold text-sm ${isDone ? 'text-slate-600' : 'text-slate-900'}`}>
+                          <h4 className={`font-bold text-sm ${isDone ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
                             {t.title}
                           </h4>
-                          {isDone ? (
+                          {isDone && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
                               ✓ Completed
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
-                              In Progress
-                            </span>
-                          )}
-                          {t.is_group && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md border border-purple-200/80">
-                              <Users className="w-2.5 h-2.5" /> Group Project
                             </span>
                           )}
                         </div>
