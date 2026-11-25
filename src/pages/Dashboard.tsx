@@ -352,9 +352,9 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <div className="space-y-0.5">
                   <div className="text-2xl sm:text-3xl font-black text-blue-600 tracking-tight">
-                    {pendingMyTasks.length}
+                    {activeMyTasks.length}
                   </div>
-                  <div className="text-[10px] font-bold text-blue-500/80">Pending action</div>
+                  <div className="text-[10px] font-bold text-blue-500/80">Active sub-tasks</div>
                 </div>
               </a>
             ) : (
