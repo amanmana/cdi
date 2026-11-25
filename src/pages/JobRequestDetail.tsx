@@ -1217,7 +1217,20 @@ export const JobRequestDetail: React.FC = () => {
   );
 
   const otherUnitsNeedingManager = Object.entries(request?.additional_data?.unit_assignments || {}).filter(([uName, uMeta]: [string, any]) => {
-    const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
+    const cleanUName = uName.toLowerCase().trim();
+    // Originating unit in Inter-Unit collaboration does not need manager approval (self-initiated & staff assigned)
+    if (isInterUnitJob && (cleanUName === (request?.additional_data?.requester_unit || '').toLowerCase().trim() || cleanUName === (request?.additional_data?.origin_staff_unit || '').toLowerCase().trim())) {
+      return false;
+    }
+    // Any unit that is already accepted or has assigned staff does not need manager approval
+    if (uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0)) {
+      return false;
+    }
+    // Any unit routed directly to head_unit or staff does not need manager approval
+    if (uMeta?.routing_target === 'head_unit' || uMeta?.routing_target === 'staff') {
+      return false;
+    }
+    const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === cleanUName) ||
       (userDeptId && Number(uMeta?.department_id) === Number(userDeptId));
     const isManagerRoute = (uMeta?.routing_target || 'manager') === 'manager';
     return !belongsToMyDept && isManagerRoute && !uMeta?.manager_approved;
@@ -3037,7 +3050,7 @@ export const JobRequestDetail: React.FC = () => {
                       {isInterUnitJob
                         ? 'You have approved this collaboration request. It has been forwarded to the designated Head of Unit to assign staff team members.'
                         : 'You have approved this request. It has been handed over to the Head of Unit to assign staff team members.'}
-                      {otherPendingManagers.length > 0 && (
+                      {!isInterUnitJob && otherPendingManagers.length > 0 && (
                         <div className="mt-2 text-[10px] font-semibold text-amber-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5 text-left">
                           ⏳ Waiting for secondary manager approval from: {otherPendingManagers.join(', ')}
                         </div>

@@ -1662,6 +1662,8 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
         head_id: user.id,
         head_name: user.name,
         status: 'accepted',
+        routing_target: 'head_unit',
+        manager_approved: true,
         assigned_staff_ids: [originStaffRow.id],
       };
     }
