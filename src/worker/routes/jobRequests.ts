@@ -1633,29 +1633,44 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
     const targetUnitNames = targetUnitRows.map(u => u.name);
     const targetUnitIds = targetUnitRows.map(u => u.id);
 
-    // Lookup origin staff if selected (e.g. Jana selected by Azni, or Safari selected by Hazmi)
-    let originStaffName = '';
-    let originStaffUnit = '';
-    let originStaffUnitId: number | null = null;
-    let initialAssignedStaffIds: string | null = null;
-    if (origin_staff_id) {
-      const originStaffRow = await db
-        .prepare('SELECT id, name, unit, unit_id FROM users WHERE id = ?')
-        .bind(Number(origin_staff_id))
-        .first<{ id: number; name: string; unit: string; unit_id: number }>();
-      if (originStaffRow) {
-        originStaffName = originStaffRow.name;
-        originStaffUnit = originStaffRow.unit || '';
-        originStaffUnitId = originStaffRow.unit_id || null;
-        initialAssignedStaffIds = String(originStaffRow.id);
-      }
+    // Validate origin staff (Mandatory: originating department/unit assigned staff)
+    if (!origin_staff_id) {
+      return c.json({ error: 'Assigned staff from your department/unit is mandatory.' }, 400);
     }
 
-    const numbers = Math.floor(100000 + Math.random() * 900000).toString();
-    const ticketNo = 'IU' + numbers;
+    const originStaffRow = await db
+      .prepare('SELECT id, name, email, unit, unit_id FROM users WHERE id = ?')
+      .bind(Number(origin_staff_id))
+      .first<{ id: number; name: string; email?: string; unit: string; unit_id: number }>();
+
+    if (!originStaffRow) {
+      return c.json({ error: 'Selected assigned staff member from your department/unit was not found.' }, 400);
+    }
+
+    const originStaffName = originStaffRow.name;
+    const originStaffUnit = originStaffRow.unit || '';
+    const originStaffUnitId = originStaffRow.unit_id || null;
+    const initialAssignedStaffIds = String(originStaffRow.id);
 
     const requesterUnitName = user.unit || originStaffUnit || (user.role === 'manager' ? (user.department_name || 'Design Department') : 'Origin Unit');
     const requesterUnitIdVal = user.unit_id || originStaffUnitId || null;
+
+    // Register originating unit in unitAssignments as accepted with assigned origin staff
+    if (requesterUnitName) {
+      unitAssignments[requesterUnitName] = {
+        unit_id: requesterUnitIdVal || 0,
+        head_id: user.id,
+        head_name: user.name,
+        status: 'accepted',
+        assigned_staff_ids: [originStaffRow.id],
+      };
+    }
+
+    const staffTasks: { [userId: number]: string } = {};
+    staffTasks[originStaffRow.id] = title.trim();
+
+    const numbers = Math.floor(100000 + Math.random() * 900000).toString();
+    const ticketNo = 'IU' + numbers;
 
     const additionalData = JSON.stringify({
       is_inter_unit: true,
@@ -1668,9 +1683,10 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
       requester_role: user.role,
       requester_unit: requesterUnitName,
       requester_unit_id: requesterUnitIdVal,
-      origin_staff_id: origin_staff_id ? Number(origin_staff_id) : null,
-      origin_staff_name: originStaffName || null,
-      origin_staff_unit: originStaffUnit || null,
+      origin_staff_id: originStaffRow.id,
+      origin_staff_name: originStaffName,
+      origin_staff_unit: originStaffUnit || requesterUnitName,
+      staff_tasks: staffTasks,
       priority: priority || 'normal',
       parent_job_id: parent_job_id || null,
       parent_ticket_no: parent_ticket_no || null,
@@ -1706,6 +1722,35 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
 
     const requestId = res.meta.last_row_id as number;
 
+    // Create initial task in job_tasks table for assigned origin staff
+    await db
+      .prepare(
+        `INSERT INTO job_tasks (job_request_id, title, assigned_to_user_id, assigned_by_user_id, status)
+         VALUES (?, ?, ?, ?, 'pending')`
+      )
+      .bind(requestId, title.trim(), originStaffRow.id, user.id)
+      .run();
+
+    // Notify origin staff by email if email available
+    if (originStaffRow.email) {
+      const origin = c.req.header('origin') || 'https://cdi-app.amanmana.workers.dev';
+      try {
+        await notifyStaffAssignment({
+          staffEmail: originStaffRow.email,
+          staffName: originStaffRow.name,
+          ticketNo,
+          title: title.trim(),
+          unit: requesterUnitName,
+          startDate: start_date || new Date().toISOString().split('T')[0],
+          deadline: deadline || null,
+          comment: `You have been assigned as the originating department specialist for this Inter-Unit collaboration.`,
+          origin,
+        });
+      } catch (emailErr) {
+        console.error('Failed to dispatch origin staff notification email:', emailErr);
+      }
+    }
+
     await db
       .prepare(
         `INSERT INTO workflow_logs (job_request_id, action, actor_id, actor_name, from_step_name, to_step_name, comment)
@@ -1715,7 +1760,7 @@ jobRequestsRouter.post('/inter-unit', async (c) => {
         requestId,
         user.id,
         user.name,
-        `Submitted Inter-Unit Job Request from ${user.unit || 'Unit Head'} to ${targetUnitNames.join(', ')}. Priority: ${(priority || 'normal').toUpperCase()}`
+        `Submitted Inter-Unit Job Request from ${user.unit || 'Unit Head'} to ${targetUnitNames.join(', ')}. Assigned Origin Specialist: ${originStaffName}. Priority: ${(priority || 'normal').toUpperCase()}`
       )
       .run();
 

@@ -107,7 +107,9 @@ export const JobRequestsList: React.FC = () => {
     setInterUnitPriority('normal');
     setInterUnitStartDate(new Date().toISOString().split('T')[0]);
     setInterUnitDeadline('');
+    setInterUnitOriginStaffId('');
     setInterUnitParentJobId('');
+    setInterUnitProjectId('');
     setInterUnitError('');
     setShowInterUnitModal(true);
   };
@@ -348,6 +350,10 @@ export const JobRequestsList: React.FC = () => {
 
     if (finalTargetUnits.length === 0) {
       setInterUnitError('Please select at least one target unit.');
+      return;
+    }
+    if (!interUnitOriginStaffId) {
+      setInterUnitError('Please select an assigned staff member from your department / unit.');
       return;
     }
     const todayStr = new Date().toISOString().split('T')[0];
@@ -2182,16 +2188,18 @@ export const JobRequestsList: React.FC = () => {
               <div>
                 <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                   <span>
-                    Assigned Staff from Your {user?.department_name ? `Department (${user.department_name})` : 'Unit'}
+                    Assigned Staff from Your {user?.department_name ? `Department (${user.department_name})` : 'Unit'}{' '}
+                    <span className="text-rose-500">*</span>
                   </span>
-                  <span className="text-[10px] text-slate-400 font-semibold lowercase">colleague handling this side</span>
+                  <span className="text-[10px] text-rose-500 font-semibold lowercase">colleague handling this side (mandatory)</span>
                 </label>
                 <select
+                  required
                   value={interUnitOriginStaffId}
                   onChange={(e) => setInterUnitOriginStaffId(e.target.value ? Number(e.target.value) : '')}
                   className="select select-bordered w-full h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-indigo-600"
                 >
-                  <option value="">-- Select Staff from Your Unit (Optional / or Self) --</option>
+                  <option value="">-- Select Assigned Staff from Your Unit / Department * --</option>
                   {staffMembers
                     .filter((m: any) => {
                       const managedUnits: string[] = (user as any)?.managed_units || [];
@@ -2224,7 +2232,7 @@ export const JobRequestsList: React.FC = () => {
                     ))}
                 </select>
                 <p className="text-[10px] text-slate-400 font-medium mt-1">
-                  Choose the staff member from your department / unit who will collaborate on this task with the target unit.
+                  Mandatory: Choose the staff member from your department / unit (or yourself) who will collaborate on this task.
                 </p>
               </div>
 
