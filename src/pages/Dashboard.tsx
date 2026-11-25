@@ -458,62 +458,86 @@ export const Dashboard: React.FC = () => {
 
       {/* Designer / Staff Assigned Tasks Card */}
       {user?.role === 'staff' && (
-        <div id="my-subtasks" className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 scroll-mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <ListTodo className="w-5 h-5 text-blue-600" /> My Assigned Sub-Tasks ({pendingMyTasks.length} Pending)
-            </h2>
+        <div id="my-subtasks" className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 scroll-mt-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <ListTodo className="w-5 h-5 text-indigo-600" /> My Assigned Sub-Tasks ({pendingMyTasks.length} Pending)
+              </h2>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                Pecahan tugasan peribadi anda. Untuk memuktamadkan kerja siap sepenuhnya bagi tiket utama, sila masuk ke projek berkenaan.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-3">
             {myTasks.length === 0 ? (
-              <p className="text-xs text-slate-400 italic py-4 text-center">
+              <p className="text-xs text-slate-400 italic py-6 text-center">
                 You have no sub-tasks assigned at the moment.
               </p>
             ) : (
-              myTasks.map((t) => (
-                <div key={t.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <button
-                      onClick={() => handleTaskStatusChange(t.id, t.status === 'completed' ? 'in_progress' : 'completed')}
-                      className={`mt-0.5 shrink-0 w-5 h-5 rounded-lg flex items-center justify-center border transition-all ${
-                        t.status === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 bg-white text-transparent hover:border-blue-600'
-                      }`}
-                    >
-                      <CheckSquare className="w-3.5 h-3.5" />
-                    </button>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="badge bg-slate-200 text-slate-700 font-mono font-bold text-[10px] px-2">
-                          #{t.ticket_no}
-                        </span>
-                        <h4 className={`font-bold text-sm ${t.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-900'}`}>
-                          {t.title}
-                        </h4>
-                      </div>
-                      <div className="text-xs text-slate-500 font-medium mt-0.5">
-                        Project: <strong className="text-slate-800">{t.job_title}</strong> ({t.job_unit})
+              myTasks.map((t) => {
+                const isDone = t.status === 'completed';
+                return (
+                  <div
+                    key={t.id}
+                    className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                      isDone
+                        ? 'bg-slate-50/70 border-slate-200/70 opacity-80'
+                        : 'bg-white border-slate-200/90 shadow-xs hover:border-indigo-200 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleTaskStatusChange(t.id, isDone ? 'in_progress' : 'completed')}
+                        className={`mt-0.5 shrink-0 w-5 h-5 rounded-lg flex items-center justify-center border transition-all ${
+                          isDone
+                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs'
+                            : 'border-slate-300 bg-slate-50 text-transparent hover:border-indigo-600 hover:bg-white'
+                        }`}
+                        title={isDone ? 'Mark as In Progress' : 'Mark checklist as Done'}
+                      >
+                        <CheckSquare className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="badge bg-slate-100 text-slate-700 font-mono font-bold text-[10px] px-2 py-0.5 rounded-md border border-slate-200">
+                            #{t.ticket_no}
+                          </span>
+                          <h4 className={`font-bold text-sm ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                            {t.title}
+                          </h4>
+                          {isDone ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              ✓ Done
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
+                              In Progress
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-xs text-slate-500 font-medium">
+                          Project: <strong className="text-slate-800">{t.job_title}</strong> {t.job_unit ? `(${t.job_unit})` : ''}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <select
-                      value={t.status}
-                      onChange={(e) => handleTaskStatusChange(t.id, e.target.value)}
-                      className="select select-bordered select-xs bg-white border-slate-200 rounded-lg text-xs font-bold"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
-
-                    <Link to={`/portal/job-requests/${t.job_request_id}`} className="btn btn-ghost btn-xs text-blue-600 font-bold hover:bg-blue-50">
-                      View Project
-                    </Link>
+                    <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                      <Link
+                        to={`/portal/job-requests/${t.job_request_id}`}
+                        className="btn btn-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 border border-indigo-200/80 font-bold text-xs rounded-xl px-3 h-9 gap-1.5 shadow-2xs transition-all flex items-center"
+                      >
+                        <span>View Project</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
