@@ -73,6 +73,7 @@ app.get('/api/media/banner/:filename', async (c) => {
 app.route('/api/auth', authRoutes);
 app.route('/api/public', publicRoutes);
 app.route('/api/job-requests', jobRequestsRoutes);
+app.route('/api/staff', jobRequestsRoutes); // Alias for staff sub-tasks & helper routes
 app.route('/api/reports', staffReportsRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/director', directorRoutes);

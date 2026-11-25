@@ -103,7 +103,7 @@ export const Dashboard: React.FC = () => {
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
 
-    fetch('/api/staff/my-tasks', {
+    fetch('/api/job-requests/staff/my-tasks', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
