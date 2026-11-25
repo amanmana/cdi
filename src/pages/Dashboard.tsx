@@ -130,11 +130,9 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const pendingMyTasks = myTasks.filter((t) => t.status !== 'completed');
-
   // Filter tasks to display in My Assigned Sub-Tasks:
   // 1. Exclude any project where the whole job is 100% completed (e.g. 2/2 Done or completed job_status)
-  // 2. For solo tasks, exclude if user already finished (status === 'completed')
+  // 2. For solo tasks, exclude if user already finished (is_user_done === true)
   // 3. For group projects, keep displayed as long as the overall project is not 100% done (even if current user already finished their part)
   const activeMyTasks = myTasks.filter((t) => {
     const isJobFullyCompleted =
@@ -146,12 +144,14 @@ export const Dashboard: React.FC = () => {
       return false;
     }
 
-    if (!t.is_group && t.status === 'completed') {
+    if (!t.is_group && (t.is_user_done || t.status === 'completed')) {
       return false;
     }
 
     return true;
   });
+
+  const pendingMyTasks = activeMyTasks.filter((t) => !t.is_user_done);
 
   return (
     <div className="flex flex-col gap-8">
@@ -498,7 +498,7 @@ export const Dashboard: React.FC = () => {
               </p>
             ) : (
               activeMyTasks.map((t) => {
-                const isDone = t.status === 'completed';
+                const isDone = Boolean(t.is_user_done);
                 return (
                   <div
                     key={t.id}

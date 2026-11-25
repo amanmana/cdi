@@ -706,24 +706,47 @@ jobRequestsRouter.get('/staff/my-tasks', async (c) => {
       percent = Math.round((completedStaff / totalStaff) * 100);
     }
 
+    const isUserDone = doneActorIds.has(Number(user.id)) || taskSample?.job_status === 'completed';
+
     progressMap[jId] = {
       is_group: isGroup,
       total_staff: totalStaff,
       completed_staff: completedStaff,
       percent: percent,
+      is_user_done: isUserDone,
     };
   }
 
-  const enrichedTasks = rawTasks.map((t: any) => {
-    const prog = progressMap[t.job_request_id] || { is_group: false, total_staff: 1, completed_staff: 0, percent: 0 };
-    return {
-      ...t,
-      is_group: prog.is_group,
-      total_staff: prog.total_staff,
-      completed_staff: prog.completed_staff,
-      progress_percent: prog.percent,
-    };
-  });
+  const enrichedTasks = await Promise.all(
+    rawTasks.map(async (t: any) => {
+      const prog = progressMap[t.job_request_id] || {
+        is_group: false,
+        total_staff: 1,
+        completed_staff: 0,
+        percent: 0,
+        is_user_done: false,
+      };
+
+      // Auto-heal: If task is marked 'completed' in DB but the assigned staff NEVER marked their part as completed
+      // (and the overall job is not completed), revert job_tasks status to 'in_progress' so state is strictly consistent.
+      if (!prog.is_user_done && t.status === 'completed' && t.job_status !== 'completed') {
+        await db.prepare("UPDATE job_tasks SET status = 'in_progress', completed_at = NULL WHERE id = ?").bind(t.id).run();
+        t.status = 'in_progress';
+      }
+
+      const effectiveStatus = prog.is_user_done ? 'completed' : (t.status === 'completed' ? 'in_progress' : t.status);
+
+      return {
+        ...t,
+        status: effectiveStatus,
+        is_user_done: prog.is_user_done,
+        is_group: prog.is_group,
+        total_staff: prog.total_staff,
+        completed_staff: prog.completed_staff,
+        progress_percent: prog.percent,
+      };
+    })
+  );
 
   return c.json(enrichedTasks);
 });
