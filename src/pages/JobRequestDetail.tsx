@@ -1185,21 +1185,6 @@ export const JobRequestDetail: React.FC = () => {
     )
   );
 
-  // Can Manager approve?
-  const canManagerAct = Boolean(
-    !isSelfTask &&
-    isManagerActor &&
-    (
-      user?.role === 'admin' ||
-      user?.role === 'director' ||
-      (isDepartmentManagerForJob && (request?.status === 'manager_approval' || hasUnitNeedingManagerApproval))
-    )
-  );
-
-  const canActOnManagerApproval = Boolean(
-    !isSelfTask && (isManagerActor ? canManagerAct : canUnitHeadAct)
-  );
-
   // Check if current manager has already approved their department's units
   const myApprovedUnits = Object.entries(request?.additional_data?.unit_assignments || {}).filter(([uName, uMeta]: [string, any]) => {
     const belongsToMyDept = managedUnits.some((mu) => mu.toLowerCase().trim() === uName.toLowerCase().trim()) ||
@@ -1210,8 +1195,25 @@ export const JobRequestDetail: React.FC = () => {
   const hasMyDeptApproved = Boolean(
     isManagerActor && (
       (myApprovedUnits.length > 0 && !hasUnitNeedingManagerApproval) ||
-      (request?.additional_data?.manager_approved === true && !hasUnitNeedingManagerApproval)
+      (request?.additional_data?.manager_approved === true && !hasUnitNeedingManagerApproval) ||
+      (request?.current_step_name === 'Unit Head Review & Staff Assignment' && !hasUnitNeedingManagerApproval)
     )
+  );
+
+  // Can Manager approve? (Only if manager has not already approved)
+  const canManagerAct = Boolean(
+    !isSelfTask &&
+    isManagerActor &&
+    !hasMyDeptApproved &&
+    (
+      user?.role === 'admin' ||
+      user?.role === 'director' ||
+      (isDepartmentManagerForJob && (hasUnitNeedingManagerApproval || (!request?.additional_data?.unit_assignments && request?.status === 'manager_approval')))
+    )
+  );
+
+  const canActOnManagerApproval = Boolean(
+    !isSelfTask && (isManagerActor ? canManagerAct : canUnitHeadAct)
   );
 
   const otherUnitsNeedingManager = Object.entries(request?.additional_data?.unit_assignments || {}).filter(([uName, uMeta]: [string, any]) => {
@@ -3026,15 +3028,17 @@ export const JobRequestDetail: React.FC = () => {
                   <>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200/80">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Approved by You (Manager)
+                      Approved by You (Department Manager)
                     </div>
                     <div className="text-xs font-bold text-slate-800">
-                      Handed Over to Head of Unit {approvedHeadNames.length > 0 ? `(${approvedHeadNames.join(', ')})` : ''}
+                      Handed Over to Head of Unit {approvedHeadNames.length > 0 ? `(${approvedHeadNames.join(', ')})` : targetHeadDisplayName ? `(${targetHeadDisplayName})` : ''}
                     </div>
                     <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                      You have approved this request. It has been handed over to the Head of Unit to assign staff team members.
+                      {isInterUnitJob
+                        ? 'You have approved this collaboration request. It has been forwarded to the designated Head of Unit to assign staff team members.'
+                        : 'You have approved this request. It has been handed over to the Head of Unit to assign staff team members.'}
                       {otherPendingManagers.length > 0 && (
-                        <div className="mt-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5">
+                        <div className="mt-2 text-[10px] font-semibold text-amber-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5 text-left">
                           ⏳ Waiting for secondary manager approval from: {otherPendingManagers.join(', ')}
                         </div>
                       )}
