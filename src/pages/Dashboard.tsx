@@ -132,6 +132,27 @@ export const Dashboard: React.FC = () => {
 
   const pendingMyTasks = myTasks.filter((t) => t.status !== 'completed');
 
+  // Filter tasks to display in My Assigned Sub-Tasks:
+  // 1. Exclude any project where the whole job is 100% completed (e.g. 2/2 Done or completed job_status)
+  // 2. For solo tasks, exclude if user already finished (status === 'completed')
+  // 3. For group projects, keep displayed as long as the overall project is not 100% done (even if current user already finished their part)
+  const activeMyTasks = myTasks.filter((t) => {
+    const isJobFullyCompleted =
+      t.job_status === 'completed' ||
+      (t.total_staff > 0 && t.completed_staff >= t.total_staff) ||
+      (t.progress_percent >= 100);
+
+    if (isJobFullyCompleted) {
+      return false;
+    }
+
+    if (!t.is_group && t.status === 'completed') {
+      return false;
+    }
+
+    return true;
+  });
+
   return (
     <div className="flex flex-col gap-8">
       {/* 3D Abstract Vibrant Hero Section or Custom Admin Background */}
@@ -462,7 +483,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
             <div>
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <ListTodo className="w-5 h-5 text-indigo-600" /> My Assigned Sub-Tasks ({pendingMyTasks.length} Active)
+                <ListTodo className="w-5 h-5 text-indigo-600" /> My Assigned Sub-Tasks ({activeMyTasks.length} Active)
               </h2>
               <p className="text-xs text-slate-400 font-medium mt-0.5">
                 Pecahan tugasan peribadi anda. Untuk memuktamadkan kerja siap sepenuhnya bagi tiket utama, sila masuk ke projek berkenaan.
@@ -471,12 +492,12 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="space-y-3">
-            {myTasks.length === 0 ? (
+            {activeMyTasks.length === 0 ? (
               <p className="text-xs text-slate-400 italic py-6 text-center">
-                You have no sub-tasks assigned at the moment.
+                You have no active sub-tasks assigned at the moment.
               </p>
             ) : (
-              myTasks.map((t) => {
+              activeMyTasks.map((t) => {
                 const isDone = t.status === 'completed';
                 return (
                   <div
