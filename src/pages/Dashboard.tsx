@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
-import { FileText, Clock, CheckCircle2, ArrowUpRight, Wrench, ShieldAlert, ListTodo, CheckSquare, PauseCircle, XCircle, FolderKanban } from 'lucide-react';
+import { FileText, Clock, CheckCircle2, ArrowUpRight, Wrench, ShieldAlert, ListTodo, CheckSquare, PauseCircle, XCircle, FolderKanban, Users } from 'lucide-react';
 
 interface Stats {
   totalRequests: number;
@@ -462,7 +462,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
             <div>
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <ListTodo className="w-5 h-5 text-indigo-600" /> My Assigned Sub-Tasks ({pendingMyTasks.length} Pending)
+                <ListTodo className="w-5 h-5 text-indigo-600" /> My Assigned Sub-Tasks ({pendingMyTasks.length} Active)
               </h2>
               <p className="text-xs text-slate-400 font-medium mt-0.5">
                 Pecahan tugasan peribadi anda. Untuk memuktamadkan kerja siap sepenuhnya bagi tiket utama, sila masuk ke projek berkenaan.
@@ -481,41 +481,49 @@ export const Dashboard: React.FC = () => {
                 return (
                   <div
                     key={t.id}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                    className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
                       isDone
-                        ? 'bg-slate-50/70 border-slate-200/70 opacity-80'
+                        ? 'bg-slate-50/70 border-slate-200/70'
                         : 'bg-white border-slate-200/90 shadow-xs hover:border-indigo-200 hover:shadow-sm'
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleTaskStatusChange(t.id, isDone ? 'in_progress' : 'completed')}
-                        className={`mt-0.5 shrink-0 w-5 h-5 rounded-lg flex items-center justify-center border transition-all ${
-                          isDone
-                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs'
-                            : 'border-slate-300 bg-slate-50 text-transparent hover:border-indigo-600 hover:bg-white'
-                        }`}
-                        title={isDone ? 'Mark as In Progress' : 'Mark checklist as Done'}
-                      >
-                        <CheckSquare className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="flex items-start gap-3.5">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border ${
+                        t.is_group
+                          ? 'bg-purple-50 border-purple-200/80 text-purple-600'
+                          : isDone
+                          ? 'bg-emerald-50 border-emerald-200/80 text-emerald-600'
+                          : 'bg-indigo-50 border-indigo-200/80 text-indigo-600'
+                      }`}>
+                        {t.is_group ? (
+                          <Users className="w-5 h-5" />
+                        ) : isDone ? (
+                          <CheckCircle2 className="w-5 h-5" />
+                        ) : (
+                          <ListTodo className="w-5 h-5" />
+                        )}
+                      </div>
 
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="badge bg-slate-100 text-slate-700 font-mono font-bold text-[10px] px-2 py-0.5 rounded-md border border-slate-200">
                             #{t.ticket_no}
                           </span>
-                          <h4 className={`font-bold text-sm ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          <h4 className={`font-bold text-sm ${isDone ? 'text-slate-600' : 'text-slate-900'}`}>
                             {t.title}
                           </h4>
                           {isDone ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              ✓ Done
+                              ✓ Completed
                             </span>
                           ) : (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
                               In Progress
+                            </span>
+                          )}
+                          {t.is_group && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md border border-purple-200/80">
+                              <Users className="w-2.5 h-2.5" /> Group Project
                             </span>
                           )}
                         </div>
@@ -526,10 +534,58 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                    <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+                      {/* Donut Chart for Group Projects */}
+                      {t.is_group && (
+                        <div className="flex items-center gap-2.5 bg-gradient-to-r from-slate-50 to-indigo-50/40 px-3 py-1.5 rounded-2xl border border-slate-200/80 shrink-0">
+                          {/* Donut Chart SVG */}
+                          <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                            <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
+                              {/* Background track */}
+                              <circle
+                                cx="20"
+                                cy="20"
+                                r="15"
+                                className="stroke-slate-200"
+                                strokeWidth="3.5"
+                                fill="transparent"
+                              />
+                              {/* Progress ring */}
+                              <circle
+                                cx="20"
+                                cy="20"
+                                r="15"
+                                className={`${
+                                  (t.progress_percent || 0) === 100
+                                    ? 'stroke-emerald-500'
+                                    : (t.progress_percent || 0) > 0
+                                    ? 'stroke-indigo-600'
+                                    : 'stroke-slate-300'
+                                } transition-all duration-500 ease-out`}
+                                strokeWidth="3.5"
+                                strokeDasharray={2 * Math.PI * 15}
+                                strokeDashoffset={2 * Math.PI * 15 * (1 - (t.progress_percent || 0) / 100)}
+                                strokeLinecap="round"
+                                fill="transparent"
+                              />
+                            </svg>
+                            <span className="absolute text-[9.5px] font-black text-slate-800">
+                              {t.progress_percent || 0}%
+                            </span>
+                          </div>
+
+                          <div className="text-left hidden sm:block">
+                            <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">Team Progress</div>
+                            <div className="text-[11px] font-bold text-slate-700">
+                              {t.completed_staff || 0}/{t.total_staff || 1} Done
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <Link
                         to={`/portal/job-requests/${t.job_request_id}`}
-                        className="btn btn-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 border border-indigo-200/80 font-bold text-xs rounded-xl px-3 h-9 gap-1.5 shadow-2xs transition-all flex items-center"
+                        className="btn btn-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 border border-indigo-200/80 font-bold text-xs rounded-xl px-3.5 h-10 gap-1.5 shadow-2xs transition-all flex items-center shrink-0"
                       >
                         <span>View Project</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />

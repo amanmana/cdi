@@ -646,8 +646,9 @@ jobRequestsRouter.get('/staff/my-tasks', async (c) => {
   const db = c.env.DB;
   const user = c.get('user');
 
-  const { results } = await db.prepare(`
-    SELECT t.*, j.ticket_no, j.title as job_title, j.unit as job_unit, b.name as assigned_by_name
+  const { results: rawTasks } = await db.prepare(`
+    SELECT t.*, j.ticket_no, j.title as job_title, j.unit as job_unit, j.status as job_status,
+           j.assigned_staff_ids, j.additional_data, b.name as assigned_by_name
     FROM job_tasks t
     JOIN job_requests j ON t.job_request_id = j.id
     JOIN users b ON t.assigned_by_user_id = b.id
@@ -655,7 +656,76 @@ jobRequestsRouter.get('/staff/my-tasks', async (c) => {
     ORDER BY t.created_at DESC
   `).bind(user.id).all();
 
-  return c.json(results || []);
+  if (!rawTasks || rawTasks.length === 0) {
+    return c.json([]);
+  }
+
+  // Calculate project-level group collaboration status and completion percentage
+  const jobIds = Array.from(new Set(rawTasks.map((t: any) => t.job_request_id)));
+  const progressMap: Record<number, { is_group: boolean; total_staff: number; completed_staff: number; percent: number }> = {};
+
+  for (const jId of jobIds) {
+    const taskSample = rawTasks.find((t: any) => t.job_request_id === jId);
+    let addData: any = {};
+    if (taskSample?.additional_data) {
+      try {
+        addData = typeof taskSample.additional_data === 'object' ? taskSample.additional_data : JSON.parse(taskSample.additional_data);
+      } catch {}
+    }
+
+    const assignedStaffIds = taskSample?.assigned_staff_ids
+      ? String(taskSample.assigned_staff_ids).split(',').map((id: string) => Number(id.trim())).filter((n: number) => !isNaN(n) && n > 0)
+      : [];
+
+    const isInterUnit = Boolean(
+      taskSample?.ticket_no?.startsWith('IU') ||
+      addData.is_inter_unit ||
+      addData.request_type === 'inter_unit'
+    );
+    const isMultiUnit = Boolean(
+      taskSample?.ticket_no?.startsWith('MU') ||
+      addData.is_multi_unit ||
+      addData.request_type === 'multi_unit'
+    );
+    const isGroup = isInterUnit || isMultiUnit || assignedStaffIds.length > 1;
+
+    // Get staff who performed STAFF_DONE
+    const { results: doneLogs } = await db.prepare(`
+      SELECT DISTINCT actor_id FROM workflow_logs 
+      WHERE job_request_id = ? AND action = 'STAFF_DONE'
+    `).bind(jId).all();
+
+    const doneActorIds = new Set((doneLogs || []).map((l: any) => Number(l.actor_id)));
+    const totalStaff = Math.max(assignedStaffIds.length, 1);
+    const completedStaff = assignedStaffIds.filter((id: number) => doneActorIds.has(id)).length;
+
+    let percent = 0;
+    if (taskSample?.job_status === 'completed') {
+      percent = 100;
+    } else if (totalStaff > 0) {
+      percent = Math.round((completedStaff / totalStaff) * 100);
+    }
+
+    progressMap[jId] = {
+      is_group: isGroup,
+      total_staff: totalStaff,
+      completed_staff: completedStaff,
+      percent: percent,
+    };
+  }
+
+  const enrichedTasks = rawTasks.map((t: any) => {
+    const prog = progressMap[t.job_request_id] || { is_group: false, total_staff: 1, completed_staff: 0, percent: 0 };
+    return {
+      ...t,
+      is_group: prog.is_group,
+      total_staff: prog.total_staff,
+      completed_staff: prog.completed_staff,
+      progress_percent: prog.percent,
+    };
+  });
+
+  return c.json(enrichedTasks);
 });
 
 // PUT /api/job-requests/tasks/:taskId/status - Update sub-task status
