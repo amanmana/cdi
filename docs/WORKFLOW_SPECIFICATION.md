@@ -121,6 +121,10 @@ Setiap tiket bergerak mengikut fasa-fasa status berikut:
      * **Head of Unit yang telah selesai assign staf (cth: Lau):** Melihat lencana hijau/teal **`TEAM ASSIGNED`**, bukan `MANAGER APPROVAL`.
      * **Pengurus yang jabatannya sudah lulus:** Melihat lencana **`UNIT HEAD REVIEW`**.
      * **Admin / Pandangan Umum (status bercampur):** Melihat lencana amber **`PARTIAL APPROVAL`** jika ada unit yang sudah lulus dan ada unit yang masih menunggu kelulusan pengurus kedua.
+4. **Kitar Hayat Sub-Tugasan Staf & Konsistensi Dashboard ('My Assigned Sub-Tasks')**:
+   * **Punca Kebenaran Mutlak (*Single Source of Truth*)**: Tindakan `STAFF_DONE` dalam jadual `workflow_logs` adalah penentu sama ada staf telah menyiapkan bahagiannya. Status dalam `job_tasks` sentiasa diselaraskan (*auto-healed*) dengan rekod ini. Staf yang belum menekan *Mark My Part As Done* **DILARANG SAMA SEKALI** dipaparkan dengan teks bergaris atau lencana `✓ COMPLETED`.
+   * **Kitar Hayat Projek Kumpulan**: Bagi projek berkumpulan, staf yang telah menyiapkan bahagiannya akan melihat status siap beserta carta donat kemajuan pasukan (cth: `75% 3/4 Done`) sehingga kesemua ahli pasukan mencapai 100% selesai. Tiket yang telah 100% siap ditapis keluar secara automatik daripada senarai sub-tugasan aktif. Bagi projek solo, sub-tugasan dikeluarkan serta-merta sebaik sahaja staf berkenaan menandakannya sebagai siap.
+   * **Penyelarasan Metrik Atas & Bawah**: Angka pada kad metrik atas (**MY SUB-TASKS**) wajib memaparkan nilai yang sama persis dengan jumlah sub-tugasan aktif dalam kotak senarai di bawah (**My Assigned Sub-Tasks**) dengan label `Active sub-tasks`.
 
 ---
 

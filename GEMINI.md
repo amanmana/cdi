@@ -59,6 +59,17 @@ Full detailed specification can be found in [`docs/WORKFLOW_SPECIFICATION.md`](d
   - **Direct Entry Invariant**: Client submission immediately bypasses Manager Review and Unit Head assignment. Initial status is `staff_processing`, step is `Staff Processing`, unit status is `accepted`, and individual tasks are created in `job_tasks`.
   - **Auto-Assignment Failsafe**: If `routing_target: 'staff'` is active but no specific staff was checked, backend MUST NOT regress to `manager_approval`. It automatically assigns ALL active unit staff into `assigned_staff_ids` and sets status directly to `staff_processing`.
 
+### Rule 9: Staff Sub-Tasks Lifecycle, Completion & Metric Invariants ('My Assigned Sub-Tasks')
+- **Single Source of Truth for Staff Completion**:
+  - A staff member's sub-task is ONLY marked as completed (`is_user_done = true`, strike-through title, `✓ COMPLETED` badge) if that specific user ID is recorded with action `STAFF_DONE` in `workflow_logs`, or if the parent job is globally `completed`.
+  - The endpoint `/api/job-requests/staff/my-tasks` enforces this truth and auto-heals any desynchronized rows in `job_tasks` (reverting from premature `completed` to `in_progress`).
+- **Group Collaboration Lifecycle in Staff Dashboard**:
+  - In group projects (Inter-Unit, Multi-Unit, or >1 assigned staff), once a staff member finalizes their part, their sub-task remains in their active list displaying their completed status and the team progress donut chart (e.g. `75% 3/4 Done`) until all collaborators finish.
+  - When the entire project reaches 100% completion (all assigned staff completed or job status is `completed`), it is automatically filtered out from "My Assigned Sub-Tasks".
+  - For solo projects, the sub-task is filtered out as soon as the sole assigned staff completes it.
+- **Strict Metric-to-List Synchronization**:
+  - The top summary metric card `MY SUB-TASKS` count and subtext MUST strictly equal the total active items in the list below (`activeMyTasks.length` with `Active sub-tasks`), preventing count discrepancies between the top hero card and the lower task panel.
+
 ---
 
 ## 3. Pre-Commit / Pre-Deploy Checklist
@@ -70,4 +81,5 @@ Whenever modifying any workflow code in `src/worker/routes/jobRequests.ts`, `src
 5. Check that dashboard status badges reflect the viewing user's active role context.
 6. Check that Multi-Unit master completion is restricted to Admin/Director and Department Managers cannot prematurely complete multi-unit projects.
 7. Check that Custom Services with `routing_target: 'staff'` route directly to staff with `staff_processing` and multi-staff assignment.
-8. Run `npm run build` and ensure 0 TypeScript errors before committing and deploying.
+8. Check that staff dashboard sub-tasks only display `✓ COMPLETED` when the viewing staff has logged `STAFF_DONE`, and top stat cards match the active sub-task list count.
+9. Run `npm run build` and ensure 0 TypeScript errors before committing and deploying.
