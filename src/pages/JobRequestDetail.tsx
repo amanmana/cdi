@@ -3531,17 +3531,20 @@ export const JobRequestDetail: React.FC = () => {
                                 </div>
                               ) : !isCurrentUserDone ? (
                                 /* Parallel work completion: Allow collaborator to finalize their part even if someone else holds the primary drafting turn */
-                                <div className="pt-2 border-t border-slate-200/60 space-y-2">
+                                <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
                                   <button
                                     type="button"
                                     onClick={() => setShowMarkDoneModal(true)}
                                     disabled={actionLoading}
-                                    className="w-full bg-white hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800 border border-emerald-200/90 font-bold text-xs py-2.5 px-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xs"
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-extrabold text-xs py-3 px-4 rounded-2xl uppercase tracking-wider shadow-md shadow-emerald-600/20 hover:shadow-lg hover:shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
                                     title="Already finished your portion? Finalize directly without waiting for others."
                                   >
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                    <span>Completed Your Part? Finalize Now</span>
+                                    <CheckCircle2 className="w-4 h-4 text-white" />
+                                    <span>MARK MY PART AS DONE</span>
                                   </button>
+                                  <p className="text-[10px] text-slate-400 text-center font-medium">
+                                    Tandakan tugasan anda selesai secara bebas tanpa perlu menunggu giliran rakan.
+                                  </p>
                                 </div>
                               ) : null}
                             </div>
