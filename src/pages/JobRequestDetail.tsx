@@ -3134,9 +3134,9 @@ export const JobRequestDetail: React.FC = () => {
                       <button
                         onClick={() => setShowMarkDoneModal(true)}
                         disabled={actionLoading}
-                        className="btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-500/20 uppercase tracking-wider gap-2 flex items-center justify-center transition-all"
+                        className="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl h-11 border-none shadow-md shadow-emerald-600/20 uppercase tracking-wider gap-2 flex items-center justify-center transition-all"
                       >
-                        <CheckCircle2 className="w-4 h-4" /> Finalize My Part
+                        <CheckCircle2 className="w-4 h-4" /> MARK MY PART AS DONE
                       </button>
                     </div>
                   )}
@@ -3567,12 +3567,12 @@ export const JobRequestDetail: React.FC = () => {
                               </div>
                             </div>
                           ) : (
-                            /* Bright Cyan MARK MY PART AS DONE button for Staff */
+                            /* Solid Emerald MARK MY PART AS DONE button for Staff (Unified with Inter-Unit styling) */
                             <button
                               type="button"
                               onClick={() => setShowMarkDoneModal(true)}
                               disabled={actionLoading}
-                              className="btn w-full bg-sky-400 hover:bg-sky-500 border-none text-white font-extrabold text-xs rounded-2xl h-12 uppercase tracking-wider shadow-lg shadow-sky-400/25 gap-2"
+                              className="btn w-full bg-emerald-600 hover:bg-emerald-700 border-none text-white font-extrabold text-xs rounded-2xl h-12 uppercase tracking-wider shadow-md shadow-emerald-600/20 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-[0.99] transition-all gap-2 flex items-center justify-center"
                             >
                               <CheckCircle2 className="w-4.5 h-4.5" /> MARK MY PART AS DONE
                             </button>
