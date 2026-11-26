@@ -1682,15 +1682,23 @@ export const JobRequestDetail: React.FC = () => {
                 const isAccepted = uMeta?.status === 'accepted' || (Array.isArray(uMeta?.assigned_staff_ids) && uMeta.assigned_staff_ids.length > 0);
                 const isManagerApproved = Boolean(uMeta?.manager_approved || uMeta?.routing_target === 'head_unit' || uMeta?.routing_target === 'staff');
 
-                const pillClass = isAccepted
-                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                const containerClass = isAccepted
+                  ? 'bg-white/95 border-emerald-200/90 shadow-2xs'
                   : isManagerApproved
-                  ? 'bg-emerald-500 text-white border-emerald-400 shadow-sm'
-                  : 'bg-amber-500 text-white border-amber-400 shadow-sm';
+                  ? 'bg-white/95 border-teal-200/90 shadow-2xs'
+                  : 'bg-white/95 border-amber-200/90 shadow-2xs';
 
-                const dotClass = (isAccepted || isManagerApproved)
-                  ? 'bg-emerald-200'
-                  : 'bg-amber-200 animate-pulse';
+                const dotClass = isAccepted
+                  ? 'bg-emerald-500 shadow-xs'
+                  : isManagerApproved
+                  ? 'bg-teal-500 shadow-xs'
+                  : 'bg-amber-500 animate-pulse shadow-xs';
+
+                const badgeClass = isAccepted
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                  : isManagerApproved
+                  ? 'bg-teal-50 text-teal-700 border-teal-200/80'
+                  : 'bg-amber-50 text-amber-700 border-amber-200/80';
 
                 const statusLabel = isAccepted
                   ? '✓ READY'
@@ -1701,12 +1709,12 @@ export const JobRequestDetail: React.FC = () => {
                 return (
                   <span
                     key={uName}
-                    className={`inline-flex items-center gap-1.5 font-black uppercase text-[11px] px-3 py-1 rounded-xl tracking-wider shadow-2xs border transition-all whitespace-nowrap ${pillClass}`}
+                    className={`inline-flex items-center gap-2 border px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${containerClass}`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
-                    <span>{uName}</span>
-                    <span className="opacity-80 font-semibold text-[10px]">({approverDisplayName})</span>
-                    <span className="text-[9px] font-black uppercase opacity-95 pl-0.5">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
+                    <span className="font-bold text-slate-800 text-xs tracking-tight">{uName}</span>
+                    <span className="text-slate-400 font-semibold text-[10px]">({approverDisplayName})</span>
+                    <span className={`inline-flex items-center text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${badgeClass}`}>
                       {statusLabel}
                     </span>
                   </span>
