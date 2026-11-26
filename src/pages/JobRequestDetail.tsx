@@ -3527,10 +3527,10 @@ export const JobRequestDetail: React.FC = () => {
                                           type="button"
                                           onClick={() => setShowMarkDoneModal(true)}
                                           disabled={actionLoading}
-                                          className="w-full bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 font-bold text-[11px] py-2.5 px-2 rounded-2xl transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                                          className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white border-transparent font-extrabold text-[11px] py-2.5 px-2 rounded-2xl transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20"
                                           title="Finalize your involvement directly"
                                         >
-                                          <CheckCircle2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
                                           <span className="truncate">Finalize My Part</span>
                                         </button>
                                       </div>
