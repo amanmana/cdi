@@ -2258,9 +2258,9 @@ export const JobRequestDetail: React.FC = () => {
                         setAssistanceNotes('');
                         setShowRequestAssistanceModal(true);
                       }}
-                      className="btn btn-sm btn-ghost text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 hover:border-indigo-300 text-xs font-bold rounded-xl gap-1.5 shadow-xs transition-all"
+                      className="btn btn-sm bg-purple-50 hover:bg-purple-100 text-purple-700 hover:text-purple-900 border border-purple-200/90 hover:border-purple-300 text-xs font-bold rounded-xl gap-1.5 shadow-2xs hover:shadow-xs active:scale-95 transition-all"
                     >
-                      <UserPlus className="w-3.5 h-3.5" /> Request Unit Assistance
+                      <Building2 className="w-3.5 h-3.5 text-purple-600" /> Request Unit Assistance
                     </button>
                   )}
 
@@ -2289,26 +2289,26 @@ export const JobRequestDetail: React.FC = () => {
                         }
                         setShowManageTeamModal(true);
                       }}
-                      className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-extrabold uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
+                      className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white border-transparent text-xs font-bold flex items-center gap-1.5 rounded-xl transition-all shadow-sm shadow-indigo-600/20 hover:shadow-md hover:shadow-indigo-600/30 active:scale-95"
                     >
                       {isInterUnitJob && isCollaboratingUnitHead ? (
                         <>
                           <Users className="w-3.5 h-3.5" />
                           {isUserUnitPending
-                            ? `ASSIGN ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`
-                            : `MANAGE ${user?.unit ? user.unit.toUpperCase() : 'UNIT'} STAFF`}
+                            ? `Assign ${user?.unit ? user.unit : 'Unit'} Staff`
+                            : `Manage ${user?.unit ? user.unit : 'Unit'} Staff`}
                         </>
                       ) : Boolean(user?.is_unit_head) && myUnitName ? (
                         <>
-                          <Users className="w-3.5 h-3.5" /> MANAGE {myUnitName.toUpperCase()} STAFF
+                          <Users className="w-3.5 h-3.5" /> Manage {myUnitName} Staff
                         </>
                       ) : Boolean(user?.is_unit_head) || user?.role === 'manager' || user?.role === 'admin' ? (
                         <>
-                          <Users className="w-3.5 h-3.5" /> MANAGE TEAM
+                          <Users className="w-3.5 h-3.5" /> Manage Team
                         </>
                       ) : (
                         <>
-                          <UserPlus className="w-3.5 h-3.5" /> INVITE TEAM
+                          <UserPlus className="w-3.5 h-3.5" /> + Invite Team
                         </>
                       )}
                     </button>
