@@ -3543,7 +3543,7 @@ export const JobRequestDetail: React.FC = () => {
                                     <span>MARK MY PART AS DONE</span>
                                   </button>
                                   <p className="text-[10px] text-slate-400 text-center font-medium">
-                                    Tandakan tugasan anda selesai secara bebas tanpa perlu menunggu giliran rakan.
+                                    Mark your portion as completed independently without waiting for other collaborators.
                                   </p>
                                 </div>
                               ) : null}
