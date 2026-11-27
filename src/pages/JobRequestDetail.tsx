@@ -2381,7 +2381,16 @@ export const JobRequestDetail: React.FC = () => {
                         key={s.id}
                         className={`group relative min-h-[180px] min-w-0 overflow-hidden flex flex-col justify-between p-4 rounded-3xl border transition-all duration-200 hover:shadow-md ${theme.cardBg} ${theme.border}`}
                       >
-                        <div className="min-w-0">
+                        {/* Organic Abstract Wave Background Texture (Dynamically tinted to unit theme) */}
+                        <div
+                          className="absolute inset-0 pointer-events-none opacity-[0.22] mix-blend-multiply bg-cover bg-center transition-transform duration-500 ease-out group-hover:scale-105"
+                          style={{
+                            backgroundImage: "url('/images/card_wave_bg.jpg')",
+                            filter: 'grayscale(100%) contrast(125%)',
+                          }}
+                        />
+
+                        <div className="relative z-10 min-w-0">
                           {/* Top Row: Avatar on Left + Status Badge on Right */}
                           <div className="flex items-center justify-between gap-1.5 flex-wrap">
                             <div className="relative shrink-0">
@@ -2434,10 +2443,10 @@ export const JobRequestDetail: React.FC = () => {
                         </div>
 
                         {/* Balanced Horizontal Divider In-Between Text Atas & Bawah */}
-                        <div className="border-t border-slate-200/70 my-3"></div>
+                        <div className="relative z-10 border-t border-slate-200/70 my-3"></div>
 
                         {/* Bottom: Task Details */}
-                        <div className="mt-auto">
+                        <div className="relative z-10 mt-auto">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
                             ASSIGNED TASK
                           </span>
