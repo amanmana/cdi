@@ -2330,49 +2330,61 @@ export const JobRequestDetail: React.FC = () => {
                     const tText = staffTasks[s.id];
                     const isSelf = Number(s.id) === Number(user?.id);
 
-                    // Semantic subtle gradient theme with darker top
+                    // Semantic subtle gradient theme with unit-specific dynamic organic vector waves
                     const u = (s.unit || '').toLowerCase().trim();
                     let theme = {
-                      cardBg: 'bg-gradient-to-b from-slate-200/80 via-slate-50/50 to-white hover:from-slate-200',
+                      cardBg: 'bg-white',
                       border: isSelf ? 'border-blue-400 ring-2 ring-blue-500/25 shadow-sm' : 'border-slate-200/90 hover:border-slate-300 shadow-2xs',
-                      avatarBg: isSelf ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-200 text-slate-700 border border-slate-300/80 shadow-2xs',
+                      avatarBg: isSelf ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs',
                       taskBoxBg: 'bg-white/90 border-slate-200/70 text-slate-800 shadow-2xs',
+                      waveColor1: '#64748b',
+                      waveColor2: '#94a3b8',
                     };
 
                     if (u.includes('social') || u.includes('socmed')) {
                       theme = {
-                        cardBg: 'bg-gradient-to-b from-emerald-100/90 via-emerald-50/50 to-white hover:from-emerald-100',
-                        border: isSelf ? 'border-emerald-400 ring-2 ring-emerald-500/25 shadow-sm' : 'border-emerald-200/90 hover:border-emerald-300 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-500/15 text-emerald-800 border border-emerald-300/80 shadow-2xs',
+                        cardBg: 'bg-white',
+                        border: isSelf ? 'border-emerald-400 ring-2 ring-emerald-500/25 shadow-sm' : 'border-emerald-200/80 hover:border-emerald-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs',
                         taskBoxBg: 'bg-white/90 border-emerald-100 text-emerald-950 shadow-2xs',
+                        waveColor1: '#10b981',
+                        waveColor2: '#6ee7b7',
                       };
                     } else if (u.includes('graphic') || u.includes('web') || u.includes('design')) {
                       theme = {
-                        cardBg: 'bg-gradient-to-b from-indigo-100/90 via-indigo-50/50 to-white hover:from-indigo-100',
-                        border: isSelf ? 'border-indigo-400 ring-2 ring-indigo-500/25 shadow-sm' : 'border-indigo-200/90 hover:border-indigo-300 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-500/15 text-indigo-800 border border-indigo-300/80 shadow-2xs',
+                        cardBg: 'bg-white',
+                        border: isSelf ? 'border-indigo-400 ring-2 ring-indigo-500/25 shadow-sm' : 'border-indigo-200/80 hover:border-indigo-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-2xs',
                         taskBoxBg: 'bg-white/90 border-indigo-100 text-indigo-950 shadow-2xs',
+                        waveColor1: '#6366f1',
+                        waveColor2: '#a5b4fc',
                       };
                     } else if (u.includes('event')) {
                       theme = {
-                        cardBg: 'bg-gradient-to-b from-amber-100/90 via-amber-50/50 to-white hover:from-amber-100',
-                        border: isSelf ? 'border-amber-400 ring-2 ring-amber-500/25 shadow-sm' : 'border-amber-200/90 hover:border-amber-300 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-500/15 text-amber-800 border border-amber-300/80 shadow-2xs',
+                        cardBg: 'bg-white',
+                        border: isSelf ? 'border-amber-400 ring-2 ring-amber-500/25 shadow-sm' : 'border-amber-200/80 hover:border-amber-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs',
                         taskBoxBg: 'bg-white/90 border-amber-100 text-amber-950 shadow-2xs',
+                        waveColor1: '#f59e0b',
+                        waveColor2: '#fde68a',
                       };
                     } else if (u.includes('video') || u.includes('media') || u.includes('photo') || u.includes('audio') || u.includes('multimedia')) {
                       theme = {
-                        cardBg: 'bg-gradient-to-b from-rose-100/90 via-rose-50/50 to-white hover:from-rose-100',
-                        border: isSelf ? 'border-rose-400 ring-2 ring-rose-500/25 shadow-sm' : 'border-rose-200/90 hover:border-rose-300 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-rose-600 text-white shadow-xs' : 'bg-rose-500/15 text-rose-800 border border-rose-300/80 shadow-2xs',
+                        cardBg: 'bg-white',
+                        border: isSelf ? 'border-rose-400 ring-2 ring-rose-500/25 shadow-sm' : 'border-rose-200/80 hover:border-rose-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-rose-600 text-white shadow-xs' : 'bg-rose-50 text-rose-800 border border-rose-200 shadow-2xs',
                         taskBoxBg: 'bg-white/90 border-rose-100 text-rose-950 shadow-2xs',
+                        waveColor1: '#f43f5e',
+                        waveColor2: '#fecdd3',
                       };
                     } else if (u.includes('writer') || u.includes('content') || u.includes('comm') || u.includes('corporate')) {
                       theme = {
-                        cardBg: 'bg-gradient-to-b from-sky-100/90 via-sky-50/50 to-white hover:from-sky-100',
-                        border: isSelf ? 'border-sky-400 ring-2 ring-sky-500/25 shadow-sm' : 'border-sky-200/90 hover:border-sky-300 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-sky-600 text-white shadow-xs' : 'bg-sky-500/15 text-sky-800 border border-sky-300/80 shadow-2xs',
+                        cardBg: 'bg-white',
+                        border: isSelf ? 'border-sky-400 ring-2 ring-sky-500/25 shadow-sm' : 'border-sky-200/80 hover:border-sky-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-sky-600 text-white shadow-xs' : 'bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs',
                         taskBoxBg: 'bg-white/90 border-sky-100 text-sky-950 shadow-2xs',
+                        waveColor1: '#0ea5e9',
+                        waveColor2: '#bae6fd',
                       };
                     }
 
@@ -2381,14 +2393,51 @@ export const JobRequestDetail: React.FC = () => {
                         key={s.id}
                         className={`group relative min-h-[180px] min-w-0 overflow-hidden flex flex-col justify-between p-4 rounded-3xl border transition-all duration-200 hover:shadow-md ${theme.cardBg} ${theme.border}`}
                       >
-                        {/* Organic Abstract Wave Background Texture (Dynamically tinted to unit theme) */}
-                        <div
-                          className="absolute inset-0 pointer-events-none opacity-[0.22] mix-blend-multiply bg-cover bg-center transition-transform duration-500 ease-out group-hover:scale-105"
-                          style={{
-                            backgroundImage: "url('/images/card_wave_bg.jpg')",
-                            filter: 'grayscale(100%) contrast(125%)',
-                          }}
-                        />
+                        {/* 3D Organic Vector Waves (Crisp, clean, no murky artifacts, matching unit brand color) */}
+                        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none transition-transform duration-500 ease-out group-hover:scale-105">
+                          <svg
+                            className="absolute inset-0 w-full h-full object-cover"
+                            viewBox="0 0 200 200"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            preserveAspectRatio="none"
+                          >
+                            <defs>
+                              <linearGradient id={`cardWave1_${s.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor={theme.waveColor1} stopOpacity="0.32" />
+                                <stop offset="65%" stopColor={theme.waveColor2} stopOpacity="0.14" />
+                                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                              </linearGradient>
+                              <linearGradient id={`cardWave2_${s.id}`} x1="100%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor={theme.waveColor1} stopOpacity="0.22" />
+                                <stop offset="55%" stopColor={theme.waveColor2} stopOpacity="0.08" />
+                                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                              </linearGradient>
+                              <linearGradient id={`cardWave3_${s.id}`} x1="30%" y1="0%" x2="70%" y2="100%">
+                                <stop offset="0%" stopColor={theme.waveColor2} stopOpacity="0.25" />
+                                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+
+                            {/* Wave Layer 1: Wide Soft Swell */}
+                            <path
+                              d="M0,0 L200,0 L200,65 Q135,115 75,55 T0,105 Z"
+                              fill={`url(#cardWave1_${s.id})`}
+                            />
+
+                            {/* Wave Layer 2: Flowing Organic Ribbon Curve */}
+                            <path
+                              d="M200,0 L200,155 C165,135 145,75 95,90 C45,105 35,165 0,145 L0,0 Z"
+                              fill={`url(#cardWave2_${s.id})`}
+                            />
+
+                            {/* Wave Layer 3: Top Curved Accent Flow */}
+                            <path
+                              d="M0,0 Q95,65 200,25 L200,0 Z"
+                              fill={`url(#cardWave3_${s.id})`}
+                            />
+                          </svg>
+                        </div>
 
                         <div className="relative z-10 min-w-0">
                           {/* Top Row: Avatar on Left + Status Badge on Right */}
