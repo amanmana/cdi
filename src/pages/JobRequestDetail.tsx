@@ -1949,67 +1949,69 @@ export const JobRequestDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Top Title & Status Capsule Hero Card (Variasi 1C: Diagonal Deep Violet-Indigo Glow) */}
-          <div className="bg-gradient-to-br from-[#090d16] via-[#111827] to-[#4338ca] rounded-3xl border border-indigo-400/40 shadow-xl p-6 md:p-8 text-white">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-black text-indigo-300 uppercase tracking-wider mb-1">
-                  REQUEST #{request.ticket_no}
-                </div>
-                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight break-words drop-shadow-md">
-                  {request.title}
-                </h1>
-                <div className="flex flex-wrap items-center gap-2 mt-2.5">
-                  <span className="text-xs font-bold text-slate-400">INTERNAL ID: #{request.id}</span>
-                  <span className="text-slate-600">•</span>
-                  <span className="bg-white/10 backdrop-blur-md text-indigo-200 border border-white/20 font-extrabold text-[10px] uppercase px-3 py-1 rounded-xl shadow-xs">
-                    SUBMITTED ON {formatDateDisplay(request.created_at)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Status Capsule Badge & Progress Indicator matching Reference Image */}
-              <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
-                <div className="relative flex items-center justify-center w-14 h-14 shrink-0">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 50 50">
-                    {/* Track circle */}
-                    <circle
-                      cx="25"
-                      cy="25"
-                      r="21"
-                      className="stroke-slate-800"
-                      strokeWidth="5"
-                      fill="transparent"
-                    />
-                    {/* Progress circle */}
-                    <circle
-                      cx="25"
-                      cy="25"
-                      r="21"
-                      className="stroke-indigo-300 transition-all duration-500 ease-out"
-                      strokeWidth="5"
-                      strokeDasharray={2 * Math.PI * 21}
-                      strokeDashoffset={2 * Math.PI * 21 - (percent / 100) * (2 * Math.PI * 21)}
-                      strokeLinecap="round"
-                      fill="transparent"
-                    />
-                  </svg>
-                  {/* Inner Label */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-[11px] font-black text-white leading-none">{percent}%</span>
-                    <span className="text-[7px] font-extrabold text-slate-300 uppercase tracking-wider mt-0.5">
-                      PROGRESS
+          {/* Unified Main Request Card (Dark Gradient Header + Clean White Body) */}
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 overflow-hidden">
+            {/* Top Title & Status Capsule Hero Section (Variasi 1C: Diagonal Deep Violet-Indigo Glow) */}
+            <div className="bg-gradient-to-br from-[#090d16] via-[#111827] to-[#4338ca] p-6 md:p-8 text-white border-b border-indigo-500/30">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-black text-indigo-300 uppercase tracking-wider mb-1">
+                    REQUEST #{request.ticket_no}
+                  </div>
+                  <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight break-words drop-shadow-md">
+                    {request.title}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                    <span className="text-xs font-bold text-slate-400">INTERNAL ID: #{request.id}</span>
+                    <span className="text-slate-600">•</span>
+                    <span className="bg-white/10 backdrop-blur-md text-indigo-200 border border-white/20 font-extrabold text-[10px] uppercase px-3 py-1 rounded-xl shadow-xs">
+                      SUBMITTED ON {formatDateDisplay(request.created_at)}
                     </span>
                   </div>
                 </div>
 
-                <div>{renderStatusCapsule(request.status)}</div>
+                {/* Status Capsule Badge & Progress Indicator matching Reference Image */}
+                <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
+                  <div className="relative flex items-center justify-center w-14 h-14 shrink-0">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 50 50">
+                      {/* Track circle */}
+                      <circle
+                        cx="25"
+                        cy="25"
+                        r="21"
+                        className="stroke-slate-800"
+                        strokeWidth="5"
+                        fill="transparent"
+                      />
+                      {/* Progress circle */}
+                      <circle
+                        cx="25"
+                        cy="25"
+                        r="21"
+                        className="stroke-indigo-300 transition-all duration-500 ease-out"
+                        strokeWidth="5"
+                        strokeDasharray={2 * Math.PI * 21}
+                        strokeDashoffset={2 * Math.PI * 21 - (percent / 100) * (2 * Math.PI * 21)}
+                        strokeLinecap="round"
+                        fill="transparent"
+                      />
+                    </svg>
+                    {/* Inner Label */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-[11px] font-black text-white leading-none">{percent}%</span>
+                      <span className="text-[7px] font-extrabold text-slate-300 uppercase tracking-wider mt-0.5">
+                        PROGRESS
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>{renderStatusCapsule(request.status)}</div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Main Request Collaboration & Details Card (Clean White Surface) */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 space-y-6">
+            {/* Main Request Collaboration & Details Body (Clean White Surface) */}
+            <div className="p-6 md:p-8 space-y-6">
             {/* Participating Units Oversight Badges (Only shown when multiple units are collaborating) */}
             {user?.role !== 'client' && participatingUnits.length > 1 && (
               <div className="bg-gradient-to-r from-white via-indigo-50/40 to-purple-50/30 p-4 md:p-5 rounded-3xl border border-indigo-200/90 shadow-sm shadow-indigo-100/40 space-y-3">
@@ -2870,6 +2872,7 @@ export const JobRequestDetail: React.FC = () => {
                 </div>
               );
             })()}
+            </div>
           </div>
 
           {/* Comment from Manager Card */}
