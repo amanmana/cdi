@@ -1949,21 +1949,21 @@ export const JobRequestDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Main Request Header Card */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 md:p-8 space-y-6">
+          {/* Main Request Header Card with Variasi 1C: Diagonal Deep Violet-Indigo Glow */}
+          <div className="bg-gradient-to-br from-[#090d16] via-[#111827] to-[#4338ca] rounded-3xl border border-indigo-400/40 shadow-2xl p-6 md:p-8 space-y-6 text-white">
             {/* Top Title & Status Capsule Row */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-extrabold text-blue-600 uppercase tracking-wider mb-1">
+                <div className="text-xs font-black text-indigo-300 uppercase tracking-wider mb-1">
                   REQUEST #{request.ticket_no}
                 </div>
-                <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight break-words">
+                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight break-words drop-shadow-md">
                   {request.title}
                 </h1>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <span className="text-xs font-bold text-slate-500">INTERNAL ID: #{request.id}</span>
-                  <span className="text-slate-300">•</span>
-                  <span className="bg-blue-50 text-blue-700 font-extrabold text-[10px] uppercase px-3 py-1 rounded-xl">
+                <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                  <span className="text-xs font-bold text-slate-400">INTERNAL ID: #{request.id}</span>
+                  <span className="text-slate-600">•</span>
+                  <span className="bg-white/10 backdrop-blur-md text-indigo-200 border border-white/20 font-extrabold text-[10px] uppercase px-3 py-1 rounded-xl shadow-xs">
                     SUBMITTED ON {formatDateDisplay(request.created_at)}
                   </span>
                 </div>
@@ -1978,7 +1978,7 @@ export const JobRequestDetail: React.FC = () => {
                       cx="25"
                       cy="25"
                       r="21"
-                      className="stroke-slate-100"
+                      className="stroke-slate-800"
                       strokeWidth="5"
                       fill="transparent"
                     />
@@ -1987,7 +1987,7 @@ export const JobRequestDetail: React.FC = () => {
                       cx="25"
                       cy="25"
                       r="21"
-                      className="stroke-indigo-600 transition-all duration-500 ease-out"
+                      className="stroke-indigo-300 transition-all duration-500 ease-out"
                       strokeWidth="5"
                       strokeDasharray={2 * Math.PI * 21}
                       strokeDashoffset={2 * Math.PI * 21 - (percent / 100) * (2 * Math.PI * 21)}
@@ -1997,8 +1997,8 @@ export const JobRequestDetail: React.FC = () => {
                   </svg>
                   {/* Inner Label */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-[11px] font-black text-indigo-600 leading-none">{percent}%</span>
-                    <span className="text-[7px] font-extrabold text-slate-400 uppercase tracking-wider mt-0.5">
+                    <span className="text-[11px] font-black text-white leading-none">{percent}%</span>
+                    <span className="text-[7px] font-extrabold text-slate-300 uppercase tracking-wider mt-0.5">
                       PROGRESS
                     </span>
                   </div>
@@ -2010,7 +2010,7 @@ export const JobRequestDetail: React.FC = () => {
 
             {/* Participating Units Oversight Badges (Only shown when multiple units are collaborating) */}
             {user?.role !== 'client' && participatingUnits.length > 1 && (
-              <div className="bg-gradient-to-r from-white via-indigo-50/40 to-purple-50/30 p-4 md:p-5 rounded-3xl border border-indigo-200/90 shadow-sm shadow-indigo-100/40 space-y-3">
+              <div className="bg-white/10 backdrop-blur-md p-4 md:p-5 rounded-3xl border border-white/15 shadow-sm space-y-3 text-white">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm shadow-indigo-300 shrink-0">
@@ -2018,31 +2018,31 @@ export const JobRequestDetail: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        <h4 className="text-xs font-black text-white uppercase tracking-wider">
                           Participating Units
                         </h4>
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
                           {participatingUnits.length} {participatingUnits.length === 1 ? 'Unit' : 'Units Involved'}
                         </span>
                         {participatingUnits.length > 1 && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-purple-700 bg-purple-100/80 px-2.5 py-0.5 rounded-full border border-purple-200">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-purple-200 bg-purple-500/30 px-2.5 py-0.5 rounded-full border border-purple-400/30">
                             ✨ Multi-Unit Project
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      <p className="text-[11px] text-slate-300 font-medium mt-0.5">
                         Units and team members actively collaborating on this request
                       </p>
                     </div>
                   </div>
 
                   <div className="text-[11px] font-semibold text-slate-400">
-                    Oversight: <span className="text-indigo-600 font-bold">Transparent Active Team</span>
+                    Oversight: <span className="text-indigo-300 font-bold">Transparent Active Team</span>
                   </div>
                 </div>
 
                 {/* Unit Badges Row */}
-                <div className="flex flex-wrap items-center gap-2.5 pt-1 border-t border-indigo-100/70">
+                <div className="flex flex-wrap items-center gap-2.5 pt-1 border-t border-white/10">
                   {participatingUnits.map((unitName) => {
                     const staffCount = unitStaffCounts[unitName] || 0;
                     const badgeColor = getUnitBadgeStyle(unitName);
