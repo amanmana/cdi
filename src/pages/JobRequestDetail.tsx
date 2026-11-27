@@ -4143,10 +4143,17 @@ export const JobRequestDetail: React.FC = () => {
           })()}
 
           {/* PROJECT TIMELINE Card */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase tracking-wider">
-                <Calendar className="w-4 h-4 text-blue-600" />
+          <div className="relative overflow-hidden rounded-3xl border border-blue-400/30 shadow-xl shadow-blue-900/10 p-6 space-y-5">
+            {/* Background Graphic */}
+            <img
+              src="/images/timeline-bg.jpg"
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+            />
+
+            <div className="relative z-10 flex items-center justify-between border-b border-white/25 pb-3">
+              <div className="flex items-center gap-2 text-xs font-black text-white uppercase tracking-wider drop-shadow-xs">
+                <Calendar className="w-4 h-4 text-white" />
                 <span>PROJECT TIMELINE</span>
               </div>
 
@@ -4160,20 +4167,20 @@ export const JobRequestDetail: React.FC = () => {
                       setDeadline(request.deadline || '');
                       setShowEditTimelineModal(true);
                     }}
-                    className="btn btn-xs btn-ghost text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-extrabold text-[10px] uppercase flex items-center gap-1.5 rounded-xl transition-all border border-blue-100/60 shadow-xs"
+                    className="btn btn-xs bg-white/20 hover:bg-white/30 text-white font-extrabold text-[10px] uppercase flex items-center gap-1.5 rounded-xl transition-all border border-white/30 backdrop-blur-md shadow-xs"
                   >
                     <Edit2 className="w-3 h-3" /> EDIT TIMELINE
                   </button>
                 ) : isInterUnitJob && (user?.role === 'manager' || user?.is_acting_manager) ? (
-                  <span className="text-[10px] text-slate-400 font-semibold italic bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/60">
+                  <span className="text-[10px] text-white/90 font-semibold italic bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/20">
                     Managed by {request.origin_department_name || request.additional_data?.requester_unit || 'Origin Unit'} Manager
                   </span>
                 ) : null}
             </div>
 
-            <div className="space-y-4">
+            <div className="relative z-10 space-y-3.5">
               {/* Start Date */}
-              <div className="flex items-center gap-3 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+              <div className="flex items-center gap-3 bg-white/90 backdrop-blur-md p-3.5 rounded-2xl border border-white/80 shadow-xs">
                 <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                   <Clock className="w-5 h-5" />
                 </div>
@@ -4188,7 +4195,7 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {/* Deadline */}
-              <div className="flex items-center gap-3 bg-rose-50/40 p-3.5 rounded-2xl border border-rose-100/60">
+              <div className="flex items-center gap-3 bg-white/90 backdrop-blur-md p-3.5 rounded-2xl border border-rose-100 shadow-xs">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                   <AlertCircle className="w-5 h-5" />
                 </div>
