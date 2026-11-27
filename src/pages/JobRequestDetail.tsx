@@ -2325,7 +2325,7 @@ export const JobRequestDetail: React.FC = () => {
               </div>
 
               {data.staffDetails && data.staffDetails.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-1">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5 sm:gap-4 pt-1">
                   {data.staffDetails.map((s: any) => {
                     const tText = staffTasks[s.id];
                     const isSelf = Number(s.id) === Number(user?.id);
@@ -2379,14 +2379,14 @@ export const JobRequestDetail: React.FC = () => {
                     return (
                       <div
                         key={s.id}
-                        className={`group relative aspect-square flex flex-col justify-between p-5 rounded-3xl border transition-all duration-200 hover:shadow-md ${theme.cardBg} ${theme.border}`}
+                        className={`group relative min-h-[180px] min-w-0 overflow-hidden flex flex-col justify-between p-4 rounded-3xl border transition-all duration-200 hover:shadow-md ${theme.cardBg} ${theme.border}`}
                       >
-                        <div>
+                        <div className="min-w-0">
                           {/* Top Row: Avatar on Left + Status Badge on Right */}
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center justify-between gap-1.5 flex-wrap">
                             <div className="relative shrink-0">
                               <div
-                                className={`w-12 h-12 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
+                                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full font-black text-sm flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${theme.avatarBg}`}
                               >
                                 {s.avatar_url ? (
                                   <img src={s.avatar_url} alt={s.name} className="w-full h-full object-cover" />
@@ -2403,12 +2403,12 @@ export const JobRequestDetail: React.FC = () => {
 
                             {/* Status Badge in Top Right */}
                             {s.is_done ? (
-                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-emerald-300/90 bg-emerald-50/95 text-emerald-700 text-[10px] font-black uppercase tracking-wider shadow-2xs shrink-0">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-emerald-300/90 bg-emerald-50/95 text-emerald-700 text-[9.5px] font-black uppercase tracking-wider shadow-2xs shrink-0 whitespace-nowrap">
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                                 DONE
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-slate-300/90 bg-white/95 text-slate-600 text-[10px] font-extrabold uppercase tracking-wider shadow-2xs shrink-0">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-slate-300/90 bg-white/95 text-slate-600 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs shrink-0 whitespace-nowrap">
                                 PENDING
                               </span>
                             )}
