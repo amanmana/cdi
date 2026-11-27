@@ -2403,12 +2403,13 @@ export const JobRequestDetail: React.FC = () => {
 
                             {/* Status Badge in Top Right */}
                             {s.is_done ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-emerald-300/90 bg-emerald-50/95 text-emerald-700 text-[9.5px] font-black uppercase tracking-wider shadow-2xs shrink-0 whitespace-nowrap">
-                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-emerald-600 bg-emerald-600 text-white text-[9.5px] font-black uppercase tracking-wider shadow-2xs shrink-0 whitespace-nowrap">
+                                <CheckCircle2 className="w-2.5 h-2.5 text-white shrink-0" />
                                 DONE
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-slate-300/90 bg-white/95 text-slate-600 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs shrink-0 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-amber-300/90 bg-amber-100 text-amber-900 text-[9.5px] font-extrabold uppercase tracking-wider shadow-2xs shrink-0 whitespace-nowrap">
+                                <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
                                 PENDING
                               </span>
                             )}
