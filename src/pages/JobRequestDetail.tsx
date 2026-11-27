@@ -2330,206 +2330,58 @@ export const JobRequestDetail: React.FC = () => {
                     const tText = staffTasks[s.id];
                     const isSelf = Number(s.id) === Number(user?.id);
 
-                    // Organic vector contour landscape theme tailored to unit identity (covering 100% full card)
+                    // Semantic subtle gradient theme with darker top
                     const u = (s.unit || '').toLowerCase().trim();
                     let theme = {
-                      baseFrom: '#f8fafc',
-                      baseMid: '#f1f5f9',
-                      baseTo: '#cbd5e1',
-                      ribbonLeft: '#94a3b8',
-                      ribbonMain: '#64748b',
-                      ribbonTop: '#cbd5e1',
-                      ribbonCorner: '#e2e8f0',
-                      glow: '#ffffff',
-                      border: isSelf ? 'border-blue-400 ring-2 ring-blue-500/25 shadow-sm' : 'border-slate-300/80 shadow-2xs',
-                      avatarBg: isSelf ? 'bg-blue-600 text-white shadow-xs' : 'bg-white/90 text-slate-800 border border-slate-300 shadow-2xs',
-                      nameColor: 'text-slate-900 group-hover:text-blue-600',
-                      unitColor: 'text-slate-600',
-                      dividerColor: 'border-slate-300/70',
-                      taskLabelColor: 'text-slate-500',
-                      taskTextColor: 'text-slate-900',
+                      cardBg: 'bg-gradient-to-b from-slate-200/80 via-slate-50/50 to-white hover:from-slate-200',
+                      border: isSelf ? 'border-blue-400 ring-2 ring-blue-500/25 shadow-sm' : 'border-slate-200/90 hover:border-slate-300 shadow-2xs',
+                      avatarBg: isSelf ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-200 text-slate-700 border border-slate-300/80 shadow-2xs',
+                      taskBoxBg: 'bg-white/90 border-slate-200/70 text-slate-800 shadow-2xs',
                     };
 
                     if (u.includes('social') || u.includes('socmed')) {
                       theme = {
-                        // Emerald (Social Media Unit)
-                        baseFrom: '#ecfdf5',
-                        baseMid: '#d1fae5',
-                        baseTo: '#a7f3d0',
-                        ribbonLeft: '#34d399',
-                        ribbonMain: '#059669',
-                        ribbonTop: '#6ee7b7',
-                        ribbonCorner: '#a7f3d0',
-                        glow: '#ffffff',
-                        border: isSelf ? 'border-emerald-500 ring-2 ring-emerald-500/30 shadow-sm' : 'border-emerald-300/80 hover:border-emerald-400 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white/95 text-emerald-900 border border-emerald-300 shadow-2xs',
-                        nameColor: 'text-emerald-950 group-hover:text-emerald-700',
-                        unitColor: 'text-emerald-700',
-                        dividerColor: 'border-emerald-300/70',
-                        taskLabelColor: 'text-emerald-800/80',
-                        taskTextColor: 'text-emerald-950',
+                        cardBg: 'bg-gradient-to-b from-emerald-100/90 via-emerald-50/50 to-white hover:from-emerald-100',
+                        border: isSelf ? 'border-emerald-400 ring-2 ring-emerald-500/25 shadow-sm' : 'border-emerald-200/90 hover:border-emerald-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-500/15 text-emerald-800 border border-emerald-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-emerald-100 text-emerald-950 shadow-2xs',
                       };
                     } else if (u.includes('graphic') || u.includes('web') || u.includes('design')) {
                       theme = {
-                        // Indigo / Violet (Graphic & Web Unit - matching contour reference wallpaper)
-                        baseFrom: '#eef2ff',
-                        baseMid: '#e0e7ff',
-                        baseTo: '#c7d2fe',
-                        ribbonLeft: '#818cf8',
-                        ribbonMain: '#4f46e5',
-                        ribbonTop: '#a5b4fc',
-                        ribbonCorner: '#c7d2fe',
-                        glow: '#ffffff',
-                        border: isSelf ? 'border-indigo-500 ring-2 ring-indigo-500/30 shadow-sm' : 'border-indigo-300/80 hover:border-indigo-400 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white/95 text-indigo-900 border border-indigo-300 shadow-2xs',
-                        nameColor: 'text-indigo-950 group-hover:text-indigo-700',
-                        unitColor: 'text-indigo-700',
-                        dividerColor: 'border-indigo-300/70',
-                        taskLabelColor: 'text-indigo-800/80',
-                        taskTextColor: 'text-indigo-950',
+                        cardBg: 'bg-gradient-to-b from-indigo-100/90 via-indigo-50/50 to-white hover:from-indigo-100',
+                        border: isSelf ? 'border-indigo-400 ring-2 ring-indigo-500/25 shadow-sm' : 'border-indigo-200/90 hover:border-indigo-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-500/15 text-indigo-800 border border-indigo-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-indigo-100 text-indigo-950 shadow-2xs',
                       };
                     } else if (u.includes('event')) {
                       theme = {
-                        // Amber / Warm Gold (Event Management Unit)
-                        baseFrom: '#fffbeb',
-                        baseMid: '#fef3c7',
-                        baseTo: '#fde68a',
-                        ribbonLeft: '#fbbf24',
-                        ribbonMain: '#d97706',
-                        ribbonTop: '#fcd34d',
-                        ribbonCorner: '#fde68a',
-                        glow: '#ffffff',
-                        border: isSelf ? 'border-amber-500 ring-2 ring-amber-500/30 shadow-sm' : 'border-amber-300/80 hover:border-amber-400 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-amber-600 text-white shadow-xs' : 'bg-white/95 text-amber-950 border border-amber-300 shadow-2xs',
-                        nameColor: 'text-amber-950 group-hover:text-amber-800',
-                        unitColor: 'text-amber-800',
-                        dividerColor: 'border-amber-300/70',
-                        taskLabelColor: 'text-amber-800/80',
-                        taskTextColor: 'text-amber-950',
+                        cardBg: 'bg-gradient-to-b from-amber-100/90 via-amber-50/50 to-white hover:from-amber-100',
+                        border: isSelf ? 'border-amber-400 ring-2 ring-amber-500/25 shadow-sm' : 'border-amber-200/90 hover:border-amber-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-500/15 text-amber-800 border border-amber-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-amber-100 text-amber-950 shadow-2xs',
                       };
                     } else if (u.includes('video') || u.includes('media') || u.includes('photo') || u.includes('audio') || u.includes('multimedia')) {
                       theme = {
-                        // Rose / Crimson (3D Modelling & Video Unit)
-                        baseFrom: '#fff1f2',
-                        baseMid: '#ffe4e6',
-                        baseTo: '#fecdd3',
-                        ribbonLeft: '#fb7185',
-                        ribbonMain: '#e11d48',
-                        ribbonTop: '#fda4af',
-                        ribbonCorner: '#fecdd3',
-                        glow: '#ffffff',
-                        border: isSelf ? 'border-rose-500 ring-2 ring-rose-500/30 shadow-sm' : 'border-rose-300/80 hover:border-rose-400 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-rose-600 text-white shadow-xs' : 'bg-white/95 text-rose-950 border border-rose-300 shadow-2xs',
-                        nameColor: 'text-rose-950 group-hover:text-rose-700',
-                        unitColor: 'text-rose-700',
-                        dividerColor: 'border-rose-300/70',
-                        taskLabelColor: 'text-rose-800/80',
-                        taskTextColor: 'text-rose-950',
+                        cardBg: 'bg-gradient-to-b from-rose-100/90 via-rose-50/50 to-white hover:from-rose-100',
+                        border: isSelf ? 'border-rose-400 ring-2 ring-rose-500/25 shadow-sm' : 'border-rose-200/90 hover:border-rose-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-rose-600 text-white shadow-xs' : 'bg-rose-500/15 text-rose-800 border border-rose-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-rose-100 text-rose-950 shadow-2xs',
                       };
                     } else if (u.includes('writer') || u.includes('content') || u.includes('comm') || u.includes('corporate')) {
                       theme = {
-                        // Sky / Cyan (Writer & Communications Unit)
-                        baseFrom: '#f0f9ff',
-                        baseMid: '#e0f2fe',
-                        baseTo: '#bae6fd',
-                        ribbonLeft: '#38bdf8',
-                        ribbonMain: '#0284c7',
-                        ribbonTop: '#7dd3fc',
-                        ribbonCorner: '#bae6fd',
-                        glow: '#ffffff',
-                        border: isSelf ? 'border-sky-500 ring-2 ring-sky-500/30 shadow-sm' : 'border-sky-300/80 hover:border-sky-400 shadow-2xs',
-                        avatarBg: isSelf ? 'bg-sky-600 text-white shadow-xs' : 'bg-white/95 text-sky-950 border border-sky-300 shadow-2xs',
-                        nameColor: 'text-sky-950 group-hover:text-sky-800',
-                        unitColor: 'text-sky-700',
-                        dividerColor: 'border-sky-300/70',
-                        taskLabelColor: 'text-sky-800/80',
-                        taskTextColor: 'text-sky-950',
+                        cardBg: 'bg-gradient-to-b from-sky-100/90 via-sky-50/50 to-white hover:from-sky-100',
+                        border: isSelf ? 'border-sky-400 ring-2 ring-sky-500/25 shadow-sm' : 'border-sky-200/90 hover:border-sky-300 shadow-2xs',
+                        avatarBg: isSelf ? 'bg-sky-600 text-white shadow-xs' : 'bg-sky-500/15 text-sky-800 border border-sky-300/80 shadow-2xs',
+                        taskBoxBg: 'bg-white/90 border-sky-100 text-sky-950 shadow-2xs',
                       };
                     }
 
                     return (
                       <div
                         key={s.id}
-                        className={`group relative min-h-[185px] min-w-0 overflow-hidden flex flex-col justify-between p-4 rounded-3xl border transition-all duration-300 hover:shadow-lg ${theme.border}`}
+                        className={`group relative min-h-[180px] min-w-0 overflow-hidden flex flex-col justify-between p-4 rounded-3xl border transition-all duration-200 hover:shadow-md ${theme.cardBg} ${theme.border}`}
                       >
-                        {/* 3D Organic Vector Contour Landscape (Following reference curves across 100% full card height and width) */}
-                        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-                          <svg
-                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                            viewBox="0 0 1000 650"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            preserveAspectRatio="none"
-                          >
-                            <defs>
-                              {/* 1. Full Base Coverage Gradient (No stark white cutoff at bottom) */}
-                              <linearGradient id={`cardBase_${s.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor={theme.baseFrom} />
-                                <stop offset="50%" stopColor={theme.baseMid} />
-                                <stop offset="100%" stopColor={theme.baseTo} />
-                              </linearGradient>
-
-                              {/* 2. Left Contour Ribbon Gradient */}
-                              <linearGradient id={`ribbonLeft_${s.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor={theme.ribbonLeft} stopOpacity="0.45" />
-                                <stop offset="100%" stopColor={theme.ribbonMain} stopOpacity="0.18" />
-                              </linearGradient>
-
-                              {/* 3. Central S-Curve Flowing Ribbon Gradient */}
-                              <linearGradient id={`ribbonMain_${s.id}`} x1="20%" y1="0%" x2="90%" y2="100%">
-                                <stop offset="0%" stopColor={theme.ribbonLeft} stopOpacity="0.34" />
-                                <stop offset="45%" stopColor={theme.ribbonMain} stopOpacity="0.22" />
-                                <stop offset="100%" stopColor={theme.ribbonLeft} stopOpacity="0.38" />
-                              </linearGradient>
-
-                              {/* 4. Top-Right Fluid Dip Valley Gradient */}
-                              <linearGradient id={`ribbonTop_${s.id}`} x1="40%" y1="0%" x2="100%" y2="60%">
-                                <stop offset="0%" stopColor={theme.ribbonTop} stopOpacity="0.5" />
-                                <stop offset="100%" stopColor={theme.ribbonLeft} stopOpacity="0.2" />
-                              </linearGradient>
-
-                              {/* 5. Bottom-Left Soft Satin Glow */}
-                              <radialGradient id={`glow_${s.id}`} cx="10%" cy="90%" r="65%">
-                                <stop offset="0%" stopColor={theme.glow} stopOpacity="0.8" />
-                                <stop offset="55%" stopColor={theme.glow} stopOpacity="0.25" />
-                                <stop offset="100%" stopColor={theme.baseMid} stopOpacity="0" />
-                              </radialGradient>
-                            </defs>
-
-                            {/* Base Rect covering entire card */}
-                            <rect width="1000" height="650" fill={`url(#cardBase_${s.id})`} />
-
-                            {/* Left Fluid Contour Band */}
-                            <path
-                              d="M 0,0 L 220,0 C 270,140 280,240 210,360 C 150,470 210,560 290,650 L 0,650 Z"
-                              fill={`url(#ribbonLeft_${s.id})`}
-                            />
-
-                            {/* Signature Central S-Curve Flow (Divides crest across card from top to bottom) */}
-                            <path
-                              d="M 250,0 C 350,90 490,140 500,230 C 510,320 370,360 320,450 C 270,540 400,600 520,650 L 1000,650 L 1000,0 Z"
-                              fill={`url(#ribbonMain_${s.id})`}
-                            />
-
-                            {/* Top-Right Fluid Dip & Valley */}
-                            <path
-                              d="M 360,0 C 480,90 580,200 700,200 C 820,200 890,90 1000,70 L 1000,0 Z"
-                              fill={`url(#ribbonTop_${s.id})`}
-                            />
-
-                            {/* Upper-Right Accent Ribbon */}
-                            <path
-                              d="M 720,0 C 800,45 890,90 1000,105 L 1000,0 Z"
-                              fill={theme.ribbonCorner}
-                              fillOpacity="0.45"
-                            />
-
-                            {/* Luminous Soft Bottom-Left Satin Glow */}
-                            <rect width="1000" height="650" fill={`url(#glow_${s.id})`} />
-                          </svg>
-                        </div>
-
-                        <div className="relative z-10 min-w-0">
+                        <div className="min-w-0">
                           {/* Top Row: Avatar on Left + Status Badge on Right */}
                           <div className="flex items-center justify-between gap-1.5 flex-wrap">
                             <div className="relative shrink-0">
@@ -2551,7 +2403,7 @@ export const JobRequestDetail: React.FC = () => {
 
                             {/* Status Badge in Top Right */}
                             {s.is_done ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-emerald-400/90 bg-white/95 text-emerald-700 text-[9.5px] font-black uppercase tracking-wider shadow-2xs shrink-0 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-emerald-300/90 bg-emerald-50/95 text-emerald-700 text-[9.5px] font-black uppercase tracking-wider shadow-2xs shrink-0 whitespace-nowrap">
                                 <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                                 DONE
                               </span>
@@ -2565,7 +2417,7 @@ export const JobRequestDetail: React.FC = () => {
                           {/* Middle: Name & Unit */}
                           <div className="mt-2.5 space-y-0.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <h4 className={`text-base font-black tracking-tight truncate transition-colors ${theme.nameColor}`}>
+                              <h4 className="text-base font-bold text-blue-600 tracking-tight truncate group-hover:text-blue-700 transition-colors">
                                 {s.name}
                               </h4>
                               {isSelf && (
@@ -2575,26 +2427,26 @@ export const JobRequestDetail: React.FC = () => {
                               )}
                             </div>
 
-                            <p className={`text-xs font-bold truncate ${theme.unitColor}`}>
+                            <p className="text-xs text-slate-500 font-semibold truncate">
                               {s.unit ? `${s.unit} Unit` : 'Creative Specialist'}
                             </p>
                           </div>
                         </div>
 
                         {/* Balanced Horizontal Divider In-Between Text Atas & Bawah */}
-                        <div className={`relative z-10 border-t my-3 ${theme.dividerColor}`}></div>
+                        <div className="border-t border-slate-200/70 my-3"></div>
 
                         {/* Bottom: Task Details */}
-                        <div className="relative z-10 mt-auto">
-                          <span className={`text-[10px] font-extrabold uppercase tracking-wider block mb-0.5 ${theme.taskLabelColor}`}>
+                        <div className="mt-auto">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
                             ASSIGNED TASK
                           </span>
                           {tText ? (
-                            <p className={`text-xs font-bold truncate ${theme.taskTextColor}`}>
+                            <p className="text-xs text-slate-900 font-semibold truncate">
                               {tText}
                             </p>
                           ) : (
-                            <p className="text-xs text-slate-500 font-medium italic truncate">
+                            <p className="text-xs text-slate-400 font-medium italic truncate">
                               No specific task assigned
                             </p>
                           )}
